@@ -1,0 +1,75 @@
+# 7. Openings
+
+An **opening** is a hole in a wall — a door, a window, or a plain cased opening — placed by
+distances along its wall. It is **hosted**: it has no position of its own, and when its wall
+moves, it moves with it.
+
+## 7.1 Opening members
+
+| Member | Type | Default | Meaning |
+|---|---|---|---|
+| `wall` | reference to a wall | — (always present) | the host wall |
+| `offset` | length | — (always present) | from the wall's start junction along its location line to the opening's near edge |
+| `width` | length | from `fill` (7.2) | the opening's width along the wall |
+| `height` | length | from `fill` (7.2) | its height |
+| `sill` | length | from `fill`, else `0` (7.2) | the height of its bottom above the wall's base |
+| `fill` | reference to a `doorType` or `windowType` | absent: an empty opening | what fills it |
+| `hinge` | `"start"` or `"end"` | `"start"` | for a door: the jamb its leaf hangs from — the one nearer the wall's start or its end |
+| `swing` | `"left"` or `"right"` | `"right"` | for a door: the side of the wall, seen along the wall's direction, that its leaf opens into |
+| `name`, `extensions`, `extras` | | | 1.4 |
+
+An opening is hosted on a wall, never on a separator: a separator has nothing to cut. An opening
+is on its wall's level.
+
+`offset` MUST NOT be negative. {#FS-CORE-7.1.1 MUST NOT}
+
+`width` and `height` MUST be greater than zero, and `sill` MUST NOT be negative. {#FS-CORE-7.1.2 MUST}
+
+`hinge` and `swing` mean nothing for a window or an empty opening, and a writer omits them there.
+
+## 7.2 Resolving dimensions
+
+An opening's effective `width`, `height` and `sill` are resolved as every typed property is
+(8.2): the opening's own member if present; otherwise the member of its `fill` type; otherwise,
+for `sill` only, `0`. So a 36-inch door type sets the width of every opening it fills, and one
+opening can still override it.
+
+Every opening MUST resolve an effective `width` and an effective `height`. {#FS-CORE-7.2.1 MUST}
+
+An empty opening has no type, so it states its own width and height.
+
+## 7.3 Placement
+
+Along its wall, an opening occupies the interval from `offset` to `offset + width`, measured
+along the location line from the wall's start junction. Vertically, it occupies the interval from
+`sill` to `sill + height`, measured up from the wall's base elevation.
+
+An opening MUST lie within its wall's length: `offset + width` MUST NOT exceed the length of the wall's location line. {#FS-CORE-7.3.1 MUST}
+
+An opening MUST lie within its wall's height: `sill + height` MUST NOT exceed the wall's top elevation minus its base elevation. {#FS-CORE-7.3.2 MUST}
+
+Two openings on the same wall MUST NOT overlap: if their intervals along the wall overlap by a positive length, their vertical intervals MUST NOT also overlap by a positive length. {#FS-CORE-7.3.3 MUST NOT}
+A transom window above a door is two openings at the same offset, one above the other, and is
+valid; two doors in the same place are not. Openings may touch.
+
+The length test is exact: `offset + width ≤ L` is tested as `(offset + width)² ≤ dx² + dy²`.
+
+## 7.4 Derived placement
+
+An opening's **start point** and **end point** are the points on its wall's location line at
+distances `offset` and `offset + width` from the start junction:
+`S + d · offset / |d|` and `S + d · (offset + width) / |d|`, where `S` is the start junction's
+position and `d` the wall's direction vector. Its **sill elevation** is the wall's base elevation
+plus `sill`, and its **head elevation** is the sill elevation plus `height`.
+
+A deriver MUST derive each opening's start point, end point, sill elevation and head elevation as defined in this section, rounded as 2.2 requires. {#FS-CORE-7.4.1 MUST}
+
+## 7.5 Lints
+
+A validator SHOULD report this with the code of chapter 10. {#FS-CORE-7.5.1 SHOULD}
+
+- **Opening in a join** (`FS-LINT-005`, warning): an opening that reaches into the part of its wall
+  where it meets another — closer to the start junction than the farther of `startLeft` and
+  `startRight`, or closer to the end junction than the farther of `endLeft` and `endRight`, each
+  measured as a distance along the location line. A door there cuts into the corner of the wall it
+  meets.

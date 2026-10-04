@@ -1,0 +1,15 @@
+packages: []
+
+# Supply chain — the same policy set as Foreman and D3 Auth. A package published in the last seven
+# days is not installed: most malicious releases are found and pulled inside that window. A
+# dependency whose provenance gets weaker than an earlier release is refused, and so is a transitive
+# dependency fetched from anywhere but the registry.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+# A takeover shows up as a new release, so only releases from the last 30 days are judged.
+trustPolicyIgnoreAfter: 43200
+blockExoticSubdeps: true
+
+# pnpm 10 runs no dependency install scripts unless named. esbuild installs the binary tsx runs on.
+onlyBuiltDependencies:
+  - esbuild

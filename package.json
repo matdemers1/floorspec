@@ -1,0 +1,24 @@
+{
+  "name": "floorspec",
+  "private": true,
+  "version": "0.1.0-draft",
+  "description": "Floorspec — an open standard for describing houses as code: specification, JSON Schemas, conformance suite and tooling",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22.13.0", "pnpm": ">=10" },
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "statements": "tsx tools/extract-statements.ts",
+    "coverage": "tsx conformance/coverage.ts",
+    "schema:check": "tsx tools/check-schema.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tools/*.test.ts",
+    "check": "pnpm statements && pnpm schema:check && pnpm coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "ajv": "^8.17.1",
+    "tsx": "^4.20.6",
+    "typescript": "~6.0.3"
+  }
+}
