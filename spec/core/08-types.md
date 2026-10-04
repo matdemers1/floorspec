@@ -73,7 +73,7 @@ Operation, frame, glazing and hardware are defined in a later draft.
 | Member | Type | Default | Meaning |
 |---|---|---|---|
 | `color` | `"#rrggbb"`, lowercase hexadecimal sRGB | absent | the material's base colour |
-| `texture` | `{ "asset": reference to an asset, "size": [w, h] }` | absent | an image tiled across the surface; one tile covers `w` by `h` base units |
+| `texture` | `{ "asset": reference to an asset, "size": [w, h] }`, both always present | absent | an image tiled across the surface; one tile covers `w` by `h` base units |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A material's `color` MUST match `^#[0-9a-f]{6}$`. {#FS-CORE-8.5.1 MUST}
@@ -91,14 +91,15 @@ later drafts and extensions.
 | Member | Type | Default | Meaning |
 |---|---|---|---|
 | `path` | relative path | absent | where the file is, relative to the document (packaged with it) |
-| `uri` | absolute `https:` URI | absent | where the file is on the web |
+| `uri` | an absolute URI (RFC 3986) whose scheme is `https` and which has an authority | absent | where the file is on the web |
 | `sha256` | 64 lowercase hexadecimal digits | — (always present) | the SHA-256 digest of the file's bytes |
-| `mediaType` | media type string, such as `"image/png"` | — (always present) | what kind of file it is |
+| `mediaType` | a media type `type/subtype` as RFC 6838 §4.2 defines it, without parameters, such as `"image/png"` | — (always present) | what kind of file it is |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 An asset MUST have exactly one of `path` and `uri`. {#FS-CORE-8.6.1 MUST}
 
-A `path` MUST be relative, use `/` as its separator, and contain no empty, `.` or `..` segment. {#FS-CORE-8.6.2 MUST}
+A `path` MUST be relative, use `/` as its separator, contain no empty, `.` or `..` segment, and have no `:` in its first segment. {#FS-CORE-8.6.2 MUST}
+A path is a path, not a URI reference: it is not percent-encoded.
 
 The digest makes an asset verifiable wherever it is found, and lets a store keep one copy of a
 texture used by many projects. An asset by `uri` makes the document depend on someone else's

@@ -11,6 +11,9 @@ Validation runs in tiers:
    rooms and openings fit. (`FS-INV-`)
 5. **Lints** — conditions that make a valid document worse. (`FS-LINT-`)
 
+The schema is applied to the parsed document, in which a number written with a fraction or an
+exponent is not an integer: `1.0` is not a length.
+
 A document is **valid** when the first four tiers report no error. Lints never make a document
 invalid.
 
@@ -69,7 +72,7 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-JSON-003` | error | a string has an unpaired surrogate | — | 9.1.3 |
 | `FS-DOC-001` | error | the root is an object whose `floorspec` member is a string naming a version this reader does not implement | — | 1.2.2 |
 | `FS-DOC-002` | error | `extensionsRequired` names an extension this reader does not implement | — | 1.6.4 |
-| `FS-SCH-001` | error | the document does not match the schema of this draft | — | 1.1, 1.3, 1.4, 1.6.1, 1.8, 2.1, 2.4, 3.1.1, 4.1.1, 4.3.1, 5.9.1, 6.7.1, 7.1, 8.1, 8.3–8.6 |
+| `FS-SCH-001` | error | the document does not match the schema of this draft | — | 1.1, 1.2.1, 1.3, 1.4, 1.6.1, 1.6.7, 1.6.8, 1.8, 2.1, 2.4, 2.6 (shape), 3.1.1, 3.2.3, 4.1.1, 4.2 (syntax), 4.3.1, 5.1, 5.2, 5.8.5, 5.9.1, 6.5, 6.7.1, 7.1, 8.1, 8.3–8.6 |
 
 **Reference invariants.**
 

@@ -201,6 +201,9 @@ is one of:
 | `{ "kind": "butt", "through": [W] }` | at a corner of two edges, wall `W` runs to the outer corner and the other edge stops against it |
 | `{ "kind": "butt", "through": [W1, W2] }` | walls `W1` and `W2` continue straight through the junction, and every other edge stops against them |
 
+A `join` MUST have exactly one of the three forms in this table: `kind` `"mitre"` and no other
+member, or `kind` `"butt"` and a `through` array of one or two wall IDs. {#FS-CORE-5.8.5 MUST}
+
 Every wall named in `through` MUST be one of the junction's edges, and MUST be a wall, not a separator. {#FS-CORE-5.8.1 MUST}
 
 With one wall in `through`, the junction MUST have exactly two edges, and they MUST NOT be collinear. {#FS-CORE-5.8.2 MUST}

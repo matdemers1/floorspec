@@ -38,6 +38,8 @@ collection — and, for types, the kind — of the element it must resolve to:
 | Slab | `material` | a material |
 | Material | `texture.asset` | an asset |
 
+A reference MUST be a string that matches the ID pattern of 3.1. {#FS-CORE-3.2.3 MUST}
+
 Every reference MUST resolve to an element of the collection that its member names in this table. {#FS-CORE-3.2.1 MUST}
 
 Every reference to a type MUST resolve to a type of the kind its member names in this table. {#FS-CORE-3.2.2 MUST}
