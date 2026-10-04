@@ -1,0 +1,8 @@
+The Floorspec specification text (everything under spec/) is licensed under the
+Creative Commons Attribution 4.0 International License (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+Rule packs under rules/ are data licensed under CC BY 4.0 as well.
+
+Schemas (schema/), the conformance suite (conformance/), the registry tooling
+(registry/, tools/) and all other code are licensed under the Apache License 2.0 (LICENSE).
