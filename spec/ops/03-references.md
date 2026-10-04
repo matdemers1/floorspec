@@ -1,0 +1,100 @@
+# 3. References
+
+People and agents do not think in base units or IDs. They say "two foot six", "3810 mm", "the
+north wall of the kitchen", "centred in the wall between the kitchen and the dining room". The
+reference grammar lets an operation say exactly that, and the applier resolves it — deterministically,
+against the document as it stands — to the integers and IDs Core needs, then echoes what it
+resolved (1.4). Research on language models editing plans is unanimous that they fail at
+coordinates and succeed at intent and topology; references are where that lesson becomes a
+standard.
+
+## 3.1 Lengths
+
+Wherever an operation takes a **length**, it accepts a JSON integer (base units) or a string in
+this grammar (ABNF, RFC 5234; whitespace between tokens is ignored, letters are case-insensitive):
+
+```abnf
+length     = [ "-" ] ( metric / imperial )
+metric     = decimal ( "mm" / "cm" / "m" )
+imperial   = feet [ [ "-" ] inches ] / inches
+feet       = decimal ( "'" / "ft" )
+inches     = ( mixed / decimal ) ( DQUOTE / "in" )
+mixed      = 1*DIGIT ( "-" / " " ) fraction / fraction
+fraction   = 1*DIGIT "/" 1*DIGIT
+decimal    = 1*DIGIT [ "." 1*DIGIT ] / "." 1*DIGIT
+```
+
+So `12'`, `12' 6"`, `12'6-1/2"`, `6 1/2"`, `3/4 in`, `3810mm`, `3.81 m` and `-2'` are lengths. The
+value is computed exactly as a rational number of base units — 1 mm = 1280, 1 cm = 12800,
+1 m = 1,280,000, 1 in = 32,512, 1 ft = 390,144 — and rounded once to an integer, ties to even.
+
+An applier MUST resolve every length exactly as this section defines, and MUST reject a string that does not match the grammar, or a fraction with a zero denominator, with `FS-OPS-012`. {#FS-OPS-3.1.1 MUST}
+
+Every imperial length to 1/256 inch and every metric length to 1/1280 mm is exact; others — a
+third of an inch — are rounded, and the echo shows by how much.
+
+## 3.2 Points and vectors
+
+A **point** is `[x, y]` with each a length; a junction (its position); or one of two strings:
+
+- `"<length> from <junction> toward <junction>"` — the point that distance along the straight line
+  from the first junction towards the second, rounded once per coordinate, ties to even;
+- `"<length> <direction> of <junction>"` — the junction's position plus that vector (below):
+  `"12' east of J4"`.
+
+A **vector** is `[dx, dy]` with each a length, or a string `"<length> <direction>"` where the
+direction is `north` (+Y), `south`, `east` (+X) or `west`: `"2' east"` is `[780288, 0]`.
+
+An applier MUST resolve points and vectors exactly as this section defines. {#FS-OPS-3.2.1 MUST}
+
+## 3.3 Element selectors
+
+Wherever an operation takes an element, it accepts an ID or a **selector**:
+
+| Selector | Resolves to |
+|---|---|
+| an ID | that element |
+| a room's `name`, compared ignoring case | the room with that name |
+| `<side> wall of <room>` | the wall on that side of the room (3.4) |
+| `<side> separator of <room>` | likewise, a separator |
+| `wall between <room> and <room>` | the wall with one room on each side |
+| `separator between <room> and <room>` | likewise, a separator |
+| `start of <wall>`, `end of <wall>` | that edge's start or end junction |
+
+`<room>` is itself an ID or a room name; `<wall>` is an ID or one of the wall selectors.
+`<side>` is `north`, `south`, `east` or `west`.
+
+A selector that matches no element MUST be rejected with `FS-OPS-003`, and one that matches more than one MUST be rejected with `FS-OPS-004`, listing every match as the diagnostic's elements. {#FS-OPS-3.3.1 MUST}
+An applier never guesses between candidates. A room name shared by two rooms is ambiguous; so is
+"the north wall" of a room whose north side is two walls.
+
+## 3.4 Sides and adjacency
+
+Selectors that name a side, or a wall between two rooms, read the faces of the level (Core §6.1):
+
+- The **outward normal** of an edge on a room's outer cycle is its right-hand normal in the
+  direction the cycle is walked (the face is on the left), so it points away from the room.
+- An edge is on the room's **east** side when that normal `(nx, ny)` has `nx > 0` and `−nx < ny ≤ nx`;
+  **north** when `ny > 0` and `−ny ≤ nx < ny`; **west** when `nx < 0` and `nx ≤ ny < −nx`; **south**
+  when `ny < 0` and `ny < nx ≤ −ny`. Every direction is on exactly one side; a wall at exactly 45°
+  belongs to the side counter-clockwise before it.
+- `<side> wall of <room>` matches the walls on the room's outer cycle that are on that side.
+- `wall between R2 and R5` matches the walls with R2's face on one side and R5's face on the other.
+
+A selector that reads faces MUST be rejected with `FS-OPS-007` when the room's level, in the working copy at that point of the batch, breaks any of Core §5.1–5.3 or contains the room's anchor in no bounded face. {#FS-OPS-3.4.1 MUST}
+
+## 3.5 Positions along a wall
+
+Where an operation places something along a wall, it takes a **position**:
+
+| Position | The near edge is at |
+|---|---|
+| `"centered"` | `(L − w) / 2` |
+| `"<length> from start"` | that length |
+| `"<length> from end"` | `L − length − w` |
+| an integer or length | that offset |
+
+where `L` is the length of the wall's location line and `w` the width being placed. Each is
+computed exactly and rounded once, ties to even.
+
+An applier MUST resolve positions exactly as this section defines. {#FS-OPS-3.5.1 MUST}
