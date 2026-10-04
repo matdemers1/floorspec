@@ -1,6 +1,7 @@
 /**
- * The normative JSON Schema of Floorspec Core 0.1 (FLR-ADR-006), loaded into ajv: the schema tier
- * (tier 3, FS-SCH-001) of chapter 10 and nothing else. Used by `pnpm schema:check` and its tests.
+ * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core 0.1's document schema
+ * - the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - and Floorspec Ops 0.1's
+ * apply-request schema, whose rejections are FS-OPS-001. Used by `pnpm schema:check` and its tests.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -9,6 +10,10 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.
 export const SCHEMA_BASE = 'https://d3cloud.io/floorspec/schema/core/0.1/';
 export const ROOT_ID = `${SCHEMA_BASE}floorspec.schema.json`;
 export const schemaDir = join(import.meta.dirname, '..', 'schema', 'core', '0.1');
+
+export const OPS_SCHEMA_BASE = 'https://d3cloud.io/floorspec/schema/ops/0.1/';
+export const OPS_ROOT_ID = `${OPS_SCHEMA_BASE}request.schema.json`;
+export const opsSchemaDir = join(import.meta.dirname, '..', 'schema', 'ops', '0.1');
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -51,6 +56,13 @@ export function createAjv(files = loadSchemaFiles()) {
 export function rootValidator(ajv = createAjv()): ValidateFunction {
   const validate = ajv.getSchema(ROOT_ID);
   if (!validate) throw new Error(`schema ${ROOT_ID} is not loaded`);
+  return validate;
+}
+
+/** The validator of a Floorspec Ops 0.1 apply request. */
+export function requestValidator(ajv = createAjv(loadSchemaFiles(opsSchemaDir))): ValidateFunction {
+  const validate = ajv.getSchema(OPS_ROOT_ID);
+  if (!validate) throw new Error(`schema ${OPS_ROOT_ID} is not loaded`);
   return validate;
 }
 
@@ -193,6 +205,60 @@ export function checkSuite(suite: string, validate = rootValidator(), base = sui
     if (mustReject && valid) result.problems.push(`${name}: expects [FS-SCH-001], but the schema accepts the input`);
     if (!mustReject && !valid)
       result.problems.push(`${name}: expects [${codes.join(', ')}], but the schema rejects the input:\n    ${formatErrors(errors).join('\n    ')}`);
+  }
+  return result;
+}
+
+/**
+ * Checks the Ops request schema against the Ops conformance suite (conformance/ops/0.1). For every
+ * test, the schema must reject request.json - which may not even be JSON - exactly when the
+ * expected diagnostics are [FS-OPS-001], and accept it otherwise. And document A, input.json, must
+ * match the Core schema in every test that does not expect FS-OPS-002 (A is valid there).
+ */
+export function checkOpsSuite(suite: string, validateRequest = requestValidator(), validateDocument = rootValidator(), base = suite): SuiteResult {
+  const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
+  const dirs = (dir: string): string[] => {
+    if (!existsSync(dir)) return [];
+    const out: string[] = [];
+    for (const entry of readdirSync(dir).sort()) {
+      const p = join(dir, entry);
+      if (statSync(p).isDirectory()) out.push(...dirs(p));
+      else if (entry === 'test.json') out.push(dir);
+    }
+    return out;
+  };
+  for (const dir of dirs(suite)) {
+    const name = relative(base, dir) || '.';
+    const missing = ['input.json', 'request.json', 'expected.json'].filter((f) => !existsSync(join(dir, f)));
+    if (missing.length) {
+      result.problems.push(`${name}: has test.json but no ${missing.join(', ')}`);
+      continue;
+    }
+    let codes: string[];
+    try {
+      const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8')) as { diagnostics?: { code?: unknown }[] };
+      if (!Array.isArray(expected.diagnostics)) throw new Error('"diagnostics" is not an array');
+      codes = expected.diagnostics.map((d) => String(d.code));
+    } catch (e) {
+      result.problems.push(`${name}: expected.json: ${(e as Error).message}`);
+      continue;
+    }
+    const mustReject = codes.length === 1 && codes[0] === 'FS-OPS-001';
+    let request: SchemaResult;
+    try {
+      request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), validateRequest);
+    } catch {
+      request = { valid: false, errors: [] };
+    }
+    result.checked++;
+    if (mustReject && request.valid) result.problems.push(`${name}: expects [FS-OPS-001], but the request schema accepts the request`);
+    if (!mustReject && !request.valid)
+      result.problems.push(`${name}: expects [${codes.join(', ')}], but the request schema rejects the request:\n    ${formatErrors(request.errors).join('\n    ')}`);
+    if (!codes.includes('FS-OPS-002')) {
+      const document = validateText(readFileSync(join(dir, 'input.json'), 'utf8'), validateDocument);
+      if (!document.valid)
+        result.problems.push(`${name}: document A must be valid, but the Core schema rejects it:\n    ${formatErrors(document.errors).join('\n    ')}`);
+    }
   }
   return result;
 }
