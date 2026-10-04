@@ -121,6 +121,7 @@ A deriver conforms when what it derives equals `derived` exactly.
 python3.13 -m tools.oracle.regenerate          # every test, recomputed from input.json; exit 1 on any difference
 python3.13 -m tools.oracle <test-dir>          # one test's expected result, as the oracle computes it
 python3.13 -m unittest discover tools/oracle   # the oracle's own tests
+python3.13 -m tools.oracle.author              # rewrite the suite from its declarations
 ```
 
 `regenerate` recomputes every expected result from `input.json` alone and compares it with what is on
@@ -128,5 +129,11 @@ disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
 the canonical form canonicalizes to itself and derives the same values and hash (9.2.2).
 
-The suite assumes a reader that implements no extension: a document with a non-empty
-`extensionsRequired` is rejected with `FS-DOC-002`.
+The suite assumes a reader that implements no extension: a document whose `extensionsRequired`
+is well formed (distinct names, each in `extensionsUsed`) and not empty is rejected with
+`FS-DOC-002`, once for each name.
+
+The tests are declared in `tools/oracle/author.py`, with every expected diagnostic written by hand;
+`python3.13 -m tools.oracle.author` rewrites the suite from it and fails if the oracle disagrees with
+a hand-written diagnostic. Add new tests at the end of that file, so existing directories keep their
+numbers.

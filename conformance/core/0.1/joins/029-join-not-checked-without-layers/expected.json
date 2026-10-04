@@ -2,9 +2,9 @@
   "valid": false,
   "diagnostics": [
     {
-      "code": "FS-INV-004",
+      "code": "FS-INV-107",
       "severity": "error",
-      "elements": []
+      "elements": ["W3"]
     }
   ]
 }

@@ -191,7 +191,8 @@ def graph_tier(doc: Doc):
                 found.append(diag('FS-INV-107', [wid]))
             elif w.get('justification') == 'coreFace' and not doc.core_ok(wid):
                 found.append(diag('FS-INV-108', [wid]))
-        found.extend(join_applicability(doc, level, js, edges))
+        no_faces = {d['elements'][0] for d in found if d['code'] in ('FS-INV-107', 'FS-INV-108')}
+        found.extend(join_applicability(doc, level, js, edges, no_faces))
         for wid, w in doc.walls.items():
             if w['level'] == level and doc.top_elevation(wid) <= doc.base_elevation(wid):
                 ds.append(diag('FS-INV-112', [wid]))
@@ -202,14 +203,17 @@ def graph_tier(doc: Doc):
     return ds, bad_levels, no_top
 
 
-def join_applicability(doc: Doc, level, js, edges):
-    """FS-INV-111: 5.8.1-5.8.3."""
+def join_applicability(doc: Doc, level, js, edges, no_faces):
+    """FS-INV-111: 5.8.1-5.8.3. Not evaluated for a junction with a wall that has FS-INV-107 or
+    FS-INV-108 (10.3): such a wall has no face lines to compare."""
     ds = []
     for jid, j in doc.junctions.items():
         if j['level'] != level or j.get('join', {}).get('kind') != 'butt':
             continue
         through = j['join']['through']
         incident = [e for e, (s, t) in edges.items() if jid in (s, t)]
+        if any(e in no_faces for e in incident):
+            continue
 
         def out(eid):
             s, t = edges[eid]
@@ -404,10 +408,12 @@ def check(data: bytes):
         v = value.get('floorspec')
         if isinstance(v, str) and v not in IMPLEMENTED_VERSIONS:
             ds.append(diag('FS-DOC-001'))
-        req = value.get('extensionsRequired')
-        if isinstance(req, list):
-            # one diagnostic per extension named, however often it is named
-            for n in dict.fromkeys(x for x in req if isinstance(x, str)):
+        # FS-DOC-002 only for a well-formed extensionsRequired: an array of distinct names, each
+        # in extensionsUsed. Anything else is left to the schema tier and FS-INV-004 (10.4).
+        req, used = value.get('extensionsRequired'), value.get('extensionsUsed', {})
+        if (isinstance(req, list) and all(isinstance(n, str) for n in req) and len(set(req)) == len(req)
+                and isinstance(used, dict) and all(n in used for n in req)):
+            for n in req:
                 if n not in IMPLEMENTED_EXTENSIONS:
                     ds.append(diag('FS-DOC-002'))
     if ds:
