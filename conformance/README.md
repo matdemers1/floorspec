@@ -87,6 +87,7 @@ are illustrative only.
 }
 ```
 
+- All five members are always present, even when empty (`{}` or `[]`).
 - `walls` — every wall on every level: its four face ends (5.7, 5.8) and its base and top
   elevations (5.9).
 - `junctionFills` — every junction whose fill is not empty (5.7), as a ring.

@@ -71,5 +71,6 @@ A validator SHOULD report this with the code of chapter 10. {#FS-CORE-7.5.1 SHOU
 - **Opening in a join** (`FS-LINT-005`, warning): an opening that reaches into the part of its wall
   where it meets another — closer to the start junction than the farther of `startLeft` and
   `startRight`, or closer to the end junction than the farther of `endLeft` and `endRight`, each
-  measured as a distance along the location line. A door there cuts into the corner of the wall it
+  measured as a distance along the location line, using the rounded face ends of 5.7. The
+  comparison is strict: an opening that ends exactly where a join reaches is not reported. A door there cuts into the corner of the wall it
   meets.

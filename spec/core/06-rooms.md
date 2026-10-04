@@ -99,7 +99,8 @@ A validator SHOULD report these with the codes of chapter 10. {#FS-CORE-6.6.1 SH
 - **Unanchored face** (`FS-LINT-003`, information): a bounded face with no anchor, with its room
   polygon as the location.
 - **Degenerate face** (`FS-LINT-004`, warning): a bounded face with no anchor whose room polygon is
-  degenerate — usually two walls drawn too close together.
+  degenerate — usually two walls drawn too close together. Such a face is also unanchored, so it
+  is reported with both `FS-LINT-003` and `FS-LINT-004`.
 
 ## 6.7 Slabs
 

@@ -171,7 +171,7 @@ wall is `e_j` and its own sides are reversed: `endRight` is the first point of w
 A deriver MUST derive each wall's four face ends as defined in this section and 5.8, rounded as 2.2 requires. {#FS-CORE-5.7.1 MUST}
 
 The outline is the polygon `startRight → endRight → endLeft → startLeft`, after rounding and after
-removing a vertex equal to the one before it.
+removing each vertex equal to the one before it (the first vertex counts as following the last).
 
 A wall's outline MUST be a simple polygon with positive area and counter-clockwise orientation. {#FS-CORE-5.7.2 MUST}
 A wall too short for the joins at its ends — a stub between two thick walls — fails this test;
@@ -184,7 +184,7 @@ one before it removed (the first vertex counts as following the last).
 
 A deriver MUST derive the junction fill of every junction with three or more edges and the default join. {#FS-CORE-5.7.3 MUST}
 
-A junction fill with fewer than three vertices, or with zero area, is empty. A junction fill that is not empty MUST be a simple polygon with positive area and counter-clockwise orientation. {#FS-CORE-5.7.4 MUST}
+A junction fill with fewer than three vertices, or whose shoelace area is zero, is empty. A junction fill that is not empty MUST be a simple polygon with positive area and counter-clockwise orientation. {#FS-CORE-5.7.4 MUST}
 
 The union of the outlines of a level's walls and its junction fills is the level's wall body: the
 plan's solid poché.
@@ -204,7 +204,8 @@ is one of:
 A `join` MUST have exactly one of the three forms in this table: `kind` `"mitre"` and no other
 member, or `kind` `"butt"` and a `through` array of one or two wall IDs. {#FS-CORE-5.8.5 MUST}
 
-Every wall named in `through` MUST be one of the junction's edges, and MUST be a wall, not a separator. {#FS-CORE-5.8.1 MUST}
+Every wall named in `through` MUST be one of the junction's edges. {#FS-CORE-5.8.1 MUST}
+That it is a wall and not a separator is 3.2.1: `through` refers to the `walls` collection.
 
 With one wall in `through`, the junction MUST have exactly two edges, and they MUST NOT be collinear. {#FS-CORE-5.8.2 MUST}
 

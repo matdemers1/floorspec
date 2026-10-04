@@ -37,7 +37,9 @@ A **diagnostic** is a JSON object:
 
 A validator MUST report each condition the catalogue lists as a diagnostic with the catalogued code, severity and elements. {#FS-CORE-10.2.1 MUST}
 
-A validator reports diagnostics sorted by code and then by `elements`, compared as sequences of
+A condition that occurs several times is reported once for each occurrence: once for each
+unresolved reference, each undeclared extension name, each pair of crossing edges, each pair of
+coincident junctions. A validator reports diagnostics sorted by code and then by `elements`, compared as sequences of
 strings. For schema violations the catalogue lists a single code, `FS-SCH-001`; validators differ
 in how they break a schema violation into parts, so what is compared is only that at least one
 `FS-SCH-001` is reported.
@@ -51,7 +53,8 @@ error, with these refinements inside tier 4:
 - **Reference invariants** (`FS-INV-001` to `FS-INV-009`) are evaluated first. If any is reported,
   no other invariant is evaluated.
 - **Graph invariants** (`FS-INV-101` to `FS-INV-108`, `FS-INV-111` and `FS-INV-112`) are evaluated
-  for every level and wall.
+  for every level and wall, except that `FS-INV-111` is not evaluated for a junction with a wall
+  that has `FS-INV-107` or `FS-INV-108`: without layers there are no face lines to compare.
 - **Join invariants** (`FS-INV-109`, `FS-INV-110`) and **room invariants** (`FS-INV-201` to
   `FS-INV-204`) are evaluated only for levels on which no graph invariant other than
   `FS-INV-112` was reported.
@@ -71,7 +74,7 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-JSON-002` | error | an object has a duplicate member name | — | 9.1.2 |
 | `FS-JSON-003` | error | a string has an unpaired surrogate | — | 9.1.3 |
 | `FS-DOC-001` | error | the root is an object whose `floorspec` member is a string naming a version this reader does not implement | — | 1.2.2 |
-| `FS-DOC-002` | error | `extensionsRequired` names an extension this reader does not implement | — | 1.6.4 |
+| `FS-DOC-002` | error | `extensionsRequired` is an array of distinct extension names, each a member of `extensionsUsed`, and one of them names an extension this reader does not implement; one diagnostic for each such name. Any other `extensionsRequired` is left to the schema tier and `FS-INV-004` | — | 1.6.4 |
 | `FS-SCH-001` | error | the document does not match the schema of this draft | — | 1.1, 1.2.1, 1.3, 1.4, 1.6.1, 1.6.7, 1.6.8, 1.8, 2.1, 2.4, 2.6 (shape), 3.1.1, 3.2.3, 4.1.1, 4.2 (syntax), 4.3.1, 5.1, 5.2, 5.8.5, 5.9.1, 6.5, 6.7.1, 7.1, 8.1, 8.3–8.6 |
 
 **Reference invariants.**
@@ -97,7 +100,7 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-INV-103` | error | two edges connect the same two junctions | both edges | 5.2.2 |
 | `FS-INV-104` | error | two edges cross | both edges | 5.3.1 |
 | `FS-INV-105` | error | a junction lies inside an edge | the junction and the edge | 5.3.2 |
-| `FS-INV-106` | error | two edges overlap along a segment (and are not `FS-INV-103`) | both edges | 5.3.3 |
+| `FS-INV-106` | error | two edges overlap along a segment (and are not `FS-INV-103`); an overlap always also leaves a junction inside an edge, so `FS-INV-105` accompanies it | both edges | 5.3.3 |
 | `FS-INV-107` | error | a wall has no effective layers | the wall | 5.4.1 |
 | `FS-INV-108` | error | a `coreFace` wall has no core layer, or its core layers are not consecutive | the wall | 5.4.2 |
 | `FS-INV-109` | error | a wall's outline is not simple, has no area, or is clockwise | the wall | 5.7.2 |

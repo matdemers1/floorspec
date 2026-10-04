@@ -10,7 +10,8 @@ An object in a document MUST NOT contain the same member name twice. {#FS-CORE-9
 
 A string in a document MUST NOT contain an unpaired surrogate, whether literally or as a `\u` escape. {#FS-CORE-9.1.3 MUST NOT}
 
-The last two rules are those of I-JSON (RFC 7493). Many JSON parsers silently keep the last of two
+A surrogate code point encoded directly in UTF-8 is ill-formed UTF-8 and so breaks 9.1.1
+(`FS-JSON-001`); 9.1.3 is about `\u` escapes. The last two rules are those of I-JSON (RFC 7493). Many JSON parsers silently keep the last of two
 duplicate members; a Floorspec reader has to notice them, because two readers that keep different
 copies would read two different buildings from one file.
 
