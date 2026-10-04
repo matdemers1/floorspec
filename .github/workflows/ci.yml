@@ -1,7 +1,9 @@
 name: CI
 
-# The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schema against the
-# whole suite → MUST coverage → the independent oracle reproducing every expected output.
+# The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against the
+# whole suite (Core documents; Ops requests) → MUST coverage (FS-CORE and FS-OPS) → the independent
+# oracle reproducing every expected output of both suites, and every committed Ops result's resolved
+# echo and inverse.
 # A MUST without a test, a test naming an unknown statement, or an expected value the oracle does
 # not reproduce fails the build.
 #
@@ -35,9 +37,9 @@ jobs:
       - run: pnpm test
       - name: Normative statements are tagged correctly
         run: pnpm statements
-      - name: The schema accepts every valid input and rejects every schema-invalid one
+      - name: The schemas agree with both suites (Core documents, Ops requests)
         run: pnpm schema:check
-      - name: Every MUST has a conformance test
+      - name: Every MUST of Core and Ops has a conformance test
         run: pnpm coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -54,5 +56,5 @@ jobs:
           python-version: '3.13'
       - name: Oracle unit tests
         run: python -m unittest discover tools/oracle
-      - name: The oracle reproduces every expected output in the suite
+      - name: The oracle reproduces every expected output of the Core and Ops suites
         run: python -m tools.oracle.regenerate
