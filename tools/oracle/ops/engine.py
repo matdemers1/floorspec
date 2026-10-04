@@ -4,27 +4,11 @@ echo (1.4), created and removed, and the inverse (1.6).
 
 ``apply(a_bytes, request) -> (result, b_bytes | None)``.
 
-Readings of the specification this oracle makes where it leaves a choice (each is reported to
-the spec's editors; see conformance/README.md, "Floorspec Ops"):
-
-- Order of checks: the request's shape (FS-OPS-001), then A (FS-OPS-002), then the locks against
-  A (FS-OPS-010), then the batch, operation by operation; then normalization (FS-OPS-009), then
-  validation (Core diagnostics), then the locks against the result (FS-OPS-011). The first
-  failing step ends the transaction. A step that checks many things (FS-OPS-009, -010, -011)
-  reports one diagnostic for each failure it finds; any other step reports its first failure.
-- Within an operation, references are resolved in the order its definition lists its members,
-  except that an opening's position (`at`) is resolved after the width it needs.
-- A shorthand's `level`, `start`, `end` and `position`, and a composite's element members, are
-  references and are resolved (2.5); members that are only element content (`type`, `layers`,
-  `join`, `fill` when `width` is given, finishes, `value` …) are passed through as given.
-- $document addresses the document's top-level members other than its collections: `floorspec`,
-  `project`, `site`, `extensionsUsed`, `extensionsRequired`, `extensions`, `extras`.
-- The inverse applies step 3 of 1.6 (property differences) before steps 1 and 2, because a
-  `removeElement` without cascade of an element created by the batch is blocked while an element
-  of A still refers to it (a split wall's first piece ends at a new junction; an opening was
-  re-hosted on a new piece). A site that exists in only one of A and B is set or unset as
-  `$document`'s `/site`. Content is compared in canonical form (constant defaults omitted,
-  RFC 8785 equality).
+Where an earlier draft left a choice, Ops 0.1 now settles it, and this module follows the text:
+the order of checks (1.2, 7.1), the order of resolution within an operation (1.2 step 2), what a
+shorthand resolves (2.1.2, 2.5), what $document addresses (2.3), minting (1.5), the order of the
+inverse - property differences first (1.6) - and one diagnostic per failing opening or lock
+(7.1.2).
 """
 
 from __future__ import annotations
@@ -50,7 +34,8 @@ PREFIX = {'buildings': 'B', 'levels': 'L', 'junctions': 'J', 'walls': 'W', 'sepa
 DOC_MEMBERS = ('floorspec', 'project', 'site', 'extensionsUsed', 'extensionsRequired', 'extensions', 'extras')
 INVERSE_ORDER = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', 'levels', 'buildings',
                  'types', 'materials', 'assets')
-WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top', 'name')
+WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top')
+COMMON = ('name', 'extensions', 'extras')     # Core 1.4: what every element may carry
 
 
 def isd(v) -> bool:
@@ -89,6 +74,8 @@ class Transaction:
         self.a = a
         self.wc = copy.deepcopy(a)
         self.in_a_junctions = set(coll(a, 'junctions'))
+        self.a_ids = all_ids(a)
+        self.used: set[str] = set()                 # every ID named or minted in this batch
         self.retired = set(context.get('retired', []))
         self.locks = context.get('locks', [])
         self.minted: set[str] = set()
@@ -96,9 +83,11 @@ class Transaction:
 
     # ------------------------------------------------------------------ 1.5 minting
     def mint(self, prefix: str) -> str:
+        """One more than the largest n among the IDs in A, every ID named or minted earlier in the
+        batch (removed again or not), and context.retired."""
         pat = re.compile(re.escape(prefix) + r'([0-9]+)')
         top = 0
-        for eid in all_ids(self.wc) | self.minted | self.retired:
+        for eid in self.a_ids | all_ids(self.wc) | self.used | self.minted | self.retired:
             m = pat.fullmatch(eid)
             if m:
                 top = max(top, int(m[1]))
@@ -139,6 +128,7 @@ class Transaction:
     def add(self, c: str, eid: str, element: dict, ptr: str) -> None:
         if eid in all_ids(self.wc) or eid in self.retired:
             raise OpsError('FS-OPS-005', [], ptr, f'{eid} is already used or retired')
+        self.used.add(eid)
         self.wc.setdefault(c, {})[eid] = copy.deepcopy(element)
 
     def collection_of(self, eid):
@@ -299,8 +289,7 @@ class Transaction:
         level = R.element(op['level'], ('levels',), f'{P}/level')[1]
         x, y = R.point(op['position'], f'{P}/position')
         p = {'op': 'addJunction', 'id': self.new_id(op, 'J'), 'level': level, 'position': [x, y]}
-        if 'join' in op:
-            p['join'] = copy.deepcopy(op['join'])
+        p.update({k: copy.deepcopy(op[k]) for k in ('join', 'name', 'extensions', 'extras') if k in op})
         return [p]
 
     def _edge(self, R, op, P, name, prefix):
@@ -358,10 +347,10 @@ class Transaction:
         return prims + [p]
 
     def x_drawWall(self, R, op, P):
-        return self._draw(R, op, P, 'addWall', 'W', WALL_MEMBERS)
+        return self._draw(R, op, P, 'addWall', 'W', WALL_MEMBERS + COMMON)
 
     def x_drawSeparator(self, R, op, P):
-        return self._draw(R, op, P, 'addSeparator', 'S', ())
+        return self._draw(R, op, P, 'addSeparator', 'S', COMMON)
 
     def x_moveWall(self, R, op, P):
         wid = R.element(op['wall'], ('walls',), f'{P}/wall')[1]
@@ -432,12 +421,23 @@ class Transaction:
                 if plane.cross(o, direction) == 0 and plane.dot(o, direction) > 0:
                     return True
             return False
+        def stem(j):
+            """The edge that leaves j exactly in the direction of v, as its squared length."""
+            for _, other in lf.incident(j):
+                o = plane.sub(lf.pos[other], lf.pos[j])
+                if v != (0, 0) and plane.cross(o, v) == 0 and plane.dot(o, v) > 0:
+                    return plane.dot(o, o)
+            return None
         level = self.wc['rooms'][rid]['level']
         prims, fixed = [], set()
         for end, h, away in ((P_[0], run[0], (-d[0], -d[1])), (P_[-1], run[-1], d)):
             if not continues(end, away):
                 continue
             fixed.add(end)
+            along = stem(end)
+            if along is not None and along <= by * by:
+                raise OpsError('FS-OPS-008', [rid], f'{P}/by',
+                               f'the edge at {end} in the direction of the move is not longer than it')
             ex, ey = lf.pos[end]
             nj = self.mint('J')
             prims.append({'op': 'addJunction', 'id': nj, 'level': level, 'position': [ex + v[0], ey + v[1]]})
@@ -446,6 +446,8 @@ class Transaction:
             edge = self.wc[c][eid]
             member = '/start' if edge['start'] == end else '/end'
             prims.append({'op': 'setProperty', 'id': eid, 'path': member, 'value': nj})
+            if along is not None:
+                continue                        # normalization splits that edge: its first piece is the jog
             if c == 'walls':
                 jog = {'op': 'addWall', 'id': self.mint('W'), 'level': level, 'start': end, 'end': nj}
                 jog.update({m: copy.deepcopy(edge[m]) for m in ('type', 'layers', 'justification') if m in edge})
@@ -478,7 +480,7 @@ class Transaction:
         D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
         offset = R.position(op['at'], D, w, f'{P}/at')
         element = {'wall': wid, 'offset': offset, **dims}
-        element.update({k: copy.deepcopy(op[k]) for k in ('fill', 'hinge', 'swing', 'name') if k in op})
+        element.update({k: copy.deepcopy(op[k]) for k in ('fill', 'hinge', 'swing') + COMMON if k in op})
         return [{'op': 'addElement', 'collection': 'openings', 'id': self.new_id(op, 'O'), 'element': element}]
 
     def x_moveOpening(self, R, op, P):
@@ -498,7 +500,7 @@ class Transaction:
         level = R.element(op['level'], ('levels',), f'{P}/level')[1]
         x, y = R.point(op['at'], f'{P}/at')
         element = {'level': level, 'anchor': [x, y]}
-        element.update({k: copy.deepcopy(op[k]) for k in ('name', 'function', 'wallFinish', 'floorFinish', 'ceilingFinish') if k in op})
+        element.update({k: copy.deepcopy(op[k]) for k in ('function', 'wallFinish', 'floorFinish', 'ceilingFinish') + COMMON if k in op})
         return [{'op': 'addElement', 'collection': 'rooms', 'id': self.new_id(op, 'R'), 'element': element}]
 
     def x_setRoomFinish(self, R, op, P):
@@ -601,17 +603,17 @@ def _member_diff(target: str, a: dict, b: dict) -> list[dict]:
 def inverse(a: dict, b: dict) -> list[dict]:
     """The structural difference from B back to A (1.6), both in canonical form."""
     out = []
-    for c in INVERSE_ORDER:                                         # step 3
+    for c in INVERSE_ORDER:                                         # step 1: property differences
         ca, cb = coll(a, c), coll(b, c)
         for eid in sorted(set(ca) & set(cb)):
             out += _member_diff(eid, ca[eid], cb[eid])
-    for c in INVERSE_ORDER:                                         # step 1
+    for c in INVERSE_ORDER:                                         # step 2: removals
         for eid in sorted(set(coll(b, c)) - set(coll(a, c))):
             out.append({'op': 'removeElement', 'id': eid})
-    for c in reversed(INVERSE_ORDER):                               # step 2
+    for c in reversed(INVERSE_ORDER):                               # step 3: additions
         for eid in sorted(set(coll(a, c)) - set(coll(b, c))):
             out.append({'op': 'addElement', 'collection': c, 'id': eid, 'element': copy.deepcopy(a[c][eid])})
-    out += _member_diff('$project', a['project'], b['project'])     # step 4
+    out += _member_diff('$project', a['project'], b['project'])     # step 4: project, site, document
     if 'site' in a and 'site' in b:
         out += _member_diff('$site', a['site'], b['site'])
     elif 'site' in a:

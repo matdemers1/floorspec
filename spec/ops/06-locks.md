@@ -14,8 +14,11 @@ the committed result.
 | `{ "length": wallID }` | the wall exists and its location line has the same length as in A |
 | `{ "distance": [wallID, wallID] }` | both walls exist, are parallel, and the distance between their location lines is as in A |
 
-Comparisons are exact: lengths by their squares, distances by squared cross products.
+Comparisons are exact: content in canonical form (constant defaults omitted, Core §9.2, values
+equal when their RFC 8785 serializations are), positions as integers, lengths by their squares,
+distances by squared cross products. Locks are checked only on a valid result: a result that is
+both invalid and breaks a lock is rejected with its Core diagnostics alone (1.2, step 6).
 
-A lock whose elements do not exist in A, or a distance lock between walls not parallel in A, MUST be rejected with `FS-OPS-010`. {#FS-OPS-6.1.1 MUST}
+A lock whose elements do not exist in A, a length or distance lock that names an element that is not a wall in A, or a distance lock between walls not parallel in A, MUST be rejected with `FS-OPS-010`. {#FS-OPS-6.1.1 MUST}
 
 When the result breaks a lock in force, the applier MUST reject the batch with `FS-OPS-011`, naming the lock's elements. {#FS-OPS-6.1.2 MUST}

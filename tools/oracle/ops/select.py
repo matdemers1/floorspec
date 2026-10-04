@@ -1,7 +1,7 @@
 """Resolving references against the working copy (Ops chapter 3).
 
 Every reference is resolved against the working copy as it stands before the operation that
-holds it (1.2). The oracle's readings of the grammar, where the specification leaves a choice:
+holds it (1.2). The grammar's details, as 3.1-3.3 and 7.1 state them:
 
 - Keywords (`north`, `wall`, `of`, `between`, `start`, `from`, `toward`, `centered` …) are matched
   ignoring case, as the letters of a length are; whitespace between words is one or more spaces or

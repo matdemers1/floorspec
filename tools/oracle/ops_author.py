@@ -147,7 +147,7 @@ T('transactions', 'unknown-member-later-in-batch', 'The second operation of a va
       {'op': 'resizeRoom', 'room': 'Kitchen', 'side': 'east', 'by': K, 'keepAnchors': True}),
   'rejected', [('FS-OPS-001', [])])
 T('transactions', 'member-of-wrong-type', 'removeElement\'s "cascade" is a boolean; the string "yes" makes the request '
-  'malformed (the oracle\'s reading: a member of the wrong type is malformed).', ['1.1.1'], house(),
+  'malformed: every member has the JSON type schema/ops/0.1 gives it.', ['1.1.1'], house(),
   req({'op': 'removeElement', 'id': 'W8', 'cascade': 'yes'}), 'rejected', [('FS-OPS-001', [])])
 T('transactions', 'length-not-a-number-or-string', 'A length is a JSON integer or a string: 2.5 is neither, so the '
   'request is malformed (FS-OPS-001), not a grammar failure.', ['1.1.1'], house(),
@@ -177,8 +177,8 @@ T('transactions', 'document-other-version', 'Document A declares Floorspec 0.2, 
   'implement (FS-DOC-001): FS-OPS-002.', ['1.2.1'], doc(floorspec='0.2'),
   req({'op': 'setProperty', 'id': '$project', 'path': '/name', 'value': 'House'}), 'rejected', [('FS-OPS-002', [])])
 T('transactions', 'request-checked-before-document', 'Both the request (an empty batch) and A (crossing walls) are '
-  'wrong. The request is checked first, so the rejection is FS-OPS-001 alone (the oracle\'s reading of "first '
-  'failure": the request\'s shape, then A).', ['1.1.1', '1.2.1', '7.1.1'], crossing, req(), 'rejected',
+  'wrong. The request is checked before A (1.2, 7.1), so the rejection is FS-OPS-001 alone.',
+  ['1.1.1', '1.2.1', '7.1.1', '7.1.2'], crossing, req(), 'rejected',
   [('FS-OPS-001', [])])
 T('transactions', 'all-or-nothing', 'The first operation would succeed and the second names a junction that does '
   'not exist. The whole batch is rejected with the second\'s FS-OPS-003, and nothing of the first is returned.',
@@ -319,6 +319,18 @@ T('ids', 'normalization-mints-after-the-batch', 'A wall drawn across the box min
   req({'op': 'drawWall', 'level': 'L1', 'from': ["-2'", "6'"], 'to': ["14'", "6'"], 'type': 'WT'}),
   check=lambda r, B: ensure(r['created'] == ['J5', 'J6', 'J7', 'J8', 'W5', 'W6', 'W7', 'W8', 'W9'], r['created']))
 
+T('ids', 'removed-ids-are-not-minted-again', 'The courtyard wall W7 is removed, then a wall drawn: W7 was in A, so '
+  'minting skips it and the new wall is W8, although no wall in the working copy is numbered above 6.',
+  ['1.5.1', '1.4.1'], courtyard(),
+  req({'op': 'removeElement', 'id': 'W7'}, {'op': 'drawWall', 'level': 'L1', 'from': ["2'", "7'"], 'to': ["5'", "7'"], 'type': 'WT'}),
+  check=lambda r, B: ensure(r['created'] == ['J8', 'J9', 'W8'] and r['removed'] == ['W7'], r['created']))
+T('ids', 'named-and-removed-ids-are-not-minted-again', 'A junction named J9, removed again, then a junction minted: '
+  'J9 was named earlier in the batch, so the new one is J10 - and replaying the resolved echo, which names every ID, '
+  'mints the same.', ['1.5.1', '1.4.1'], box(),
+  req({'op': 'addJunction', 'id': 'J9', 'level': 'L1', 'position': ["3'", "3'"]}, {'op': 'removeElement', 'id': 'J9'},
+      {'op': 'drawWall', 'level': 'L1', 'from': ["-1'", "5'"], 'to': ["1'", "5'"], 'type': 'WT'}),
+  check=lambda r, B: ensure(r['created'] == ['J10', 'J11', 'J12', 'W5', 'W6', 'W7'], r['created']))
+
 # ================================================================================== primitives
 T('primitives', 'add-element', 'addElement adds a material exactly as given, under the ID it names.', ['2.1.1'],
   box(), req({'op': 'addElement', 'collection': 'materials', 'id': 'OAK', 'element': {'name': 'White oak', 'color': '#c8a165'}}),
@@ -338,10 +350,8 @@ T('primitives', 'add-element-invalid-content', 'addElement adds a level with no 
 T('primitives', 'add-junction-as-add-element', 'addElement into junctions, with an ID minted.', ['2.1.2'], box(),
   req({'op': 'addElement', 'collection': 'junctions', 'element': {'level': 'L1', 'position': [FT, FT], 'name': 'Post'}}))
 T('primitives', 'add-junction-shorthand', 'addJunction is addElement into junctions: the same document as the previous '
-  'test, byte for byte. A shorthand may not carry "name" (its definition lists only id, level, position and join), '
-  'so the name is set afterwards.', ['2.1.2'], box(),
-  req({'op': 'addJunction', 'level': 'L1', 'position': ["1'", "1'"]},
-      {'op': 'setProperty', 'id': 'J5', 'path': '/name', 'value': 'Post'}), same_as='add-junction-as-add-element')
+  'test, byte for byte, the name carried as every element may carry one.', ['2.1.2'], box(),
+  req({'op': 'addJunction', 'level': 'L1', 'position': ["1'", "1'"], 'name': 'Post'}), same_as='add-junction-as-add-element')
 T('primitives', 'add-wall-as-add-element', 'addElement into walls: a free-standing wall inside the room.', ['2.1.2'],
   box(junctions={'J5': J(2 * FT, 7 * FT), 'J6': J(5 * FT, 7 * FT)}),
   req({'op': 'addElement', 'collection': 'walls', 'element': {'level': 'L1', 'start': 'J5', 'end': 'J6', 'type': 'WT',
@@ -442,7 +452,7 @@ T('primitives', 'set-property-document', 'setProperty of $document addresses the
       {'op': 'setProperty', 'id': '$document', 'path': '/extras/importer', 'value': 'conformance'}),
   check=lambda r, B: ensure(B['extensionsUsed'] == {'EXT_acoustics': '1.0'} and B['extras'] == {'importer': 'conformance'}, B))
 T('primitives', 'set-property-document-collection', '$document does not address a collection: /walls is not one of '
-  'its members, so FS-OPS-003 (the oracle\'s reading of 2.3).', ['2.3.1'], box(),
+  'its members (2.3), so FS-OPS-003.', ['2.3.1'], box(),
   req({'op': 'setProperty', 'id': '$document', 'path': '/walls', 'value': {}}), 'rejected', [('FS-OPS-003', [])])
 T('primitives', 'unset-property', 'unsetProperty removes a member, so its default applies again: the room has no name.',
   ['2.3.1'], box(), req({'op': 'unsetProperty', 'id': 'R1', 'path': '/name'}),
@@ -469,6 +479,24 @@ T('primitives', 'add-wall-references', 'addWall\'s start and end are references:
   'is J3 - a second wall between the same junctions, which the result rejects (FS-INV-103).', ['2.1.2', '3.3.1'],
   box(), req({'op': 'addWall', 'level': 'L1', 'start': 'start of W2', 'end': 'end of W2', 'type': 'WT'}),
   'rejected', [('FS-INV-103', ['W2', 'W5'])])
+
+T('primitives', 'shorthand-reference-missing', 'addWall\'s start is a reference, resolved before the wall is added: '
+  'J99 names no junction, FS-OPS-003 - where addElement with the same content would be added and rejected at '
+  'validation.', ['2.1.2', '3.3.1'], box(), req({'op': 'addWall', 'level': 'L1', 'start': 'J99', 'end': 'J1', 'type': 'WT'}),
+  'rejected', [('FS-OPS-003', [])])
+T('primitives', 'add-element-reference-missing', 'The same wall through addElement: its content is not resolved or '
+  'checked when it is added, and the result fails validation, FS-INV-002.', ['2.1.1', '2.1.2'], box(),
+  req({'op': 'addElement', 'collection': 'walls', 'element': {'level': 'L1', 'start': 'J99', 'end': 'J1', 'type': 'WT'}}),
+  'rejected', [('FS-INV-002', ['W5'])])
+T('primitives', 'value-is-not-resolved', 'setProperty\'s value is taken as given, never resolved: "1\'" stays a string, '
+  'and the result fails the schema.', ['2.3.1', '1.2.3'], box(),
+  req({'op': 'setProperty', 'id': 'W1', 'path': '/base/offset', 'value': "1'"}), 'rejected', [('FS-SCH-001', [])])
+T('primitives', 'set-property-through-a-scalar', 'A path that leads through a string: FS-OPS-003.', ['2.3.1'], box(),
+  req({'op': 'setProperty', 'id': 'R1', 'path': '/name/first', 'value': 'x'}), 'rejected', [('FS-OPS-003', ['R1'])])
+T('primitives', 'set-property-missing-index', 'A path to an array index that does not exist: FS-OPS-003.', ['2.3.1'], box(),
+  req({'op': 'setProperty', 'id': 'WT', 'path': '/layers/3/thickness', 'value': 1}), 'rejected', [('FS-OPS-003', ['WT'])])
+T('primitives', 'set-property-not-a-pointer', 'A path that is not a JSON Pointer: FS-OPS-003.', ['2.3.1'], box(),
+  req({'op': 'setProperty', 'id': 'R1', 'path': 'name', 'value': 'x'}), 'rejected', [('FS-OPS-003', ['R1'])])
 
 # ================================================================================== references
 
@@ -507,8 +535,8 @@ T('references', 'point-from-toward', '"1\' from J1 toward Q", with Q at (3\', 4\
   box(junctions={'Q': J(3 * FT, 4 * FT), 'P': J(0, 20 * FT)}),
   req({'op': 'moveJunction', 'id': 'P', 'to': "1' from J1 toward Q"}),
   check=resolved_eq({'op': 'moveJunction', 'id': 'P', 'to': [234086, 312115]}))
-T('references', 'point-toward-itself', '"1\' from J1 toward J1" has no direction: the oracle\'s reading is that it '
-  'resolves to nothing, FS-OPS-003.', ['3.2.1'], box(junctions={'P': J(0, 20 * FT)}),
+T('references', 'point-toward-itself', '"1\' from J1 toward J1" has no direction: two junctions with the same '
+  'position are rejected with FS-OPS-003.', ['3.2.1'], box(junctions={'P': J(0, 20 * FT)}),
   req({'op': 'moveJunction', 'id': 'P', 'to': "1' from J1 toward J1"}), 'rejected', [('FS-OPS-003', [])])
 T('references', 'point-direction-of', '"12\' east of J4" is J4\'s position plus [12\', 0]: [24\', 0].', ['3.2.1'],
   box(), req({'op': 'addJunction', 'level': 'L1', 'position': "12' east of J4"}),
@@ -631,11 +659,11 @@ T('composites', 'draw-wall-reuses-a-junction', 'drawWall from [0, 0], where J1 a
 T('composites', 'draw-wall-every-member', 'drawWall passes every wall member it is given to addWall.', ['4.1.1'],
   upstairs(), req({'op': 'drawWall', 'id': 'W9', 'level': 'L1', 'from': "2' north of J1", 'to': "2' north of J4",
                    'type': 'WT', 'layers': [{'thickness': 64000, 'function': 'core'}], 'justification': 'interiorFace',
-                   'base': {'offset': 12800}, 'top': {'level': 'L2'}, 'name': 'Low wall'}),
+                   'base': {'offset': 12800}, 'top': {'level': 'L2'}, 'name': 'Low wall', 'extras': {'source': 'sketch'}}),
   check=lambda r, B: ensure(r['resolved'][-1] == {'op': 'addWall', 'id': 'W9', 'level': 'L1', 'start': 'J5', 'end': 'J6',
                                                    'type': 'WT', 'layers': [{'thickness': 64000, 'function': 'core'}],
                                                    'justification': 'interiorFace', 'base': {'offset': 12800},
-                                                   'top': {'level': 'L2'}, 'name': 'Low wall'}, r['resolved'][-1]))
+                                                   'top': {'level': 'L2'}, 'name': 'Low wall', 'extras': {'source': 'sketch'}}, r['resolved'][-1]))
 T('composites', 'draw-separator', 'An open kitchen: a separator drawn across the room between two new junctions on '
   'its walls (which normalization splits there), and a room added in the new face.', ['4.1.1', '4.6.1'],
   box(), req({'op': 'drawSeparator', 'level': 'L1', 'from': ["8'", 0], 'to': ["8'", "10'"]},
@@ -798,6 +826,41 @@ T('composites', 'remove-wall-one-room', 'A garden wall with no room on either si
   'is removed and keep is not needed.', ['4.7.1'], garden(), req({'op': 'removeWall', 'wall': 'W5'}),
   check=resolved_eq({'op': 'removeElement', 'id': 'W5', 'cascade': True}))
 
+def kitchen_from_the_south(r, B):
+    ensure(r['resolved'] == [
+        {'op': 'addJunction', 'id': 'J9', 'level': 'L1', 'position': [12 * FT, FT]},
+        {'op': 'setProperty', 'id': 'W7', 'path': '/start', 'value': 'J9'},
+        {'op': 'moveJunction', 'id': 'J1', 'to': [0, FT]},
+        {'op': 'setProperty', 'id': 'R1', 'path': '/anchor', 'value': [6 * FT, 4 * FT + FT // 2]}], r['resolved'])
+    ensure(B['walls']['W8']['end'] == 'J9' and B['walls']['W11'] == {'end': 'J8', 'level': 'L1', 'start': 'J9', 'type': 'WT'},
+           B['walls'])
+
+
+T('composites', 'shrink-the-kitchen-from-the-south', '"Take a foot off the kitchen from the south": resizeRoom south by '
+  '-1\'. The south side W7 continues east from J7 as the Dining room\'s W6, and J7 is a T: the Kitchen\'s own east '
+  'wall W8 leaves it north, in the direction of v = (0, 1\'). So no jog edge is added: the run is reconnected to a new '
+  'junction J9 at (12\', 1\') on W8, normalization splits W8 there, and its first piece, J7 -> J9, is the jog. J1 '
+  'moves 1\' north and the Kitchen\'s anchor half of it.', ['4.4.1', '5.2.1'], house(),
+  req({'op': 'resizeRoom', 'room': 'Kitchen', 'side': 'south', 'by': "-1'"}), check=kitchen_from_the_south)
+T('composites', 'shrink-past-the-t', 'Shrinking the Kitchen from the south by 8\': W8, the edge leaving J7 in the '
+  'direction of v, is 8\' long - not longer than |v| - so FS-OPS-008.', ['4.4.1', '7.1.1'], house(),
+  req({'op': 'resizeRoom', 'room': 'Kitchen', 'side': 'south', 'by': "-8'"}), 'rejected', [('FS-OPS-008', ['R1'])])
+T('composites', 'move-opening-without-width', 'The door\'s fill is unset, so it has no width, and moveOpening cannot '
+  'place it: FS-OPS-003 names the opening.', ['4.5.1'], door_on_south(FT),
+  req({'op': 'unsetProperty', 'id': 'O1', 'path': '/fill'}, {'op': 'moveOpening', 'opening': 'O1', 'at': 'centered'}),
+  'rejected', [('FS-OPS-003', ['O1'])])
+T('composites', 'remove-wall-on-a-crossed-level', 'removeWall by ID reads the faces either side of the wall; after '
+  'the first operation makes W8 cross the north wall, its level has none to give: FS-OPS-007.', ['3.4.1', '4.7.1'],
+  house(), req({'op': 'moveJunction', 'id': 'J8', 'to': ["13'", "13'"]}, {'op': 'removeWall', 'wall': 'W5'}),
+  'rejected', [('FS-OPS-007', ['L1'])])
+T('composites', 'created-elements-carry-common-members', 'addRoom and addOpening pass name, extensions and extras '
+  'into the element as given.', ['4.5.1', '4.6.1'], dict(house(), extensionsUsed={'EXT_acoustics': '1.0'}),
+  req({'op': 'addOpening', 'wall': 'W3', 'at': "2'", 'width': "2'", 'height': "3'", 'sill': "3'", 'name': 'Pantry window',
+       'extras': {'glazing': 'double'}},
+      {'op': 'drawSeparator', 'level': 'L1', 'from': ["24'", "6'"], 'to': ["28'", "6'"], 'name': 'Patio edge',
+       'extensions': {'EXT_acoustics': {}}}),
+  check=lambda r, B: ensure(B['openings']['O1']['extras'] == {'glazing': 'double'} and B['separators']['S1']['name'] == 'Patio edge', B))
+
 # ================================================================================== normalization
 T('normalization', 'draw-a-wall-across-two-walls', 'A wall drawn straight across the room from (-2\', 6\') to '
   '(14\', 6\') crosses W1 and W3. Planarization inserts junctions at both crossings - J7 at (0, 6\') and J8 at '
@@ -830,17 +893,18 @@ T('normalization', 'crossing-at-a-half-odd', 'The same wall one unit east crosse
   'the even 2000002.', ['5.2.1'], box(),
   req({'op': 'drawWall', 'level': 'L1', 'from': [2000001, -300000], 'to': [2000002, 300000], 'type': 'WT'}),
   check=lambda r, B: ensure(pos(B, 'J7') == [2000002, 0], pos(B, 'J7')))
-T('normalization', 'pixel-corner-even', 'A post P at (2000000, 2000000) and a wall drawn along x + y = 4000001, which '
-  'touches P\'s pixel only at its corner (2000000.5, 2000000.5). Both coordinates of P are even, so its pixel '
-  'includes its edges and corners: the wall passes through it and is split at P.', ['5.2.1'],
+T('normalization', 'pixel-corner-even', 'A post P at (2000000, 2000000) and a wall drawn along x + y = 4000001, out '
+  'across the south wall - so the level breaks Core 5.3 and is planarized. The wall touches P\'s pixel only at its '
+  'corner (2000000.5, 2000000.5); both coordinates of P are even, so its pixel includes its edges and corners: the '
+  'wall passes through it and is routed through P and split there, as well as at the south wall.', ['5.2.1'],
   box(junctions={'P': J(2000000, 2000000)}),
-  req({'op': 'drawWall', 'level': 'L1', 'from': [1500000, 2500001], 'to': [2500001, 1500000], 'type': 'WT'}),
-  check=lambda r, B: ensure(B['walls']['W5']['end'] == 'P' and B['walls']['W6']['start'] == 'P', B['walls']))
+  req({'op': 'drawWall', 'level': 'L1', 'from': [1500000, 2500001], 'to': [4500001, -500000], 'type': 'WT'}),
+  check=lambda r, B: ensure(B['walls']['W5']['end'] == 'P' and B['walls']['W7']['start'] == 'P', B['walls']))
 T('normalization', 'pixel-corner-odd', 'The same with P at (2000001, 2000000) and the wall along x + y = 4000002: P\'s '
   'x is odd, so its pixel excludes the corner (2000001.5, 2000000.5), which rounds to (2000002, 2000000). The wall '
-  'misses the pixel and is not split.', ['5.2.1'], box(junctions={'P': J(2000001, 2000000)}),
-  req({'op': 'drawWall', 'level': 'L1', 'from': [1500001, 2500001], 'to': [2500002, 1500000], 'type': 'WT'}),
-  check=lambda r, B: ensure(r['created'] == ['J5', 'J6', 'W5'], r['created']))
+  'misses the pixel: it is split at the south wall only.', ['5.2.1'], box(junctions={'P': J(2000001, 2000000)}),
+  req({'op': 'drawWall', 'level': 'L1', 'from': [1500001, 2500001], 'to': [4500002, -500000], 'type': 'WT'}),
+  check=lambda r, B: ensure(r['created'] == ['J5', 'J6', 'J7', 'W5', 'W6', 'W7'] and B['walls']['W5']['end'] == 'J7', r['created']))
 T('normalization', 'drag-a-corner-onto-another', 'The courtyard wall\'s free end J7 dragged onto the box\'s corner J3. '
   'Both were in A, so the survivor is the one whose ID sorts first, J3: W7 now ends at J3 and J7 is removed, closing '
   'the courtyard.', ['5.1.1', '5.4.1'], courtyard(), req({'op': 'moveJunction', 'id': 'J7', 'to': 'J3'}),
@@ -872,7 +936,7 @@ T('normalization', 'opening-straddles', 'The door at offset 3\' spans [3\', 6\']
   req({'op': 'drawWall', 'level': 'L1', 'from': ["8'", 0], 'to': ["8'", "10'"], 'type': 'WT'}), 'rejected',
   [('FS-OPS-009', ['O1'])])
 T('normalization', 'two-openings-straddle', 'Two doors, each across a new junction: one FS-OPS-009 for each.',
-  ['5.2.1', '7.1.1'], box(openings={'O1': {'wall': 'W4', 'offset': 3 * FT, 'fill': 'T-door-36'},
+  ['5.2.1', '7.1.1', '7.1.2'], box(openings={'O1': {'wall': 'W4', 'offset': 3 * FT, 'fill': 'T-door-36'},
                                     'O2': {'wall': 'W2', 'offset': 7 * FT, 'fill': 'T-door-36'}}),
   req({'op': 'drawWall', 'level': 'L1', 'from': ["8'", 0], 'to': ["8'", "10'"], 'type': 'WT'}), 'rejected',
   [('FS-OPS-009', ['O1']), ('FS-OPS-009', ['O2'])])
@@ -913,6 +977,20 @@ T('normalization', 'a-valid-document-is-left-alone', 'A batch that changes only 
   'level with no near misses changes nothing, and the inverse is the one setProperty.', ['5.4.1', '5.1.1', '5.2.1'],
   house(), req({'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'Kitchen & breakfast'}),
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'Kitchen'}], r['inverse']))
+
+near_miss = box(junctions={'P': J(2000000, 2000000), 'N1': J(1500000, 2500001), 'N2': J(2500001, 1500000)},
+                walls={'W5': W('N1', 'N2')})
+T('normalization', 'near-miss-left-alone', 'A wall W5 along x + y = 4000001 passes 0.7 base units from the post P - '
+  'inside P\'s pixel, but not through P - in a valid A. A rename elsewhere leaves the level satisfying Core 5.3, so '
+  'it is not planarized: W5 is not split, and B is A but for the name.', ['5.2.1', '5.4.1'], near_miss,
+  req({'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'Sitting room'}),
+  check=lambda r, B: ensure(r['created'] == [] and B['walls']['W5'] == {'end': 'N2', 'level': 'L1', 'start': 'N1', 'type': 'WT'}
+                            and r['inverse'] == [{'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'Living'}], B['walls']))
+T('normalization', 'near-miss-on-a-planarized-level', 'The same A, with a wall drawn across the south wall elsewhere: '
+  'the level now breaks Core 5.3 and is snap-rounded as a whole, so W5, passing through P\'s pixel, is routed '
+  'through P and split there.', ['5.2.1'], near_miss,
+  req({'op': 'drawWall', 'level': 'L1', 'from': ["10'", "-1'"], 'to': ["10'", "1'"], 'type': 'WT'}),
+  check=lambda r, B: ensure(B['walls']['W5']['end'] == 'P', B['walls']['W5']))
 
 # ================================================================================== locks
 KITCHEN_WIDER = {'op': 'resizeRoom', 'room': 'Kitchen', 'side': 'east', 'by': K}
@@ -956,16 +1034,16 @@ T('locks', 'distance-lock-not-parallel', 'A distance lock between W1 and W3, whi
   [('FS-OPS-010', ['W1', 'W3'])])
 T('locks', 'length-lock-not-a-wall', 'A length lock on R1, a room: it names no wall, FS-OPS-010.', ['6.1.1'], house(),
   req(KITCHEN_WIDER, locks=[{'length': 'R1'}]), 'rejected', [('FS-OPS-010', ['R1'])])
-T('locks', 'every-broken-lock', 'Two locks broken at once: one FS-OPS-011 for each, sorted.', ['6.1.2', '7.1.1'],
+T('locks', 'every-broken-lock', 'Two locks broken at once: one FS-OPS-011 for each, sorted.', ['6.1.2', '7.1.1', '7.1.2'],
   house(), req(KITCHEN_WIDER, locks=[{'length': 'W7'}, {'element': 'R2'}, {'element': 'R3'}]), 'rejected',
   [('FS-OPS-011', ['R3']), ('FS-OPS-011', ['W7'])])
 T('locks', 'locks-after-validation', 'An invalid result that also breaks a lock is rejected for what validation '
-  'finds; locks are checked only on a valid result.', ['6.1.2', '1.2.3', '7.1.1'], house(),
+  'finds; locks are checked only on a valid result.', ['6.1.2', '1.2.3', '7.1.1', '7.1.2'], house(),
   req({'op': 'removeElement', 'id': 'W8'}, locks=[{'length': 'W8'}]), 'rejected', [('FS-INV-202', ['R1', 'R3'])])
 
 # ================================================================================== diagnostics
 T('diagnostics', 'first-failure-wins', 'The first operation names a room that does not exist (FS-OPS-003); the '
-  'second has a malformed length (FS-OPS-012). Only the first failure is reported.', ['7.1.1'], house(),
+  'second has a malformed length (FS-OPS-012). Only the first failure is reported.', ['7.1.1', '7.1.2'], house(),
   req({'op': 'resizeRoom', 'room': 'Garage', 'side': 'east', 'by': K},
       {'op': 'resizeRoom', 'room': 'Kitchen', 'side': 'east', 'by': 'two feet'}), 'rejected', [('FS-OPS-003', [])])
 T('diagnostics', 'first-failure-wins-in-order', 'The same two operations the other way round: FS-OPS-012 alone.',
@@ -980,7 +1058,7 @@ T('diagnostics', 'blocked-element-and-dependents', 'FS-OPS-006 names the blocked
   [('FS-OPS-006', ['J8', 'W10', 'W8', 'W9'])])
 T('diagnostics', 'composite-names-its-room', 'FS-OPS-008 for resizeRoom names the room.', ['7.1.1', '4.4.1'], l_shaped(),
   req({'op': 'resizeRoom', 'room': 'Den', 'side': 'east', 'by': "-1'"}), 'rejected', [('FS-OPS-008', ['R1'])])
-T('diagnostics', 'each-bad-lock', 'Two locks that cannot apply to A: one FS-OPS-010 for each.', ['7.1.1', '6.1.1'],
+T('diagnostics', 'each-bad-lock', 'Two locks that cannot apply to A: one FS-OPS-010 for each.', ['7.1.1', '7.1.2', '6.1.1'],
   house(), req(KITCHEN_WIDER, locks=[{'element': 'R9'}, {'length': 'J1'}]), 'rejected',
   [('FS-OPS-010', ['J1']), ('FS-OPS-010', ['R9'])])
 T('diagnostics', 'core-diagnostics-of-the-result', 'A rejected result carries the Core diagnostics with severity error '
@@ -1008,8 +1086,8 @@ T('inverse', 'inverse-of-property-changes', 'A member set, one changed and one r
                                              {'op': 'setProperty', 'id': 'R1', 'path': '/function', 'value': 'living'},
                                              {'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'Living'}], r['inverse']))
 T('inverse', 'inverse-of-a-split', 'The inverse of a split restores W4\'s end before removing the junction and the '
-  'piece the split created - otherwise the removal of J5 would be blocked by W4. (The oracle applies 1.6\'s step 3 '
-  'before steps 1 and 2.)', ['1.6.1', '5.2.1'], box(),
+  'piece the split created - otherwise the removal of J5 would be blocked by W4. Property differences come first '
+  '(1.6, step 1).', ['1.6.1', '5.2.1'], box(),
   req({'op': 'drawWall', 'level': 'L1', 'from': ["6'", 0], 'to': ["6'", "3'"], 'type': 'WT'}),
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'setProperty', 'id': 'W4', 'path': '/end', 'value': 'J1'},
                                              {'op': 'removeElement', 'id': 'W5'}, {'op': 'removeElement', 'id': 'W6'},
@@ -1029,8 +1107,8 @@ T('inverse', 'inverse-of-document-members', 'Changes to $project, $site and $doc
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'setProperty', 'id': '$project', 'path': '/name', 'value': 'Conformance'},
                                              {'op': 'setProperty', 'id': '$site', 'path': '/trueNorth', 'value': 1000000},
                                              {'op': 'setProperty', 'id': '$document', 'path': '/extras', 'value': {'importer': 'dwg'}}], r['inverse']))
-T('inverse', 'inverse-of-a-new-site', 'The batch creates the site; the inverse unsets it as $document\'s /site (the '
-  'oracle\'s reading: there is no other way to remove a site).', ['1.6.1'], box(),
+T('inverse', 'inverse-of-a-new-site', 'The batch creates the site; the site exists in B only, so the inverse unsets '
+  'it as $document\'s /site (1.6, step 4).', ['1.6.1', '2.3.1'], box(),
   req({'op': 'setProperty', 'id': '$site', 'path': '/location', 'value': {'latitude': 42360100, 'longitude': -71058900}}),
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'unsetProperty', 'id': '$document', 'path': '/site'}], r['inverse']))
 T('inverse', 'inverse-of-a-removed-site', 'The batch removes the site; the inverse sets it back.', ['1.6.1'],

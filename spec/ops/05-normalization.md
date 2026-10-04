@@ -5,26 +5,31 @@ copy: it makes every level planar again and merges what edits have made coincide
 what lets an editor draw a wall straight across a room, or drag a corner onto another, without
 first computing where the walls cross.
 
-Normalization runs these steps, in order, on every level. It changes nothing but what they say:
-it never moves an anchor, never removes a wall or a room, and never changes a member other than
-those named.
+Normalization runs these steps in order — 5.1, then 5.2, then 5.3 — each over every level before
+the next step, levels in order of ID. It changes nothing but what they say: it never moves an
+anchor, never removes a wall or a room, and never changes a member other than those named. It
+reads only the well-formed part of a level — junctions with an integer position, and edges whose
+start and end are such junctions on the edge's own level — and leaves anything else as it is, for
+validation to judge.
 
 ## 5.1 Merge coincident junctions
 
 Junctions on one level with the same position are merged into one **survivor**: the one that was
-in A, if exactly one of them was; otherwise the one whose ID sorts first. Every `start`, `end` and
-`join.through` reference to the others is redirected to the survivor, and the others are removed.
+in A, if exactly one of them was; otherwise the one whose ID sorts first. Every `start` and `end`
+that names one of the others is redirected to the survivor; the others, and their joins, are
+removed.
 
 Two edges that now connect the same two junctions, or an edge whose start and end are now the
 same junction, are left as they are — and validation rejects the batch (Core 5.2.1, 5.2.2).
 Normalization never decides that a wall drawn on top of another was meant to replace it.
 
-An applier MUST merge coincident junctions as this section defines, before 5.2 and again after it. {#FS-OPS-5.1.1 MUST}
+An applier MUST merge coincident junctions as this section defines, before 5.2. {#FS-OPS-5.1.1 MUST}
 
 ## 5.2 Planarize
 
-Where edges cross, or an edge passes through a junction, the level is made planar by **snap
-rounding**:
+Planarization runs only on a level that, after 5.1, breaks Core §5.3 — where edges cross, an edge
+passes through a junction, or two edges overlap. A level that satisfies Core §5.3 is left exactly
+as it is. A level that breaks it is made planar, as a whole, by **snap rounding**:
 
 1. **Hot pixels.** The **pixel** of an integer point `p` is the set of points of the plane that
    round to `p`, each coordinate to the nearest integer, ties to even. A pixel is **hot** when it
@@ -37,17 +42,27 @@ rounding**:
    (minted, in order of the hot pixel's `x`, then `y`).
 4. **Splitting.** An edge routed through *n* > 0 intermediate hot pixels becomes *n* + 1 edges. The
    first, from the original start, keeps the edge's ID; the others are minted in order along the
-   edge and copy every member of the original except `start` and `end`.
+   edge and copy every member of the original except `start` and `end`. Edges are split walls
+   first, then separators, each in order of ID.
 5. **Openings.** An opening on a split wall moves to the piece whose interval along the original
-   location line contains the opening's whole interval `[offset, offset + width]`, and its offset
-   becomes its distance from that piece's start, computed exactly and rounded once, ties to even.
-   An opening that no piece contains straddles a new junction: the batch is rejected with
-   `FS-OPS-009`.
+   location line contains the opening's whole interval `[offset, offset + width]`; a piece's
+   interval runs between the distances along the original line of the projections of its two
+   ends. The opening's offset becomes `offset − s`, where `s` is the distance along the original
+   location line of the projection of the piece's start, computed exactly and rounded once, ties
+   to even. An opening that no piece contains straddles a new junction: the batch is rejected
+   with `FS-OPS-009`.
 
 Snap rounding moves no point of any edge by more than one base unit, and its result does not
-depend on the order of edges or on any implementation detail.
+depend on the order of edges or on any implementation detail. It creates junctions only where none
+exist, so it never makes two junctions coincide.
 
-An applier MUST planarize every level as this section defines, and MUST reject the batch with `FS-OPS-009` when an opening straddles a junction it inserts. {#FS-OPS-5.2.1 MUST}
+> [!note] Near misses
+> On a level that is planarized, an edge that passes within half a base unit of a junction it does
+> not touch passes through that junction's hot pixel, and is routed through the junction and split
+> there. A level with no crossing, no junction inside an edge and no overlap is never planarized,
+> so an edit elsewhere — a rename, a finish — leaves such a near miss exactly as it is.
+
+An applier MUST planarize exactly the levels this section names, as this section defines, and MUST reject the batch with `FS-OPS-009` when an opening straddles a junction it inserts. {#FS-OPS-5.2.1 MUST}
 
 ## 5.3 Join cleanup
 
@@ -58,4 +73,4 @@ An applier MUST remove such joins. {#FS-OPS-5.3.1 MUST}
 
 ## 5.4 When normalization runs
 
-An applier MUST normalize exactly as this chapter defines — 5.1, then 5.2, then 5.1 again, then 5.3 — once, after the last primitive of the batch and before validation. {#FS-OPS-5.4.1 MUST}
+An applier MUST normalize exactly as this chapter defines — 5.1, then 5.2, then 5.3 — once, after the last primitive of the batch and before validation. {#FS-OPS-5.4.1 MUST}

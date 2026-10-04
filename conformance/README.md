@@ -158,7 +158,8 @@ and named IDs), `primitives`, `references` (lengths, points, vectors, selectors,
 positions), `composites`, `normalization` (merging, snap rounding, re-hosting, join cleanup),
 `locks`, `diagnostics` and `inverse`. The realistic edits an agent makes are here by name:
 `composites/…-make-the-kitchen-two-feet-wider` (a resize whose side continues past the room, so
-it jogs), `…-make-the-dining-room-wider` (corner ends), `…-add-a-door-between-kitchen-and-dining`,
+it jogs), `…-make-the-dining-room-wider` (corner ends), `…-shrink-the-kitchen-from-the-south` (a T
+at the continuing end), `…-add-a-door-between-kitchen-and-dining`,
 `normalization/…-draw-a-wall-across-two-walls`, `…-drag-a-corner-onto-another`,
 `…-opening-rehosted` and `…-opening-straddles`.
 
@@ -212,7 +213,8 @@ wall an opening is on - asserted by hand in each test's `check`. `python3.13 -m 
 rewrites the suite from it and fails if the oracle disagrees with a hand-written expectation.
 Add new tests at the end of their group, so existing directories keep their numbers.
 
-Where the 0.1 draft leaves a choice - the order of the checks before the first operation, which
-elements an FS-OPS-003 names, what `$document` addresses, the order of the inverse's steps - the
-suite follows the readings documented at the top of `tools/oracle/ops/engine.py` and
-`tools/oracle/ops/select.py`, and the tests that depend on one say so in their description.
+The suite follows the 0.1 text where it settles what earlier drafts left open - the order of the
+checks (1.2, 7.1), one diagnostic per failing opening or lock (7.1.2), what `$document` addresses
+(2.3), minting past every ID A or the batch has used (1.5), property differences first in the
+inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizing inwards at a T
+(4.4) - and the tests that pin each say so in their description.

@@ -374,7 +374,7 @@
   },
   {
     "name": "shorthand with name",
-    "malformed": true,
+    "malformed": false,
     "request": {
       "batch": [
         {
@@ -406,7 +406,7 @@
   },
   {
     "name": "drawWall with extras",
-    "malformed": true,
+    "malformed": false,
     "request": {
       "batch": [
         {
@@ -857,6 +857,98 @@
       "context": {
         "retired": "W1"
       }
+    }
+  },
+  {
+    "name": "junction with type",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            0
+          ],
+          "type": "WT"
+        }
+      ]
+    }
+  },
+  {
+    "name": "drawSeparator with layers",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "drawSeparator",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ],
+          "layers": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "moveOpening with name",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": 0,
+          "name": "x"
+        }
+      ]
+    }
+  },
+  {
+    "name": "room and opening with common members",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "addRoom",
+          "level": "L1",
+          "at": [
+            0,
+            0
+          ],
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "addOpening",
+          "wall": "W1",
+          "at": 0,
+          "width": 1,
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "drawSeparator",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ],
+          "name": "n",
+          "extras": {}
+        }
+      ]
     }
   }
 ]

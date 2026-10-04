@@ -4,7 +4,7 @@ expected value is worked out in the comment beside it."""
 import unittest
 from fractions import Fraction
 
-from tools.oracle.ops.normalize import crossing, hot_pixels, planarize, round_point, route, segment_in_pixel
+from tools.oracle.ops.normalize import crossing, hot_pixels, normalize, planarize, round_point, route, segment_in_pixel
 
 
 class PixelTest(unittest.TestCase):
@@ -116,6 +116,36 @@ class PlanarizeTest(unittest.TestCase):
         self.assertEqual(wc['openings']['O1'], {'wall': 'W2', 'offset': 10, 'width': 10})
         self.assertEqual(wc['openings']['O3'], {'wall': 'W1', 'offset': 0, 'width': 40})
         self.assertEqual(straddles, ['O2'])
+
+
+class GateTest(unittest.TestCase):
+    """5.2: only a level that breaks Core 5.3 is planarized."""
+
+    def level(self):
+        # W1 runs along x + y = 5 and touches the pixel of the post P (2, 2) only at its corner
+        # (2.5, 2.5) - which, P's coordinates being even, belongs to that pixel: a near miss
+        return {
+            'junctions': {'A': {'level': 'L', 'position': [0, 5]}, 'B': {'level': 'L', 'position': [5, 0]},
+                          'P': {'level': 'L', 'position': [2, 2]}},
+            'walls': {'W1': {'level': 'L', 'start': 'A', 'end': 'B'}},
+        }
+
+    def test_a_planar_level_is_left_alone(self):
+        wc = self.level()
+        before = repr(wc)
+        normalize(wc, set(wc['junctions']), lambda prefix: next(iter([])))
+        self.assertEqual(repr(wc), before)
+
+    def test_a_crossed_level_is_snap_rounded_whole(self):
+        # a second wall from (4, -1) to (4, 3) crosses W1 at (4, 1): now the near miss is routed too
+        wc = self.level()
+        wc['junctions'].update({'C': {'level': 'L', 'position': [4, -1]}, 'D': {'level': 'L', 'position': [4, 3]}})
+        wc['walls']['W2'] = {'level': 'L', 'start': 'C', 'end': 'D'}
+        ids = iter(['J1', 'W3', 'W4', 'W5'])
+        normalize(wc, set(wc['junctions']), lambda prefix: next(ids))
+        self.assertEqual(wc['junctions']['J1']['position'], [4, 1])
+        self.assertEqual([(w['start'], w['end']) for w in wc['walls'].values()],
+                         [('A', 'P'), ('C', 'J1'), ('P', 'J1'), ('J1', 'B'), ('J1', 'D')])
 
 
 if __name__ == '__main__':

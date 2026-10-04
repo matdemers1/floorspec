@@ -56,33 +56,33 @@ def _enum(*values):
 STRING, LENGTH, POINT, VECTOR, POSITION, ANY, OBJECT, BOOL = (
     _string, _length, _point, _point, _length, _any, _object, _bool)
 
-WALL_MEMBERS = {'type': ANY, 'layers': ANY, 'justification': ANY, 'base': ANY, 'top': ANY, 'name': ANY}
+WALL_MEMBERS = {'type': ANY, 'layers': ANY, 'justification': ANY, 'base': ANY, 'top': ANY}
+COMMON = {'name': ANY, 'extensions': ANY, 'extras': ANY}      # every element may carry these (Core 1.4)
 
 # op -> (required members, optional members); `op` itself is implied.
 OPERATIONS = {
     # 2. primitives
     'addElement': ({'collection': _enum(*COLLECTIONS), 'element': OBJECT}, {'id': STRING}),
-    'addJunction': ({'level': STRING, 'position': POINT}, {'id': STRING, 'join': ANY}),
-    'addWall': ({'level': STRING, 'start': STRING, 'end': STRING},
-                {'id': STRING, **WALL_MEMBERS, 'extensions': ANY, 'extras': ANY}),
-    'addSeparator': ({'level': STRING, 'start': STRING, 'end': STRING}, {'id': STRING}),
+    'addJunction': ({'level': STRING, 'position': POINT}, {'id': STRING, 'join': ANY, **COMMON}),
+    'addWall': ({'level': STRING, 'start': STRING, 'end': STRING}, {'id': STRING, **WALL_MEMBERS, **COMMON}),
+    'addSeparator': ({'level': STRING, 'start': STRING, 'end': STRING}, {'id': STRING, **COMMON}),
     'removeElement': ({'id': STRING}, {'cascade': BOOL}),
     'setProperty': ({'id': STRING, 'path': STRING, 'value': ANY}, {}),
     'unsetProperty': ({'id': STRING, 'path': STRING}, {}),
     'moveJunction': ({'id': STRING, 'to': POINT}, {}),
     # 4. composites
-    'drawWall': ({'level': STRING, 'from': POINT, 'to': POINT}, {'id': STRING, **WALL_MEMBERS}),
-    'drawSeparator': ({'level': STRING, 'from': POINT, 'to': POINT}, {'id': STRING}),
+    'drawWall': ({'level': STRING, 'from': POINT, 'to': POINT}, {'id': STRING, **WALL_MEMBERS, **COMMON}),
+    'drawSeparator': ({'level': STRING, 'from': POINT, 'to': POINT}, {'id': STRING, **COMMON}),
     'moveWall': ({'wall': STRING, 'by': LENGTH}, {'toward': STRING}),
     'moveRoom': ({'room': STRING, 'by': VECTOR}, {}),
     'resizeRoom': ({'room': STRING, 'side': _enum(*SIDES), 'by': LENGTH}, {}),
     'addOpening': ({'wall': STRING, 'at': POSITION},
                    {'id': STRING, 'fill': STRING, 'width': LENGTH, 'height': LENGTH, 'sill': LENGTH,
-                    'hinge': ANY, 'swing': ANY, 'name': ANY}),
+                    'hinge': ANY, 'swing': ANY, **COMMON}),
     'moveOpening': ({'opening': STRING, 'at': POSITION}, {}),
     'addRoom': ({'level': STRING, 'at': POINT},
-                {'id': STRING, 'name': ANY, 'function': ANY, 'wallFinish': ANY, 'floorFinish': ANY,
-                 'ceilingFinish': ANY}),
+                {'id': STRING, 'function': ANY, 'wallFinish': ANY, 'floorFinish': ANY,
+                 'ceilingFinish': ANY, **COMMON}),
     'setRoomFinish': ({'room': STRING, 'surface': _enum(*SURFACES), 'material': STRING}, {}),
     'removeWall': ({'wall': STRING}, {'keep': STRING}),
 }

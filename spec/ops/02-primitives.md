@@ -12,7 +12,7 @@ when it cannot.
 ```
 
 Adds `element` to `collection` under `id`, or under a minted ID when `id` is absent (1.5).
-`collection` is one of the twelve collections of Core §1.1. The element is added exactly as
+`collection` is one of the eleven collections of Core §1.1. The element is added exactly as
 given; whether it is a valid element is decided when the batch is validated, after normalization.
 
 `addElement` MUST fail with `FS-OPS-005` when its `id` is already used (1.5.2), and MUST NOT otherwise check the element's content. {#FS-OPS-2.1.1 MUST}
@@ -22,11 +22,16 @@ inline; they exist because they are the commonest edits and read naturally:
 
 | Shorthand | Is |
 |---|---|
-| `{ "op": "addJunction", "id"?, "level", "position", "join"? }` | `addElement` into `junctions` |
-| `{ "op": "addWall", "id"?, "level", "start", "end", …wall members }` | `addElement` into `walls` |
-| `{ "op": "addSeparator", "id"?, "level", "start", "end" }` | `addElement` into `separators` |
+| `{ "op": "addJunction", "id"?, "level", "position", "join"?, "name"?, "extensions"?, "extras"? }` | `addElement` into `junctions` |
+| `{ "op": "addWall", "id"?, "level", "start", "end", "type"?, "layers"?, "justification"?, "base"?, "top"?, "name"?, "extensions"?, "extras"? }` | `addElement` into `walls` |
+| `{ "op": "addSeparator", "id"?, "level", "start", "end", "name"?, "extensions"?, "extras"? }` | `addElement` into `separators` |
 
-An applier MUST treat each shorthand exactly as the `addElement` it is. {#FS-OPS-2.1.2 MUST}
+Every operation that creates an element may carry the members every element may (`name`,
+`extensions`, `extras`, Core §1.4), and passes them into the element as given.
+
+A shorthand's references — `level`, `start`, `end` and `position` — are resolved first (2.5); the shorthand is then exactly the `addElement` of the resolved values, and an applier MUST treat it so. {#FS-OPS-2.1.2 MUST}
+So a shorthand whose `start` names no junction is rejected with `FS-OPS-003` when it is resolved,
+where an `addElement` with the same content is added and rejected at validation (`FS-INV-002`).
 
 ## 2.2 removeElement
 
@@ -61,13 +66,15 @@ When `cascade` is `true`, `removeElement` MUST remove exactly the elements the t
 ```
 
 `setProperty` sets the member at `path` — a JSON Pointer (RFC 6901), relative to the element — to
-`value`, creating the member, and any missing objects on the way to it, if needed. `unsetProperty`
-removes the member, so that its default applies again. `id` is an element ID, or one of three
-reserved targets: `$project`, `$site` and `$document` (the document's top-level members other than
-its collections, such as `extensionsUsed`). Setting a member of `$site` creates the site if the
-project has none.
+`value`, creating the member, and any missing objects on the way to it, if needed; an array element
+is addressed by its index. `unsetProperty` removes the member, so that its default applies again.
+`id` is an element reference, or one of three reserved targets: `$project`, `$site` and
+`$document`. `$document` addresses the document's top-level members other than its collections:
+`floorspec`, `project`, `site`, `extensionsUsed`, `extensionsRequired`, `extensions` and `extras` —
+so `unsetProperty` of `$document` `/site` removes the site. Setting a member of `$site` creates the
+site if the project has none.
 
-`setProperty` and `unsetProperty` MUST fail with `FS-OPS-003` when `id` does not exist, or when `path` is empty, and `unsetProperty` MUST also fail with `FS-OPS-003` when the member does not exist. {#FS-OPS-2.3.1 MUST}
+`setProperty` and `unsetProperty` MUST fail with `FS-OPS-003` when `id` does not exist, when `path` is empty or is not a JSON Pointer, when it leads through a value that is neither an object nor an array or to an array index that does not exist, or when it names a member of `$document` that the list above does not, and `unsetProperty` MUST also fail with `FS-OPS-003` when the member does not exist. {#FS-OPS-2.3.1 MUST}
 
 A `path` cannot change an element's ID or move it between collections: there is no member for
 either. Changing an ID is not an edit Floorspec has.
@@ -86,6 +93,8 @@ An applier MUST treat `moveJunction` exactly as `setProperty` of the junction's 
 ## 2.5 Values in primitives
 
 Primitives carry resolved values: lengths are integers and points are `[x, y]` — except that a
-primitive in a batch may use the reference grammar of chapter 3 wherever a length, point or ID
-is expected, and is resolved first like any composite. The `resolved` echo (1.4) always contains
-the integers.
+primitive in a batch may use the reference grammar of chapter 3 in a member its definition types
+as a length, point or element reference (`removeElement`'s `id`, `moveJunction`'s `to`, a
+shorthand's `level`, `start`, `end` and `position`), and is resolved first like any composite;
+never inside `element` or `value`, which are taken as given. The `resolved` echo (1.4) always
+contains the integers.

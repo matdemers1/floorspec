@@ -1,5 +1,6 @@
-"""Normalization (Ops chapter 5): merge coincident junctions, planarize by snap rounding, merge
-again, clean up joins - each step over every level before the next, levels in ID order.
+"""Normalization (Ops chapter 5): merge coincident junctions, planarize by snap rounding - only a
+level that breaks Core 5.3 - and clean up joins, each step over every level before the next,
+levels in ID order.
 
 Exactness. Pixels, intersections and the order of hot pixels along an edge are decided with
 Fractions; the intervals of the original location line that the pieces of a split wall cover
@@ -169,10 +170,25 @@ def effective_width(wc, o):
     return None
 
 
+def breaks_5_3(js: dict, edges) -> bool:
+    """Core 5.3 on the well-formed part of a level: a crossing, a junction inside an edge, or an
+    overlap - the validator's own exact tests."""
+    segs = [(js[s], js[t]) for _, _, s, t in edges]
+    for i, (a, b) in enumerate(segs):
+        for c, d in segs[i + 1:]:
+            if plane.proper_cross(a, b, c, d) or plane.collinear_overlap(a, b, c, d):
+                return True
+        if any(plane.in_open_segment(p, a, b) for p in js.values()):
+            return True
+    return False
+
+
 def planarize(wc: dict, level: str, mint, straddles: list) -> None:
-    """5.2: snap rounding."""
+    """5.2: snap rounding, on a level that breaks Core 5.3; any other level is left as it is."""
     js = _junctions_on(wc, level)
     edges = [e for e in _edges_on(wc, level, js) if js[e[2]] != js[e[3]]]
+    if not breaks_5_3(js, edges):
+        return
     hot = hot_pixels(js.values(), [(js[s], js[t]) for _, _, s, t in edges])
     at = {p: j for j, p in js.items()}
     for p in sorted(hot):                                   # step 3: x, then y
@@ -241,8 +257,9 @@ def join_cleanup(wc: dict) -> None:
 
 
 def normalize(wc: dict, in_a: set, mint) -> None:
-    """5.4: 5.1, then 5.2, then 5.1 again, then 5.3. FS-OPS-009 for every opening that
-    straddles a junction planarization inserts."""
+    """5.4: 5.1, then 5.2, then 5.3. FS-OPS-009 for every opening that straddles a junction
+    planarization inserts. (Planarization creates junctions only where none are, so nothing can
+    coincide after it.)"""
     for level in levels_of(wc):
         merge(wc, level, in_a)
     straddles: list[str] = []
@@ -250,8 +267,6 @@ def normalize(wc: dict, in_a: set, mint) -> None:
         planarize(wc, level, mint, straddles)
     if straddles:
         raise OpsStraddle(straddles)
-    for level in levels_of(wc):
-        merge(wc, level, in_a)
     join_cleanup(wc)
 
 

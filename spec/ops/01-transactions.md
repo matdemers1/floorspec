@@ -11,25 +11,33 @@ transaction. An **apply request** is the JSON object
 ```
 
 where `context` is optional: `locks` are the locks in force (chapter 6), and `retired` lists IDs
-that once existed in this document's history and therefore are never minted again (1.5).
+that once existed in this document's history and therefore are never minted again (1.5). The
+JSON Schema `schema/ops/0.1/request.schema.json` gives the shape of an apply request: every
+operation, every member each has, and the JSON type of each member.
 
-A batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.1 MUST}
+An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.1 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.1 MUST}
+The rule is about requests. The inverse of a committed result (1.6) is a batch too, and it may be
+empty; an empty inverse is never applied.
 
 ## 1.2 The transaction
 
-Applying a batch to a document A is a transaction of six steps:
+Before anything else, the applier checks the request (1.1.1). Applying a batch to a document A is
+then a transaction of six steps:
 
-1. **Check A.** A must be a valid Floorspec Core document (Core §10.1).
+1. **Check A.** A must be a valid Floorspec Core document (Core §10.1), and then every lock in
+   force must apply to A (6.1.1).
 2. **Resolve.** Every reference in every operation — a length written `"2' 6\""`, a selector such as
    `"north wall of R5"` — is resolved against the document as it stands *before that operation*,
-   to IDs and integers (chapter 3).
+   to IDs and integers (chapter 3). Within an operation, references are resolved in the order the
+   definition lists the members, except that a position is resolved after the width it depends
+   on (4.5).
 3. **Expand.** Every composite operation is replaced by the primitive operations it is defined as
    (chapter 4).
 4. **Apply.** The primitives are applied in order to a working copy of A (chapter 2).
 5. **Normalize.** The working copy is made planar and consistent (chapter 5).
-6. **Validate and commit.** The working copy is validated (Core tiers 3 and 4) and checked against
-   the locks in force (chapter 6). If it is valid and breaks no lock, it is the result B, in
-   canonical form. Otherwise the batch is rejected.
+6. **Validate and commit.** The working copy is validated (Core tiers 3 and 4) and then checked
+   against the locks in force (chapter 6). If it is valid and breaks no lock, it is the result B,
+   in canonical form. Otherwise the batch is rejected.
 
 Steps 2 to 4 alternate operation by operation: operation *n* is resolved against the working copy
 left by operations 1 to *n* − 1. Normalization runs once, after the last operation, and validation
@@ -74,7 +82,9 @@ visible in `created`, `removed` and in B.
 
 A committed result's `resolved` MUST be a batch of primitives that, applied to A in place of the original batch, commits the same document B. {#FS-OPS-1.4.1 MUST}
 This is what lets a person or an agent see what "2 ft wider" meant in base units, and lets a log
-replay an edit without resolving its references again.
+replay an edit without resolving its references again. The replay names every ID the batch
+minted, and minting (1.5) skips every ID named or minted earlier in a batch alike, so the IDs
+normalization mints in the replay are the ones it minted the first time.
 
 ## 1.5 Minting IDs
 
@@ -86,13 +96,13 @@ mints one: the element's **prefix** followed by a decimal integer.
 | `buildings` | `B` | `openings` | `O` |
 | `levels` | `L` | `rooms` | `R` |
 | `junctions` | `J` | `slabs` | `SL` |
-| `walls` | `W` | `types` | `T` |
-| `separators` | `S` | `materials` | `M` |
-| | | `assets` | `A` |
+| `walls` | `W` | `separators` | `S` |
+| `types` | `T` | `materials` | `M` |
+| `assets` | `A` | | |
 
-The integer is one more than the largest *n* among the IDs that match `^<prefix>[0-9]+$` — those
-in the working copy, those minted earlier in the same batch, and those in `context.retired` — or
-`1` when there are none.
+The integer is one more than the largest *n* among the IDs that match `^<prefix>[0-9]+$` — the IDs
+in A, every ID named or minted earlier in the same batch (including any removed again since), and
+those in `context.retired` — or `1` when there are none.
 
 An applier MUST mint IDs exactly as this section defines. {#FS-OPS-1.5.1 MUST}
 
@@ -101,26 +111,35 @@ An operation that names an ID already used anywhere in the working copy, or list
 > [!note] Why "one more than the largest"
 > Minting the smallest free number would hand a deleted wall's ID to the next wall, and every log,
 > comment and changeset that named the old one would silently point at the new one. The largest
-> number plus one cannot reuse an ID still in the document; `retired`, which the store keeps,
-> stops it reusing one that was deleted.
+> number plus one cannot reuse an ID that A has or that the batch has used, even one it removed
+> again; `retired`, which the store keeps, stops it reusing one that was deleted in an earlier
+> transaction.
 
 ## 1.6 The inverse
 
 The `inverse` of a committed result is the **structural difference** from B back to A, as
 primitives in this order:
 
-1. `removeElement` (without `cascade`) for every element in B and not in A, in the order
+1. for every element in both A and B whose content differs, by collection in the order of step 2
+   and by ID: `setProperty` for each top-level member whose value differs or that A has and B
+   lacks, and `unsetProperty` for each that B has and A lacks, by member name;
+2. `removeElement` (without `cascade`) for every element in B and not in A, in the order
    openings, rooms, slabs, separators, walls, junctions, levels, buildings, types, materials,
    assets, and by ID within a collection;
-2. `addElement` for every element in A and not in B, in the reverse of that collection order, and
-   by ID within a collection, with the element exactly as it is in A;
-3. for every element in both whose content differs, by collection in the order of step 1 and by
-   ID: `setProperty` for each top-level member whose value differs or that A has and B lacks, and
-   `unsetProperty` for each that B has and A lacks, by member name;
-4. the same for `project` and `site`, addressed as `$project` and `$site` (2.3), and for the
-   document's top-level members other than the collections, addressed as `$document`.
+3. `addElement` for every element in A and not in B, in the reverse of that collection order, and
+   by ID within a collection, with the element exactly as it is in A's canonical form;
+4. the same as step 1 for `project` and `site`, addressed as `$project` and `$site` (2.3) — except
+   that when the site exists in only one of A and B, it is `setProperty` or `unsetProperty` of
+   `$document` `/site` — and for the document's top-level members other than the collections,
+   the project and the site, addressed as `$document`.
 
-Applying a committed result's `inverse` to B MUST commit a document whose canonical form is exactly A's. {#FS-OPS-1.6.1 MUST}
+Content is compared in canonical form: with constant defaults omitted (Core §9.2), and values equal
+when their RFC 8785 serializations are. Property differences come first because an element of A
+may refer to one the batch created — a split wall's first piece ends at a new junction — and the
+removal of the created element is blocked until that reference is restored. When B is A, the
+inverse is the empty batch `[]`.
+
+An inverse is applied with no `context.retired` and no locks. Applying a committed result's inverse, when it is not empty, to B MUST commit a document whose canonical form is exactly A's. {#FS-OPS-1.6.1 MUST}
 
 Undo is applying the inverse — a new transaction, appended to history like any other. History
-never rewinds.
+never rewinds. Undo of a batch whose inverse is empty changes nothing, and applies nothing.

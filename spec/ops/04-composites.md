@@ -12,14 +12,16 @@ primitives then apply in the order given, and normalization follows the whole ba
 { "op": "drawWall", "level": "L1", "from": [0, 0], "to": "12' east of J4", "type": "T2" }
 ```
 
-Members: `level`; `from` and `to`, each a point or a junction; optionally `id` and any wall member
-(`type`, `layers`, `justification`, `base`, `top`, `name`). Expands to:
+Members: `level`; `from` and `to`, each a point or a junction; optionally `id`, any wall member
+(`type`, `layers`, `justification`, `base`, `top`) and the members every element may carry
+(`name`, `extensions`, `extras`). Expands to:
 
 1. for `from`, then `to`: if it is a junction, use it; if it is a point and a junction on `level`
    already has that position, use that junction; otherwise `addJunction` at the point (minted ID);
 2. `addWall` from the first junction to the second, with the given members.
 
-`drawSeparator` is the same with `addSeparator` and no wall members. A wall drawn across other
+`drawSeparator` is the same with `addSeparator` and no wall members (`name`, `extensions` and
+`extras` are allowed). A wall drawn across other
 walls is split where it crosses them by normalization (5.2); drawing does not need to know.
 
 An applier MUST expand drawWall and drawSeparator as this section defines. {#FS-OPS-4.1.1 MUST}
@@ -40,7 +42,7 @@ per coordinate, ties to even; then:
 
 The walls meeting it at those junctions stretch or shrink to follow.
 
-An applier MUST expand moveWall as this section defines. {#FS-OPS-4.2.1 MUST}
+An applier MUST expand moveWall as this section defines, and MUST reject it with `FS-OPS-008`, naming the wall, when `toward` names a room whose face is not on exactly one side of the wall. {#FS-OPS-4.2.1 MUST}
 
 ## 4.3 moveRoom
 
@@ -80,7 +82,11 @@ next room's). Then:
 - if the end **continues**, it stays where it is for the neighbour's sake, and the run is
   reconnected to a new junction at the end's position plus `v`, joined to the old end by a short
   new edge — a jog — of the same kind (wall or separator) and, for a wall, the same `type`,
-  `layers` and `justification` as the run edge it adjoins.
+  `layers` and `justification` as the run edge it adjoins;
+- except that when an edge already leaves a continuing end exactly in the direction of `v` — the
+  room's own perpendicular wall, when the side moves inwards at a T — no jog edge is added: the new
+  junction lies on that edge, normalization splits the edge there (5.2), and its piece between the
+  end and the new junction is the jog. That edge must be longer than `|v|`.
 
 **The anchors.** The room's anchor moves by `v / 2`, and so does the anchor of every room on the
 other side of a side edge, each coordinate rounded once, ties to even — so both rooms keep their
@@ -90,12 +96,13 @@ The expansion, in order:
 
 1. for each continuing end, by run position (`P₀` first): `addJunction` at its position plus `v`
    on the room's level (minted ID), then `setProperty` of the adjoining run edge's `/start` or
-   `/end` to the new junction, then `addWall` or `addSeparator` from the old end to the new
-   junction (minted ID) with the members above;
+   `/end` to the new junction, then — unless an edge leaves the end in the direction of `v` —
+   `addWall` or `addSeparator` from the old end to the new junction (minted ID) with the members
+   above;
 2. `moveJunction` by `v` of every run junction that is not a continuing end, by ID;
 3. `setProperty` of `/anchor` for the room, then for each room across a side edge, by ID.
 
-An applier MUST expand resizeRoom as this section defines, and MUST reject it with `FS-OPS-008` when the side is missing, oblique or jogged. {#FS-OPS-4.4.1 MUST}
+An applier MUST expand resizeRoom as this section defines, and MUST reject it with `FS-OPS-008` when the side is missing, oblique or jogged, or when the edge that leaves a continuing end in the direction of `v` is not longer than `|v|`. {#FS-OPS-4.4.1 MUST}
 
 ## 4.5 addOpening and moveOpening
 
@@ -104,18 +111,21 @@ An applier MUST expand resizeRoom as this section defines, and MUST reject it wi
 ```
 
 Members: `wall`; `at`, a position (3.5); optionally `id`, `fill`, `width`, `height`, `sill`,
-`hinge`, `swing`, `name`. The width used to resolve `at` is the opening's effective width (Core
-§7.2): its own `width`, or its fill's. Expands to `addElement` into `openings` with `wall`, the
-resolved `offset`, and the other members as given.
+`hinge`, `swing`, `name`, `extensions`, `extras`. The width used to resolve `at` is the opening's
+effective width (Core §7.2): its own `width`, or its fill's. Expands to `addElement` into
+`openings` with `wall`, the resolved `offset`, the resolved `width`, `height` and `sill`, and the
+other members as given.
 
-`moveOpening` takes `opening` and `at`, and expands to `setProperty` of its `/offset`.
+`moveOpening` takes `opening` and `at`, and expands to `setProperty` of its `/offset`; the width
+used to resolve `at` is the opening's effective width in the working copy.
 
-An applier MUST expand addOpening and moveOpening as this section defines, and MUST reject an addOpening whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.1 MUST}
+An applier MUST expand addOpening and moveOpening as this section defines, and MUST reject an addOpening or a moveOpening whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.1 MUST}
 
 ## 4.6 addRoom, setRoomFinish
 
-`addRoom` takes `level`, `at` (a point) and optionally `id`, `name`, `function` and the three
-finishes, and expands to `addElement` into `rooms` with `anchor` set to `at`. Drawing walls makes
+`addRoom` takes `level`, `at` (a point) and optionally `id`, `name`, `function`, the three
+finishes, `extensions` and `extras`, and expands to `addElement` into `rooms` with `anchor` set to
+`at` and the other members as given. Drawing walls makes
 faces; `addRoom` names one.
 
 `setRoomFinish` takes `room`, `surface` (`"wall"`, `"floor"` or `"ceiling"`) and `material`, and

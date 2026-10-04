@@ -11,7 +11,11 @@ standard.
 ## 3.1 Lengths
 
 Wherever an operation takes a **length**, it accepts a JSON integer (base units) or a string in
-this grammar (ABNF, RFC 5234; whitespace between tokens is ignored, letters are case-insensitive):
+this grammar (ABNF, RFC 5234; letters are case-insensitive). Whitespace — spaces and tabs — may
+appear between any two elements of the grammar, but never inside a `decimal` or a unit word; in
+`mixed`, the separator between the whole inches and the fraction is either `"-"` (with whitespace
+around it or not) or at least one whitespace character, so `6 1/2"` is a mixed number and
+`61/2"` a fraction:
 
 ```abnf
 length     = [ "-" ] ( metric / imperial )
@@ -45,7 +49,11 @@ A **point** is `[x, y]` with each a length; a junction (its position); or one of
 A **vector** is `[dx, dy]` with each a length, or a string `"<length> <direction>"` where the
 direction is `north` (+Y), `south`, `east` (+X) or `west`: `"2' east"` is `[780288, 0]`.
 
-An applier MUST resolve points and vectors exactly as this section defines. {#FS-OPS-3.2.1 MUST}
+A point or vector string that has none of these forms, and is not a junction reference (an ID or
+`start of` / `end of`, 3.3), does not match the grammar: `FS-OPS-012`. A junction reference that
+names no junction resolves to nothing: `FS-OPS-003`.
+
+An applier MUST resolve points and vectors exactly as this section defines, and MUST reject a point `"<length> from <junction> toward <junction>"` whose two junctions have the same position with `FS-OPS-003`. {#FS-OPS-3.2.1 MUST}
 
 ## 3.3 Element selectors
 
@@ -61,8 +69,18 @@ Wherever an operation takes an element, it accepts an ID or a **selector**:
 | `separator between <room> and <room>` | likewise, a separator |
 | `start of <wall>`, `end of <wall>` | that edge's start or end junction |
 
-`<room>` is itself an ID or a room name; `<wall>` is an ID or one of the wall selectors.
-`<side>` is `north`, `south`, `east` or `west`.
+`<room>` is itself an ID or a room name; `<wall>` is an edge's ID or one of the four edge
+selectors. `<side>` is `north`, `south`, `east` or `west`.
+
+Keywords (`north`, `wall`, `separator`, `of`, `between`, `and`, `start`, `end`, and in 3.2 and 3.5
+`from`, `toward`, `centered`) are matched ignoring case, with one or more spaces or tabs between
+words. Room names are compared with Unicode case folding. A string that has one of the keyword
+forms above is read only as that form; any other string is an ID, a room name, or both — and every
+element it names that way is a match, so a string that is one element's ID and another room's name
+matches both. When a room name itself contains `and`, every split of `wall between … and …` is
+tried, and exactly one split must resolve. Only elements of the collection the operation's member
+expects — a wall for `addOpening`'s `wall`, a junction for `moveJunction`'s `id` — count as
+matches.
 
 A selector that matches no element MUST be rejected with `FS-OPS-003`, and one that matches more than one MUST be rejected with `FS-OPS-004`, listing every match as the diagnostic's elements. {#FS-OPS-3.3.1 MUST}
 An applier never guesses between candidates. A room name shared by two rooms is ambiguous; so is
@@ -81,7 +99,7 @@ Selectors that name a side, or a wall between two rooms, read the faces of the l
 - `<side> wall of <room>` matches the walls on the room's outer cycle that are on that side.
 - `wall between R2 and R5` matches the walls with R2's face on one side and R5's face on the other.
 
-A selector that reads faces MUST be rejected with `FS-OPS-007` when the room's level, in the working copy at that point of the batch, breaks any of Core §5.1–5.3 or contains the room's anchor in no bounded face. {#FS-OPS-3.4.1 MUST}
+A selector or a composite that reads faces (`moveWall` with `toward`, `moveRoom`, `resizeRoom`, `removeWall`) MUST be rejected with `FS-OPS-007` when the level it reads, in the working copy at that point of the batch, breaks any of Core §5.1–5.3 or contains the room's anchor in no bounded face. {#FS-OPS-3.4.1 MUST}
 
 ## 3.5 Positions along a wall
 
