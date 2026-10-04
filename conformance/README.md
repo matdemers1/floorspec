@@ -17,7 +17,8 @@ conformance/
 ```
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`.
+`openings`, `types`, `serialization`, `diagnostics`. `examples` holds whole, plausible models -
+`examples/001-three-room-house` is the Phase 1 exit demo.
 
 ## test.json
 
@@ -112,3 +113,19 @@ A deriver conforms when what it derives equals `derived` exactly.
 - An invalid test breaks exactly one rule where it can, so a failure points at one statement.
 - Expected outputs are written by hand or by the oracle and then reviewed; they are never copied
   from an implementation's output.
+
+## Re-verifying the suite
+
+```sh
+python3.13 -m tools.oracle.regenerate          # every test, recomputed from input.json; exit 1 on any difference
+python3.13 -m tools.oracle <test-dir>          # one test's expected result, as the oracle computes it
+python3.13 -m unittest discover tools/oracle   # the oracle's own tests
+```
+
+`regenerate` recomputes every expected result from `input.json` alone and compares it with what is on
+disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
+`canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
+the canonical form canonicalizes to itself and derives the same values and hash (9.2.2).
+
+The suite assumes a reader that implements no extension: a document with a non-empty
+`extensionsRequired` is rejected with `FS-DOC-002`.

@@ -36,7 +36,7 @@ class WriteTest(unittest.TestCase):
         self.assertEqual(canon.es_string('a"\\\n\x1f é'), '"a\\"\\\\\\n\\u001f é"')
 
     def test_utf16_member_order(self):
-        # U+FB01 sorts after U+1F600 in code points but before it in UTF-16 code units
+        # U+1F600 sorts after U+FB01 by code point but before it by UTF-16 code unit (0xD83D < 0xFB01)
         d = {'\U0001F600': 1, 'ﬁ': 2, 'b': 3, 'B': 4}
         self.assertEqual(canon.jcs(d), '{"B":4,"b":3,"\U0001F600":1,"ﬁ":2}')
 

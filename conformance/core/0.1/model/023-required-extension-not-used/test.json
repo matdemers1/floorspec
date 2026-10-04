@@ -1,0 +1,7 @@
+{
+  "description": "extensionsRequired names EXT_acoustics, which extensionsUsed does not declare. A core-only reader rejects it with FS-DOC-002 at the document tier, before the invariant tier where FS-INV-004 would be reported (10.3) - so for a reader that implements no extension, this violation of 1.6.2 is reported as FS-DOC-002.",
+  "covers": [
+    "FS-CORE-1.6.2",
+    "FS-CORE-1.6.4"
+  ]
+}

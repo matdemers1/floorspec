@@ -19,7 +19,9 @@ EXT_RE = re.compile(EXT_NAME)
 EXT_TERM_RE = re.compile(EXT_NAME + r':[a-z][A-Za-z0-9]*')
 COLOR_RE = re.compile(r'#[0-9a-f]{6}')
 SHA_RE = re.compile(r'[0-9a-f]{64}')
-MEDIA_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*')
+MEDIA_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}')
+VERSION_RE = re.compile(r'[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?')                       # 1.6.7
+URI_RE = re.compile(r"https://(?:[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=-]|%[0-9A-Fa-f]{2})+")  # 8.6
 
 ROOM_FUNCTIONS = {'unspecified', 'sleeping', 'bath', 'kitchen', 'living', 'dining', 'office',
                   'laundry', 'utility', 'storage', 'circulation', 'mechanical', 'garage', 'exterior'}
@@ -306,7 +308,7 @@ class _Checker:
                 self.bad(p, 'bad path')
 
         def uri(x, p):
-            if not isinstance(x, str) or not re.fullmatch(r'https:[^\s]+', x):
+            if not isinstance(x, str) or not URI_RE.fullmatch(x):
                 self.bad(p, 'bad uri')
 
         def sha(x, p):
@@ -336,8 +338,8 @@ class _Checker:
                 for k, ver in x.items():
                     if not EXT_RE.fullmatch(k):
                         self.bad(p, f'bad extension name "{k}"')
-                    if not isinstance(ver, str):
-                        self.bad(p, 'an extension version is a string')
+                    if not isinstance(ver, str) or not VERSION_RE.fullmatch(ver):
+                        self.bad(p, 'bad extension version')
 
         def ext_required(x, p):
             if not isinstance(x, list):

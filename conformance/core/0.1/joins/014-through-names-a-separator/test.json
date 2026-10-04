@@ -1,0 +1,7 @@
+{
+  "description": "A butt join naming separator S1: through lists walls, so the reference does not resolve in the walls collection - FS-INV-002, at the reference tier, before FS-INV-111 could be evaluated.",
+  "covers": [
+    "FS-CORE-5.8.1",
+    "FS-CORE-3.2.1"
+  ]
+}

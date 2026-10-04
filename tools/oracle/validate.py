@@ -406,8 +406,9 @@ def check(data: bytes):
             ds.append(diag('FS-DOC-001'))
         req = value.get('extensionsRequired')
         if isinstance(req, list):
-            for n in req:
-                if isinstance(n, str) and n not in IMPLEMENTED_EXTENSIONS:
+            # one diagnostic per extension named, however often it is named
+            for n in dict.fromkeys(x for x in req if isinstance(x, str)):
+                if n not in IMPLEMENTED_EXTENSIONS:
                     ds.append(diag('FS-DOC-002'))
     if ds:
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes

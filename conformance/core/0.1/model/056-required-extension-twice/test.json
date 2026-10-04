@@ -1,0 +1,7 @@
+{
+  "description": "extensionsRequired names EXT_acoustics twice. A core-only reader rejects the document at the document tier with FS-DOC-002 - once, because one extension is named - before the schema tier could report the duplicate.",
+  "covers": [
+    "FS-CORE-1.6.8",
+    "FS-CORE-1.6.4"
+  ]
+}
