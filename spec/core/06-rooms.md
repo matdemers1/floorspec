@@ -71,7 +71,7 @@ error, and a deriver reports it; validators report it as an informational lint (
 
 A room's **net area** is the area of its room polygon: the area of its outer ring minus the areas
 of its hole rings, each computed with the shoelace formula from the rounded vertices. It is in
-square base units and is a multiple of one half; one square foot is 152,212,342,736 square base
+square base units and is a multiple of one half; one square foot is 152,212,340,736 square base
 units.
 
 A deriver MUST compute each room's net area exactly, from the rounded vertices of its room polygon. {#FS-CORE-6.4.1 MUST}

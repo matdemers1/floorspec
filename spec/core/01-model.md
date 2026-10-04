@@ -76,6 +76,15 @@ itself, and its kind is given by its collection (and, in `types`, by its `kind` 
 
 An element MUST NOT contain a member that its kind's table in this specification does not list. {#FS-CORE-1.4.1 MUST NOT}
 
+Every object this specification defines that is not an element — the project, the site and its
+`location`, a wall's `base` and `top`, a junction's `join`, a layer, a texture — MUST NOT contain a
+member that its table does not list. The content of `extras` and of extension data is not
+restricted. {#FS-CORE-1.4.3 MUST NOT}
+
+Every member MUST have the type, and lie in the range, that its table and its section give. {#FS-CORE-1.4.4 MUST}
+
+A string that a table limits to a number of characters is measured in Unicode code points.
+
 Every element MAY carry these members, in addition to those of its kind: {#FS-CORE-1.4.2 MAY}
 
 | Member | Type | Default | Meaning |
@@ -117,6 +126,10 @@ capitals or digits reserved in the registry.
 
 Every extension name MUST match the pattern `^(FS|EXT|[A-Z0-9]{2,8})_[A-Za-z0-9]+$`. {#FS-CORE-1.6.1 MUST}
 
+Every version in `extensionsUsed` MUST match `^\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?$`. {#FS-CORE-1.6.7 MUST}
+
+`extensionsRequired` MUST NOT name an extension twice. {#FS-CORE-1.6.8 MUST NOT}
+
 Every name in `extensionsRequired` MUST also be a member of `extensionsUsed`. {#FS-CORE-1.6.2 MUST}
 
 Every member name of an `extensions` object, at the top level or on an element, MUST be a member
@@ -141,8 +154,8 @@ A writer MUST preserve the data of every extension it does not implement, unchan
 ## 1.7 Extras
 
 `extras` is an object for application-specific data that no specification defines — a viewer's
-camera position, an importer's original file name. The project, every element and the document
-itself may carry `extras`. Their content is any JSON.
+camera position, an importer's original file name. The project, the site, every element and the
+document itself may carry `extras`. Their content is any JSON.
 
 A deriver MUST NOT let `extras` affect any derived value. {#FS-CORE-1.7.1 MUST NOT}
 
@@ -165,7 +178,7 @@ Anything that changes what the building is belongs in core or an extension, neve
 | Member | Type | Default | Meaning |
 |---|---|---|---|
 | `trueNorth` | angle (2.4) | `0` | the angle from project north (+Y) to true north, counter-clockwise positive |
-| `location` | `{ "latitude": angle, "longitude": angle }` | absent | WGS 84, in microdegrees |
+| `location` | `{ "latitude": angle, "longitude": angle }`, both always present | absent | WGS 84, in microdegrees |
 | `boundary` | polygon (2.6) | absent | the lot line, in project coordinates |
 | `extras` | object | `{}` | 1.7 |
 

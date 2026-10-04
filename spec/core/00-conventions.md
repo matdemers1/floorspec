@@ -42,7 +42,8 @@ reference implementation, D3 Floorspec, claims all of them.
 
 ## 0.3 Notation
 
-- A **length** is an integer number of base units (chapter 2). A **point** is `[x, y]`, two
+- A **JSON integer** is a JSON number written with neither a fraction nor an exponent. A
+  **length** is a JSON integer number of base units (chapter 2). A **point** is `[x, y]`, two
   lengths. Code-like names (`walls`, `justification`) are JSON member names.
 - **Exact value** means the mathematically exact real number. Derived values are defined as exact
   values and then rounded once, as chapter 2 specifies; no intermediate rounding is permitted.
