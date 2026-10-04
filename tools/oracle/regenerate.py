@@ -1,7 +1,12 @@
-"""Re-verify the whole conformance suite against the oracle.
+"""Re-verify the whole conformance suite - Floorspec Core and Floorspec Ops - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
-    python3.13 -m tools.oracle.regenerate --write    rewrite hash, derived and canonical.json
+    python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
+
+The Ops suite (conformance/ops/0.1) is verified by tools/oracle/ops/suite.py: status and
+diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
+recomputed (and rewritten with --write), and every committed result is checked for 1.3.1, 1.3.2,
+1.4.1 and 1.6.1.
 
 For every test directory under conformance/core/0.1 it recomputes, from input.json alone:
 
@@ -19,6 +24,7 @@ import json
 import os
 import sys
 
+from .ops.suite import verify_all as verify_ops
 from .report import dumps
 from .validate import check
 
@@ -98,10 +104,12 @@ def main(argv) -> int:
     errors = []
     for d in dirs:
         errors.extend(verify(d, write))
-    for e in errors:
+    ops_count, ops_errors = verify_ops(write)
+    for e in errors + ops_errors:
         print(e)
-    print(f'{len(dirs)} tests, {len(errors)} differences from the oracle')
-    return 1 if errors else 0
+    print(f'Core: {len(dirs)} tests, {len(errors)} differences from the oracle')
+    print(f'Ops: {ops_count} tests, {len(ops_errors)} differences from the oracle')
+    return 1 if errors or ops_errors else 0
 
 
 if __name__ == '__main__':
