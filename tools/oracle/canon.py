@@ -1,0 +1,218 @@
+"""Canonical form (9.2) and content hash (9.3).
+
+Step 1 omits constant defaults, innermost first. The table of constant defaults below is
+transcribed from the member tables of chapters 1, 5, 6 and 7; typed properties (8.2) and members
+whose default is derived are never omitted, and the content of extension data and extras is never
+touched.
+
+Step 2 writes ``JSON.stringify(sorted, null, 2)`` plus a line feed. The content hash is SHA-256
+over the RFC 8785 (JCS) serialization of the step-1 document.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import math
+
+COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
+               'slabs', 'types', 'materials', 'assets')
+
+
+def _is_int(v, n=None) -> bool:
+    return type(v) is int and (n is None or v == n)
+
+
+def _is_empty_obj(v) -> bool:
+    return isinstance(v, dict) and not v
+
+
+def _drop_common(e: dict) -> None:
+    """`extensions` and `extras` default to {} on every element (1.4); only `{}` is removed."""
+    for k in ('extensions', 'extras'):
+        if k in e and _is_empty_obj(e[k]):
+            del e[k]
+
+
+def _copy(v):
+    if isinstance(v, dict):
+        return {k: _copy(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_copy(x) for x in v]
+    return v
+
+
+def omit_defaults(doc: dict) -> dict:
+    """Step 1 of 9.2 on a valid document. Returns a new document."""
+    d = _copy(doc)
+    for e in d.get('junctions', {}).values():
+        _drop_common(e)
+        if e.get('join') == {'kind': 'mitre'}:          # constant default { "kind": "mitre" }
+            del e['join']
+    for e in d.get('walls', {}).values():
+        _drop_common(e)
+        if e.get('justification') == 'center':          # constant default "center"
+            del e['justification']
+        base = e.get('base')
+        if isinstance(base, dict):
+            if _is_int(base.get('offset'), 0):          # base.offset: constant 0
+                del base['offset']
+            # base.level defaults to the wall's own level: a derived default, never omitted
+            if not base:                                # base: constant {}
+                del e['base']
+        top = e.get('top')
+        if isinstance(top, dict) and 'level' in top and _is_int(top.get('offset'), 0):
+            del top['offset']                           # top.offset: constant 0
+        # `top` itself defaults to "absent: follows the level's height" - derived, never omitted
+    for e in d.get('openings', {}).values():
+        _drop_common(e)
+        if e.get('hinge') == 'start':
+            del e['hinge']
+        if e.get('swing') == 'right':
+            del e['swing']
+        # width, height and sill are typed properties (8.2): never omitted, even "sill": 0
+    for e in d.get('rooms', {}).values():
+        _drop_common(e)
+        if e.get('function') == 'unspecified':
+            del e['function']
+    for e in d.get('slabs', {}).values():
+        _drop_common(e)
+        if _is_int(e.get('offset'), 0):
+            del e['offset']
+    for c in ('buildings', 'levels', 'separators', 'types', 'materials', 'assets'):
+        for e in d.get(c, {}).values():
+            _drop_common(e)
+    if isinstance(d.get('project'), dict) and _is_empty_obj(d['project'].get('extras')):
+        del d['project']['extras']
+    site = d.get('site')
+    if isinstance(site, dict):
+        if _is_int(site.get('trueNorth'), 0):
+            del site['trueNorth']
+        if _is_empty_obj(site.get('extras')):
+            del site['extras']
+        # `site` defaults to absent, not {}: an empty site is kept (the project has a site)
+    for c in COLLECTIONS + ('extensionsUsed', 'extensions', 'extras'):
+        if c in d and _is_empty_obj(d[c]):
+            del d[c]
+    if d.get('extensionsRequired') == []:
+        del d['extensionsRequired']
+    return d
+
+
+# ---------------------------------------------------------------- RFC 8785 / ECMAScript writing
+
+def es_number(v) -> str:
+    """ECMAScript Number::toString of the IEEE 754 double nearest v (RFC 8785 3.2.2.3)."""
+    if type(v) is int:
+        if abs(v) <= 2 ** 53:
+            return str(v)
+        v = float(v)
+    if math.isnan(v) or math.isinf(v):
+        raise ValueError('RFC 8785 cannot serialize NaN or Infinity')
+    if v == 0:
+        return '0'
+    if v < 0:
+        return '-' + es_number(-v)
+    r = repr(v)                                   # shortest round-trip digits
+    mant, _, exp = r.partition('e')
+    e10 = int(exp) if exp else 0
+    if '.' in mant:
+        ip, fp = mant.split('.')
+    else:
+        ip, fp = mant, ''
+    digits = (ip + fp).lstrip('0')
+    # value = 0.<ip fp> scaled: position of the decimal point relative to the digit string
+    point = len(ip) + e10                         # digits before the point in ip+fp
+    lead = len(ip + fp) - len((ip + fp).lstrip('0'))
+    n = point - lead                              # x = 0.digits * 10^n
+    digits = digits.rstrip('0')
+    k = len(digits)
+    if k <= n <= 21:
+        return digits + '0' * (n - k)
+    if 0 < n <= 21:
+        return digits[:n] + '.' + digits[n:]
+    if -6 < n <= 0:
+        return '0.' + '0' * (-n) + digits
+    e = n - 1
+    sign = '+' if e >= 0 else '-'
+    if k == 1:
+        return digits + 'e' + sign + str(abs(e))
+    return digits[0] + '.' + digits[1:] + 'e' + sign + str(abs(e))
+
+
+def es_string(s: str) -> str:
+    """JSON.stringify / RFC 8785 3.2.2.2 string serialization."""
+    out = ['"']
+    for ch in s:
+        o = ord(ch)
+        if ch == '"':
+            out.append('\\"')
+        elif ch == '\\':
+            out.append('\\\\')
+        elif ch == '\b':
+            out.append('\\b')
+        elif ch == '\f':
+            out.append('\\f')
+        elif ch == '\n':
+            out.append('\\n')
+        elif ch == '\r':
+            out.append('\\r')
+        elif ch == '\t':
+            out.append('\\t')
+        elif o < 0x20 or 0xD800 <= o <= 0xDFFF:
+            out.append('\\u%04x' % o)
+        else:
+            out.append(ch)
+    out.append('"')
+    return ''.join(out)
+
+
+def utf16_key(s: str) -> bytes:
+    """Sort key comparing strings as sequences of UTF-16 code units (RFC 8785 3.2.3)."""
+    return s.encode('utf-16-be', 'surrogatepass')
+
+
+def _scalar(v) -> str:
+    if v is True:
+        return 'true'
+    if v is False:
+        return 'false'
+    if v is None:
+        return 'null'
+    if isinstance(v, str):
+        return es_string(v)
+    return es_number(v)
+
+
+def jcs(v) -> str:
+    """RFC 8785 serialization."""
+    if isinstance(v, dict):
+        return '{' + ','.join(es_string(k) + ':' + jcs(v[k]) for k in sorted(v, key=utf16_key)) + '}'
+    if isinstance(v, list):
+        return '[' + ','.join(jcs(x) for x in v) + ']'
+    return _scalar(v)
+
+
+def pretty(v, depth: int = 0) -> str:
+    """JSON.stringify(v, null, 2) of v with its object members sorted."""
+    ind = '  ' * depth
+    inner = '  ' * (depth + 1)
+    if isinstance(v, dict):
+        if not v:
+            return '{}'
+        items = [inner + es_string(k) + ': ' + pretty(v[k], depth + 1) for k in sorted(v, key=utf16_key)]
+        return '{\n' + ',\n'.join(items) + '\n' + ind + '}'
+    if isinstance(v, list):
+        if not v:
+            return '[]'
+        return '[\n' + ',\n'.join(inner + pretty(x, depth + 1) for x in v) + '\n' + ind + ']'
+    return _scalar(v)
+
+
+def canonical_bytes(doc: dict) -> bytes:
+    """The canonical form (9.2) of a valid document."""
+    return (pretty(omit_defaults(doc)) + '\n').encode('utf-8')
+
+
+def content_hash(doc: dict) -> str:
+    """The content hash (9.3) of a valid document."""
+    return hashlib.sha256(jcs(omit_defaults(doc)).encode('utf-8')).hexdigest()
