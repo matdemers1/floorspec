@@ -1,0 +1,58 @@
+name: CI
+
+# The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schema against the
+# whole suite → MUST coverage → the independent oracle reproducing every expected output.
+# A MUST without a test, a test naming an unknown statement, or an expected value the oracle does
+# not reproduce fails the build.
+#
+# GitHub-hosted runners only (this repo is public). Every action is pinned to a commit SHA — the
+# same SHAs Foreman and D3 Floorspec pin.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Normative statements are tagged correctly
+        run: pnpm statements
+      - name: The schema accepts every valid input and rejects every schema-invalid one
+        run: pnpm schema:check
+      - name: Every MUST has a conformance test
+        run: pnpm coverage
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage
+          path: build/
+
+  oracle:
+    needs: spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - name: Oracle unit tests
+        run: python -m unittest discover tools/oracle
+      - name: The oracle reproduces every expected output in the suite
+        run: python -m tools.oracle.regenerate
