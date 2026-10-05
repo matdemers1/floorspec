@@ -79,6 +79,16 @@ opaque, as 0.1 says, even where it has a member named `collections`. Core 0.1's 
 every member and collection 0.2 and 0.3 add, and Core 0.2's every one 0.3 adds, so a document that declares
 `"0.1"` or `"0.2"` and uses one is invalid (`FS-SCH-001`).
 
+For materials and finishes (chapter 18), 0.3 also adds a material's `metallic` and `roughness`
+(18.1), a texture's `normal`, `metallicRoughness` and `occlusion` maps and its `offset` and
+`rotation` (18.2), an asset's `byteLength` (18.4) and a wall's `finishes` (18.5). Each is optional,
+and its absence means what an earlier draft's document means without it: a matte, non-metallic
+material, a texture that is only a base colour map, laid from the surface's origin and not turned,
+a file whose length is not declared, and faces finished as the rooms they face. A reader of this
+draft derives the finishes (18.6) of a document of any draft, from the rooms' `wallFinish`,
+`floorFinish` and `ceilingFinish` and the layers' `material` that 0.1 already has: a valid 0.1 or
+0.2 document read as 0.3 derives its finishes too, and every other value as this section says.
+
 > [!note] Versioning policy
 > Floorspec follows Semantic Versioning. While the major version is 0, any draft may change
 > anything, and a reader implements the drafts it names. From 1.0, a minor version will only add

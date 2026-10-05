@@ -19,6 +19,7 @@ Modules:
     floors      floors, flat, tray and vaulted ceilings, slabs and surface hosts on them (Core 0.3, chapter 15)
     roofs       roofs: eave outlines, flat, shed and equal-pitch (straight-skeleton) surfaces (Core 0.3, chapter 16)
     stairs      stairs: layout, foot and head, rise and risers, steps, walkline and headroom (Core 0.3, chapter 17)
+    finishes    texture maps, wall finishes and regions, the package checks and resolved finishes (Core 0.3, chapter 18)
     options     design options: views of designs, the checked designs, option invariants and `options` (Core 0.3, chapter 19)
     validate    the tiers and the order of evaluation of chapter 10, and the lints
     ext         the official extensions (registry/), each written from its own specification:

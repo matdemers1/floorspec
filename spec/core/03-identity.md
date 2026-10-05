@@ -45,6 +45,8 @@ reference is its referring element:
 | Room | `wallFinish`, `floorFinish`, `ceilingFinish` | a material |
 | Slab | `material` | a material |
 | Material | `texture.asset` | an asset |
+| Material | `texture.normal`, `texture.metallicRoughness`, `texture.occlusion` | an asset (18.2) |
+| Wall | `finishes.left.material`, `finishes.right.material`, and the `material` of each of their `regions` | a material (18.5) |
 | Room | `brief` | a program item (11.3) |
 | Program item | `level` | a level |
 | Adjacency (11.2) | `a`, `b` | a program item |

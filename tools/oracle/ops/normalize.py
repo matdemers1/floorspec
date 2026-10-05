@@ -291,6 +291,8 @@ def planarize(wc: dict, level: str, mint, straddles: list, profile: Profile = OP
         if c == 'walls':
             _rehost(wc, eid, a, b, inner, pieces, straddles)
             _rehost_hosted(wc, eid, a, b, inner, pieces, profile)
+            if profile.v03:
+                _cut_regions(wc, a, b, inner, pieces)
 
 
 def _rehost(wc, eid, a, b, inner, pieces, straddles):
@@ -337,6 +339,40 @@ def _rehost_hosted(wc, eid, a, b, inner, pieces, profile):
                     h['wall'] = piece
                     h['offset'] = (Surd(off) - bounds[i]).round()
                 break
+
+
+def _cut_regions(wc, a, b, inner, pieces):
+    """Ops 0.3, 5.2 step 7: each piece copied the split wall's `finishes` (step 4); the regions of each of its
+    faces are the original's cut to the piece's interval [s, e] along the original location line - a region
+    with from < e and to > s runs from max(from, s) - s to min(to, e) - s, each end exact and rounded once,
+    ties to even, and is dropped when the rounded from is not less than the rounded to; every other region is
+    dropped. A region whose from or to is not an integer is left as it is on every piece, for validation."""
+    d = (b[0] - a[0], b[1] - a[1])
+    D = plane.dot(d, d)
+    bounds = [Surd(0)] + [Surd.sqrt(D, Fraction(plane.dot(plane.sub(p, a), d), D)) for p in inner] + [Surd.sqrt(D)]
+    walls = coll(wc, 'walls')
+    original = copy.deepcopy(walls[pieces[0]].get('finishes'))
+    if not isinstance(original, dict):
+        return
+    for i, piece in enumerate(pieces):
+        s, e = bounds[i], bounds[i + 1]
+        f = walls[piece].get('finishes')
+        for side, face in original.items():
+            if not (isinstance(face, dict) and isinstance(face.get('regions'), list)):
+                continue
+            cut = []
+            for r in face['regions']:
+                if not (isinstance(r, dict) and type(r.get('from')) is int and type(r.get('to')) is int):
+                    cut.append(copy.deepcopy(r))
+                    continue
+                lo, hi = Surd(r['from']), Surd(r['to'])
+                if not ((lo - e).sign() < 0 and (hi - s).sign() > 0):
+                    continue
+                f0 = ((lo if (lo - s).sign() >= 0 else s) - s).round()
+                t0 = ((hi if (hi - e).sign() <= 0 else e) - s).round()
+                if f0 < t0:
+                    cut.append({**copy.deepcopy(r), 'from': f0, 'to': t0})
+            f[side]['regions'] = cut
 
 
 def join_cleanup(wc: dict) -> None:

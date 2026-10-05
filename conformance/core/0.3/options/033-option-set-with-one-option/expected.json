@@ -2,7 +2,7 @@
   "valid": true,
   "diagnostics": [
     {
-      "code": "FS-LINT-018",
+      "code": "FS-LINT-017",
       "severity": "info",
       "elements": ["DS"]
     }
@@ -151,6 +151,10 @@
         "entry": false,
         "reachable": true
       }
+    },
+    "finishes": {
+      "walls": {},
+      "rooms": {}
     },
     "floors": {
       "DIN": {

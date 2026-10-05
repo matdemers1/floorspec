@@ -358,7 +358,7 @@ def _report(**members):
 
 
 def check_document(document: bytes, registry: bytes | None, design=None):
-    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL), design)
+    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL), design=design)
 
 
 def design_doc(document: bytes, design):

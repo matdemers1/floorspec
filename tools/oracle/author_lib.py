@@ -105,12 +105,40 @@ def _diag(code, elements, design=None):
     return d
 
 
-def t(group, slug, description, covers, inp, diags=(), raw=None, registry=None, registry_raw=None, design=None):
+def t(group, slug, description, covers, inp, diags=(), raw=None, registry=None, registry_raw=None, package=None,
+      design=None):
     """diags: list of (code, [elements]) or (code, [elements], option) - written by hand, cross-checked
-    by the oracle."""
+    by the oracle. package: the files of the document's package (Core 0.3, 18.4), {path: bytes}, written
+    under package/ - the test is then run by a package validator. design: the design to derive (19.6)."""
     TESTS.append(dict(group=group, slug=slug, description=description, covers=cov(*covers),
-                      inp=inp, raw=raw, registry=registry, registry_raw=registry_raw, design=design,
+                      inp=inp, raw=raw, registry=registry, registry_raw=registry_raw, package=package, design=design,
                       diags=[_diag(*x) for x in diags]))
+
+
+def write_package(d, package):
+    """A test's package/ directory (Core 0.3, 18.4): exactly the given files, or none."""
+    pd = os.path.join(d, 'package')
+    if os.path.exists(pd):
+        shutil.rmtree(pd)
+    for path, data in (package or {}).items():
+        fp = os.path.join(pd, *path.split('/'))
+        os.makedirs(os.path.dirname(fp), exist_ok=True)
+        with open(fp, 'wb') as f:
+            f.write(data)
+
+
+def read_package(d):
+    """The files of a test's package/ directory as {path: bytes}, or None when it has none."""
+    pd = os.path.join(d, 'package')
+    if not os.path.isdir(pd):
+        return None
+    out = {}
+    for dirpath, _, files in os.walk(pd):
+        for name in files:
+            fp = os.path.join(dirpath, name)
+            with open(fp, 'rb') as f:
+                out['/'.join(os.path.relpath(fp, pd).split(os.sep))] = f.read()
+    return out
 
 
 def write_all(only_group=None, prune=False, tests=None, suite=None, reader=READER_01):
@@ -142,13 +170,15 @@ def write_all(only_group=None, prune=False, tests=None, suite=None, reader=READE
                 f.write(registry)
         elif os.path.exists(rp):
             os.remove(rp)
+        package = tc.get('package')
+        write_package(d, package)
         dp = os.path.join(d, 'design.json')
         if tc.get('design') is not None:
             with open(dp, 'w') as f:
                 f.write(fmt(tc['design']) + '\n')
         elif os.path.exists(dp):
             os.remove(dp)
-        result, canonical, notes = check(data, reader, registry, design=tc.get('design'))
+        result, canonical, notes = check(data, reader, registry, package=package, design=tc.get('design'))
         hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements'], 'design' in x, x.get('design', '')))
         valid = not any(x['severity'] == 'error' for x in hand)
         if hand != result['diagnostics'] or valid != result['valid']:

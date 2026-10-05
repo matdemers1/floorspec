@@ -4,7 +4,7 @@ views, the checked designs, the option invariants and lint, and the derived `opt
 A **design** chooses one option of every option set; the **primary design** chooses every set's
 primary (19.3). The **view** of a design is the document as seen in it: every element that is in
 an option the design does not choose is gone, and so are `optionSets`, `options` and every
-remaining element's `option` member - a document without design options, to which chapters 1-17
+remaining element's `option` member - a document without design options, to which chapters 1-18
 apply as they stand. The **checked designs** are the primary design and, for every option that is
 not its set's primary, its **option design**: the primary design with that one option chosen
 instead (19.5). A document is valid when each checked design's view is, and every diagnostic found
@@ -21,8 +21,10 @@ from . import canon
 
 # 19.2: the collections whose elements may be in an option; extension elements may be too
 OPTIONAL = ('junctions', 'walls', 'separators', 'openings', 'rooms', 'slabs', 'roofs', 'stairs')
-# 19.6.3: the derived members keyed by element ID that `affected` compares, beside the program's items
-NOT_COMPARED = ('program', 'options', 'extensions')
+# 19.6.3: the derived members keyed by element ID that `affected` compares; the program's items and the
+# rooms and walls of `finishes` (Core 0.3, 18.6) are compared one level down
+NOT_COMPARED = ('program', 'options', 'extensions', 'finishes')
+NESTED = (('program', 'items'), ('finishes', 'rooms'), ('finishes', 'walls'))
 
 
 def present(d: dict) -> bool:
@@ -167,9 +169,9 @@ def merge(per):
 
 
 def lints(d: dict, diag):
-    """FS-LINT-018 (19.8): an option set with one option."""
+    """FS-LINT-017 (19.8): an option set with one option."""
     count = Counter(o['set'] for o in d.get('options', {}).values())
-    return [diag('FS-LINT-018', [sid]) for sid in sorted(d.get('optionSets', {})) if count[sid] == 1]
+    return [diag('FS-LINT-017', [sid]) for sid in sorted(d.get('optionSets', {})) if count[sid] == 1]
 
 
 # ------------------------------------------------------------------------------ derived values
@@ -188,9 +190,10 @@ def affected(a: dict, b: dict) -> list[str]:
         vb = b.get(k)
         if isinstance(vb, dict):
             compare(va, vb)
-    pa, pb = a.get('program'), b.get('program')
-    if isinstance(pa, dict) and isinstance(pb, dict):
-        compare(pa.get('items', {}), pb.get('items', {}))
+    for top, sub in NESTED:
+        pa, pb = a.get(top), b.get(top)
+        if isinstance(pa, dict) and isinstance(pb, dict):
+            compare(pa.get(sub, {}), pb.get(sub, {}))
     return sorted(ids)
 
 

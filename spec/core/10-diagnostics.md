@@ -12,7 +12,9 @@ Validation runs in tiers:
 4. **Invariants** — the rules no schema can express: references resolve, the wall graph is planar,
    rooms, openings, hosted elements, floors, ceilings and roofs fit, the program is consistent, the
    extensions known to the validator are used as their registry entries say, and stairs rise
-   between two levels of a building — and, in a document with design options, no reference crosses
+   between two levels of a building; a texture's maps are images and a wall's finish regions fit
+   its faces; and, for a package validator, every packaged asset's file is there and is the file
+   its asset names (18.4) — and, in a document with design options, no reference crosses
    options and every checked design is valid (19.5). (`FS-INV-`)
 5. **Lints** — conditions that make a valid document worse. (`FS-LINT-`)
 
@@ -94,7 +96,14 @@ error, with these refinements inside tier 4:
   are levels where room invariants are evaluated and have no room with any of `FS-INV-201` to
   `FS-INV-204` — its rise is measured from its rooms' floors (17.4) — and `FS-INV-903` is not
   evaluated for a stair that has `FS-INV-902`.
-- **Lints** are evaluated only for a valid document: `FS-LINT-006`, `FS-LINT-007` and `FS-LINT-018`
+- **Material and finish invariants** (`FS-INV-1001` to `FS-INV-1004`) are evaluated for every
+  material and every region of every wall's finishes, except that `FS-INV-1002` and `FS-INV-1003`
+  are not evaluated for a region that has `FS-INV-1001`, and `FS-INV-1002` does not test a
+  region's `top` on a wall that has `FS-INV-112`.
+- **Package invariants** (`FS-INV-1005` to `FS-INV-1007`) are evaluated only by a package validator
+  (18.4), for every asset located by `path`, except that `FS-INV-1006` and `FS-INV-1007` are not
+  evaluated for an asset that has `FS-INV-1005`.
+- **Lints** are evaluated only for a valid document: `FS-LINT-006`, `FS-LINT-007` and `FS-LINT-017`
   of the document as a whole, and every other lint for the view of each checked design. The circulation lints (`FS-LINT-012` to
   `FS-LINT-014`) are evaluated only for a building that is evaluated (14.4), and `FS-LINT-012` and
   `FS-LINT-013` only for a building that has an entry (14.2).
@@ -113,7 +122,7 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-JSON-003` | error | a string has an unpaired surrogate | — | 9.1.3 |
 | `FS-DOC-001` | error | the root is an object whose `floorspec` member is a string naming a version this reader does not implement | — | 1.2.2 |
 | `FS-DOC-002` | error | `extensionsRequired` is an array of distinct extension names, each a member of `extensionsUsed`, and one of them names an extension this reader does not implement; one diagnostic for each such name. Any other `extensionsRequired` is left to the schema tier and `FS-INV-004` | — | 1.6.4 |
-| `FS-SCH-001` | error | the document does not match the schema of the draft it declares (1.2.6) | — | 1.1, 1.2.5, 1.2.6, 1.3, 1.4, 1.6.1, 1.6.7, 1.6.8, 1.8, 2.1, 2.4, 2.6 (shape), 3.1.1, 3.1.3 (pattern), 3.2.3, 4.1.1, 4.2 (syntax), 4.3.1, 5.1, 5.2, 5.8.5, 5.9.1, 6.5, 6.7.1, 6.7.2, 7.1.1, 7.1.2, 8.1, 8.3, 8.4.1–8.4.3, 8.5, 8.6, 11.1.1, 11.1.2 (term), 12.1.1, 12.1.2, 12.5.1, 12.5.2, 13.2.1, 13.3.1, 13.5.1, 15.1.1, 15.2.1, 16.1.1, 17.1.1, 17.2.1, 19.1.1, 19.2.1 |
+| `FS-SCH-001` | error | the document does not match the schema of the draft it declares (1.2.6) | — | 1.1, 1.2.5, 1.2.6, 1.3, 1.4, 1.6.1, 1.6.7, 1.6.8, 1.8, 2.1, 2.4, 2.6 (shape), 3.1.1, 3.1.3 (pattern), 3.2.3, 4.1.1, 4.2 (syntax), 4.3.1, 5.1, 5.2, 5.8.5, 5.9.1, 6.5, 6.7.1, 6.7.2, 7.1.1, 7.1.2, 8.1, 8.3, 8.4.1–8.4.3, 8.5, 8.6, 11.1.1, 11.1.2 (term), 12.1.1, 12.1.2, 12.5.1, 12.5.2, 13.2.1, 13.3.1, 13.5.1, 15.1.1, 15.2.1, 16.1.1, 17.1.1, 17.2.1, 18.1.1, 18.2.1, 18.4.1, 18.5.1, 19.1.1, 19.2.1 |
 
 **Reference invariants.**
 
@@ -230,6 +239,23 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-INV-903` | error | a stair's riser count does not fit its form | the stair | 17.4.2 |
 | `FS-INV-904` | error | a spiral stair's width is more than half its diameter | the stair | 17.2.2 |
 
+**Material and finish invariants.**
+
+| Code | Severity | Condition | Elements | Rule |
+|---|---|---|---|---|
+| `FS-INV-1001` | error | a region of a wall's finishes is empty: its `to` is not greater than its `from`, or its `top` not greater than its `bottom`; once for each such region | the wall | 18.5.2 |
+| `FS-INV-1002` | error | a region extends past its wall's length or above its wall's height; once for each such region | the wall | 18.5.3 |
+| `FS-INV-1003` | error | two regions of one face overlap; once for each such pair | the wall | 18.5.4 |
+| `FS-INV-1004` | error | a texture's map is an asset whose media type 18.2.2 does not allow; once for each such map | the material and the asset | 18.2.2 |
+
+**Package invariants.** These are evaluated only by a package validator (18.4).
+
+| Code | Severity | Condition | Elements | Rule |
+|---|---|---|---|---|
+| `FS-INV-1005` | error | the package has no file at an asset's `path` | the asset | 18.4.2 |
+| `FS-INV-1006` | error | the SHA-256 digest of an asset's file is not its `sha256` | the asset | 18.4.3 |
+| `FS-INV-1007` | error | the length of an asset's file in bytes is not its `byteLength` | the asset | 18.4.3 |
+
 **Option invariants.** Of the document as a whole, every option included (19.5).
 
 | Code | Severity | Condition | Elements | Rule |
@@ -257,7 +283,7 @@ A validator MUST NOT report a diagnostic that this section says is not evaluated
 | `FS-LINT-014` | warning | an evaluated building (14.4) that has rooms but no entry | the building | 14.4 |
 | `FS-LINT-015` | info | a roof whose surface this draft does not derive (16.4.4) | the roof | 16.4.1 |
 | `FS-LINT-016` | info | a winder or a spiral stair, whose steps, run, walkline and headroom this draft does not derive | the stair | 17.7 |
-| `FS-LINT-018` | info | an option set with exactly one option | the option set | 19.8 |
+| `FS-LINT-017` | info | an option set with exactly one option | the option set | 19.8 |
 
 ## 10.5 Fix operations
 

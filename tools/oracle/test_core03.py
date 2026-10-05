@@ -78,6 +78,7 @@ class ClearOpenings(unittest.TestCase):
 NEW_DERIVED = ('floors', 'ceilings', 'slabs')
 NEW_DERIVED += ('roofs',)                            # chapter 16: none in an earlier draft's document
 NEW_DERIVED += ('stairs',)                           # chapter 17: none in an earlier draft's document
+NEW_DERIVED += ('finishes',)                         # chapter 18: from the rooms' finishes and layers' materials 0.1 has
 
 
 def without_new(result):

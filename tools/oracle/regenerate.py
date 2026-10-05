@@ -20,6 +20,9 @@ input.json (and registry.json and design.json) alone:
 - `hash` and canonical.json - present exactly when the document is valid - and `derived`, present
   when it is valid and the design is one Core derives (19.6.2);
 
+as a package validator (Core 0.3, 18.4) given the files under the test's package/ directory, when it
+has one;
+
 and, for every valid document, that its canonical form is itself valid, canonicalizes to the same
 bytes, has the same hash and derives exactly the same values (9.2.2).
 """
@@ -33,6 +36,7 @@ import sys
 from .ops.suite import verify_all as verify_ops
 from .ops.version import PROFILES as OPS_VERSIONS
 from .report import dumps
+from .author_lib import read_package
 from .validate import READER_01, READERS, check, ext_reader
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -85,7 +89,8 @@ def verify(path: str, write: bool, extensions=None) -> list[str]:
     if extensions is not None:
         reader = ext_reader(data)
     design = design_for(path)
-    result, canonical, notes = check(data, reader, registry, extensions, design)
+    package = read_package(path)                     # Core 0.3, 18.4: run as a package validator
+    result, canonical, notes = check(data, reader, registry, extensions, package, design)
     exp_path = os.path.join(path, 'expected.json')
     try:
         with open(exp_path, encoding='utf-8') as f:
@@ -125,7 +130,7 @@ def verify(path: str, write: bool, extensions=None) -> list[str]:
             errors.append('canonical.json differs from the oracle' if canonical is not None and on_disk is not None
                           else 'canonical.json must exist exactly when the document is valid')
     if canonical is not None:
-        again, canonical2, _ = check(canonical, reader, registry, extensions, design)
+        again, canonical2, _ = check(canonical, reader, registry, extensions, package, design)
         if not again['valid'] or canonical2 != canonical:
             errors.append('the canonical form does not canonicalize to itself')
         elif again.get('hash') != result.get('hash') or again.get('derived') != result.get('derived'):

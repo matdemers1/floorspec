@@ -62,6 +62,16 @@ as it is. A level that breaks it is made planar, as a whole, by **snap rounding*
    keeps the wall's base and top. An element that no piece contains — its offset negative or
    past the wall's end — stays on the first piece, unchanged, for validation to judge (Core
    §13.3.1, 13.3.2). A hosted element is a point, so unlike an opening it never straddles.
+7. **Finishes** (Ops 0.3). Every piece copies the split wall's `finishes` (Core §18.5) with its other
+   members (step 4), and then the regions of each of its faces are the original's cut to the piece:
+   with `[s, e]` the piece's interval along the original location line (step 5), a region whose
+   `from` is less than `e` and whose `to` is greater than `s` runs from `max(from, s) − s` to
+   `min(to, e) − s`, each computed exactly and rounded once, ties to even, with its `bottom`, `top`
+   and `material` unchanged — and is dropped if the rounded `from` is not less than the rounded `to`;
+   every other region is dropped. The regions keep their order. A region whose `from` or `to` is not
+   an integer is left on every piece as it is, for validation to judge. So a backsplash that a new
+   wall crosses is cut in two at the wall's location line, each part on its own piece, and each
+   piece keeps the face's `material`.
 
 Snap rounding moves no point of any edge by more than one base unit, and its result does not
 depend on the order of edges or on any implementation detail. It creates junctions only where none
@@ -76,6 +86,8 @@ exist, so it never makes two junctions coincide.
 An applier MUST planarize exactly the levels this section names, as this section defines, and MUST reject the batch with `FS-OPS-009` when an opening straddles a junction it inserts. {#FS-OPS-5.2.1 MUST}
 
 An applier MUST move every extension element hosted on the face of a split wall exactly as step 6 defines. {#FS-OPS-5.2.2 MUST}
+
+An applier MUST cut the regions of a split wall's finishes to its pieces exactly as step 7 defines. {#FS-OPS-5.2.3 MUST}
 So a wall drawn across a run of outlets splits the run between the two pieces, and every outlet
 stays where it was: exactly, when the crossing is at an integer point of the original location
 line, as it is wherever axis-aligned walls cross; otherwise within the rounding that moved the

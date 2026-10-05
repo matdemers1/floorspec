@@ -10,8 +10,10 @@ from 1) within 2^53 - 1.
 And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
 `clearOpening` (8.4.2, 8.4.3); a level's `floorThickness` and `ceilingHeight` (1.8.4), a room's
 `floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2); and the `roofs` collection
-(16.1.1) and the `stairs` collection (17.1.1, 17.2.1); and design options: the `optionSets` and
-`options` collections and the `option` member of the elements that may be in one (19.1.1, 19.2.1).
+(16.1.1) and the `stairs` collection (17.1.1, 17.2.1); a material's `metallic` and `roughness`, a
+texture's maps, `offset` and `rotation`, an asset's `byteLength` and a wall's `finishes` (18.1.1,
+18.2.1, 18.4.1, 18.5.1); and design options: the `optionSets` and `options` collections and the
+`option` member of the elements that may be in one (19.1.1, 19.2.1).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -247,11 +249,13 @@ class _Checker:
             else:
                 self.members(x, p, {'level': self.ref, 'offset': self.length}, ('level',))
 
-        self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref,
-                               'type': self.ref, 'layers': self.layers,
-                               'justification': self.enum('center', 'exteriorFace', 'interiorFace', 'coreFace'),
-                               'base': base, 'top': top, **self.optional()},
-                     ('level', 'start', 'end'))
+        allowed = {'level': self.ref, 'start': self.ref, 'end': self.ref,
+                   'type': self.ref, 'layers': self.layers,
+                   'justification': self.enum('center', 'exteriorFace', 'interiorFace', 'coreFace'),
+                   'base': base, 'top': top, **self.optional()}
+        if self.v03:
+            allowed['finishes'] = self.wall_finishes                        # 18.5.1 (0.3)
+        self.members(v, path, allowed, ('level', 'start', 'end'))
 
     def separator(self, v, path):
         if self.obj(v, path):
@@ -557,6 +561,8 @@ class _Checker:
     def material(self, v, path):
         if not self.obj(v, path):
             return
+        if self.v03:                                                        # 18.1, 18.2 (0.3)
+            return self.material_03(v, path)
 
         def color(x, p):
             if not isinstance(x, str) or not COLOR_RE.fullmatch(x):
@@ -575,6 +581,54 @@ class _Checker:
             self.members(x, p, {'asset': self.ref, 'size': size}, ('asset', 'size'))
 
         self.members(v, path, {'color': color, 'texture': texture, **self.common()})
+
+    # ---- Core 0.3: chapter 18
+    def material_03(self, v, path):
+        def color(x, p):
+            if not isinstance(x, str) or not COLOR_RE.fullmatch(x):
+                self.bad(p, 'bad colour')
+
+        def texture(x, p):
+            if not self.obj(x, p):
+                return
+
+            def size(y, q):
+                if not isinstance(y, list) or len(y) != 2:
+                    self.bad(q, 'bad texture size')
+                    return
+                for i, s in enumerate(y):
+                    self.positive(s, f'{q}/{i}')
+            self.members(x, p, {'asset': self.ref, 'normal': self.ref, 'metallicRoughness': self.ref,
+                                'occlusion': self.ref, 'size': size, 'offset': self.point,
+                                'rotation': self.rotation}, ('size',))
+            if not any(k in x for k in ('asset', 'normal', 'metallicRoughness', 'occlusion')):
+                self.bad(p, 'a texture has no map')
+
+        thousandths = self.integer(0, 1000)
+        self.members(v, path, {'color': color, 'metallic': thousandths, 'roughness': thousandths,
+                               'texture': texture, **self.common()})
+
+    def wall_finishes(self, v, path):
+        if not self.obj(v, path):
+            return
+
+        def region(x, p):
+            if self.obj(x, p):
+                self.members(x, p, {'from': self.nonneg, 'to': self.nonneg, 'bottom': self.nonneg,
+                                    'top': self.nonneg, 'material': self.ref},
+                             ('from', 'to', 'bottom', 'top', 'material'))
+
+        def regions(x, p):
+            if not isinstance(x, list):
+                self.bad(p, 'not an array')
+                return
+            for i, r in enumerate(x):
+                region(r, f'{p}/{i}')
+
+        def face(x, p):
+            if self.obj(x, p):
+                self.members(x, p, {'material': self.ref, 'regions': regions})
+        self.members(v, path, {'left': face, 'right': face})
 
     def asset(self, v, path):
         if not self.obj(v, path):
@@ -600,8 +654,10 @@ class _Checker:
             if not isinstance(x, str) or not MEDIA_RE.fullmatch(x):
                 self.bad(p, 'bad media type')
 
-        self.members(v, path, {'path': rel_path, 'uri': uri, 'sha256': sha, 'mediaType': media,
-                               **self.common()}, ('sha256', 'mediaType'))
+        allowed = {'path': rel_path, 'uri': uri, 'sha256': sha, 'mediaType': media, **self.common()}
+        if self.v03:
+            allowed['byteLength'] = self.integer(0, MAX_LEN)                 # 18.4.1 (0.3)
+        self.members(v, path, allowed, ('sha256', 'mediaType'))
         if ('path' in v) == ('uri' in v):
             self.bad(path, 'an asset has exactly one of path and uri')
 

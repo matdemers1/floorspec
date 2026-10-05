@@ -234,8 +234,16 @@ class Transaction:
             where('rooms', lambda e: eid in (e.get('wallFinish'), e.get('floorFinish'), e.get('ceilingFinish')))
             where('slabs', lambda e: e.get('material') == eid)
             where('roofs', lambda e: e.get('material') == eid)
+
+            def finished(e):                                    # Core 0.3, 18.5: a face or a region names it
+                f = e.get('finishes')
+                faces = [x for x in f.values() if isd(x)] if isd(f) else []
+                return any(x.get('material') == eid or (isinstance(x.get('regions'), list) and any(
+                    isd(r) and r.get('material') == eid for r in x['regions'])) for x in faces)
+            where('walls', finished)
         elif k == 'assets':
-            where('materials', lambda e: isd(e.get('texture')) and e['texture'].get('asset') == eid)
+            maps = ('asset', 'normal', 'metallicRoughness', 'occlusion')      # Core 0.3, 18.2: every map
+            where('materials', lambda e: isd(e.get('texture')) and any(e['texture'].get(m) == eid for m in maps))
             ext(self._fallback_is('asset', 'symbol', eid))
         elif k == ITEMS:
             where('rooms', lambda e: e.get('brief') == eid)

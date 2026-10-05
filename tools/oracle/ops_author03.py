@@ -615,6 +615,10 @@ T('inverse', 'option-set-removed-and-undone', 'Removing the set with cascade: th
   'it gives back A exactly (1.6.1).', ['1.6.1'], kitchen_house(kit=False),
   req({'op': 'removeElement', 'id': 'KS', 'cascade': True}),
   check=lambda r, B: ensure([p['id'] for p in r['inverse']] == ['KS', 'KA', 'KB', 'WA', 'SB', 'OA', 'OB'], r['inverse']))
+# ============================================================================= materials and finishes (0.3): Core chapter 18
+import tools.oracle.ops_author03_materials as materials                       # noqa: E402
+
+materials.declare()
 
 NEW = list(TESTS)
 del TESTS[:]

@@ -19,6 +19,7 @@ from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
 from . import floors, options, roofs, stairs
+from . import finishes
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -56,7 +57,7 @@ SEVERITY = {
     'FS-LINT-012': 'warning', 'FS-LINT-013': 'warning', 'FS-LINT-014': 'warning',
     'FS-LINT-015': 'info',                                            # roofs (Core 0.3, 16.4)
     'FS-LINT-016': 'info',                                            # stairs (Core 0.3, 17.7)
-    'FS-LINT-018': 'info',                                            # design options (Core 0.3, 19.8)
+    'FS-LINT-017': 'info',                                            # design options (Core 0.3, 19.8)
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -164,6 +165,7 @@ def references(d: dict):
             for layer in e.get('layers', []):
                 if 'material' in layer:
                     out.append((coll, eid, layer['material'], 'materials', None))
+    out.extend((c, eid, v, target, None) for c, eid, v, target in finishes.references(d))   # 18.2, 18.5 (0.3)
     return out
 
 
@@ -674,7 +676,7 @@ def opening_in_join(doc: Doc, oid) -> bool:
 
 # ------------------------------------------------------------------------------ the pipeline
 
-def design_invariants(value: dict, reader: Reader, known):
+def design_invariants(value: dict, reader: Reader, known, package=None):
     """Tier 4 after the reference invariants, of one document - a document without design options,
     or the view of one checked design (19.5) - in the order of 10.3."""
     ds = []
@@ -693,6 +695,9 @@ def design_invariants(value: dict, reader: Reader, known):
         ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
         ds.extend(roofs.invariants(doc, diag))
         ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
+        ds.extend(finishes.invariants(doc, no_top, diag))               # 18.2, 18.5
+        if package is not None:                                         # 18.4: a package validator
+            ds.extend(finishes.package_invariants(doc, package, diag))
     if reader.v02:
         ds.extend(program_invariants(value, diag))
         ds.extend(extension_tier(value, known))
@@ -703,7 +708,7 @@ def design_invariants(value: dict, reader: Reader, known):
 
 def design_values(value: dict, reader: Reader, ext_ctxs, extensions):
     """(lints, derived values) of one valid document - one without design options, or the view of
-    a design (19.5, 19.6). FS-LINT-006, FS-LINT-007 and FS-LINT-018 are the document's, not a design's."""
+    a design (19.5, 19.6). FS-LINT-006, FS-LINT-007 and FS-LINT-017 are the document's, not a design's."""
     doc = Doc(value)
     ds = design_lints(doc)
     derived = derive_all(doc)
@@ -717,6 +722,7 @@ def design_values(value: dict, reader: Reader, ext_ctxs, extensions):
         ds.extend(roofs.lints(doc, diag))
         derived.update(stairs.derive(doc))
         ds.extend(stairs.lints(doc, diag))
+        derived.update(finishes.derive(doc))                            # 18.6
     if extensions is not None:
         from .ext import official as ext
         eds, derived['extensions'] = ext.finish(ext_ctxs)
@@ -729,7 +735,8 @@ def _extension_errors(value: dict, known, implemented):
     return ext.evaluate(Doc(value), known, implemented)
 
 
-def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None, design=None):
+def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None, package=None,
+          design=None):
     """Returns (result, canonical bytes or None, notes).
 
     ``extensions`` is the official extensions this run implements (tools/oracle/ext: name ->
@@ -740,7 +747,10 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
 
     ``design`` is the design to derive (Core 0.3, 19.6): an object mapping option sets to options,
     or None for the primary design. Validity never depends on it; `derived` is absent from a valid
-    document's result when the design is not one of the document's, or its view is not valid."""
+    document's result when the design is not one of the document's, or its view is not valid.
+
+    ``package`` is the files of the document's package (Core 0.3, 18.4) - path -> bytes - when the
+    run is a package validator, or None for a validator that is not given them."""
     implemented = {} if extensions is None else extensions
     notes = []
     known = None
@@ -787,7 +797,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
     if not ds:
         designs = ([(tag, options.view(value, des)) for tag, des in options.checked_designs(value)]
                    if optioned else [(None, value)])
-        ds.extend(options.merge([(tag, design_invariants(v, reader, known)) for tag, v in designs]))
+        ds.extend(options.merge([(tag, design_invariants(v, reader, known, package)) for tag, v in designs]))
     if any(x['severity'] == 'error' for x in ds):
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
     ctxs = {}
@@ -809,13 +819,13 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
     if optioned:
         ds.extend(options.lints(value, diag))
     result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value)}
-    derived = derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions)
+    derived = derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions, package)
     if derived is not None:
         result['derived'] = derived
     return result, canon.canonical_bytes(value), notes
 
 
-def derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions):
+def derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions, package=None):
     """19.6: the derived values of the design asked for - the primary design when none is - or None
     when it is not a design of the document, or its view is not valid (19.6.2)."""
     if not optioned:
@@ -828,7 +838,7 @@ def derived_of(value, design, optioned, derived_by, reader, known, implemented, 
         derived = derived_by[tag]
     else:                                                       # a design that is not checked
         v = options.view(value, chosen)
-        if any(x['severity'] == 'error' for x in design_invariants(v, reader, known)):
+        if any(x['severity'] == 'error' for x in design_invariants(v, reader, known, package)):
             return None
         ctxs = None
         if extensions is not None:

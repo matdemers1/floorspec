@@ -95,6 +95,14 @@ What 0.3 adds:
   level takes the stair with it or is blocked by it (2.2); stairs come after roofs in the inverse's
   order (1.6); and a batch sets and unsets a stair's members like any other's, judged by Core 0.3's
   stair invariants (`FS-INV-901` to `FS-INV-904`, 1.2.3);
+- **materials and finishes** (Core chapter 18): a batch sets and unsets a material's `metallic` and
+  `roughness`, its texture's maps, `offset` and `rotation`, an asset's `byteLength` and a wall's
+  `finishes` — its faces' materials and regions — like any other member (2.3), and the result is
+  judged by Core 0.3's invariants `FS-INV-1001` to `FS-INV-1004` (1.2.3); an applier's validator is
+  not a package validator (Core §18.4), so it never reports `FS-INV-1005` to `FS-INV-1007`. A wall
+  whose face or region names a material, and a material whose texture's map names an asset, refers
+  to it, so the removal table blocks removing it (2.2); and a wall split by planarization cuts its
+  regions to its pieces (5.2 step 7, `FS-OPS-5.2.3`);
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
   (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test;

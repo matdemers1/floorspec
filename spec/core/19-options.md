@@ -110,7 +110,7 @@ A validator MUST report every diagnostic of the primary design's view as it is, 
 An option design reports what is new in it. An error that the primary design and B's design both
 have is reported once, without `design`; one that only B's design has is reported with
 `"design": "B"`. Lints are reported the same way, except `FS-LINT-006`, `FS-LINT-007` and
-`FS-LINT-018`, which are of the document: a type that only option B's walls use is used.
+`FS-LINT-017`, which are of the document: a type that only option B's walls use is used.
 
 > [!note] Why these designs
 > An option set holds the alternatives for one part of a design, and its options are compared
@@ -130,7 +130,7 @@ set IDs and whose values are option IDs, choosing those options for those sets a
 primary for each set it does not name. With no design input, a deriver derives the primary
 design.
 
-A deriver MUST derive for a valid document exactly the values chapters 5 to 7 and 11 to 17 define for the view of the design its design input gives, or of the primary design when it has none. {#FS-CORE-19.6.1 MUST}
+A deriver MUST derive for a valid document exactly the values chapters 5 to 7 and 11 to 18 define for the view of the design its design input gives, or of the primary design when it has none. {#FS-CORE-19.6.1 MUST}
 
 A deriver MUST NOT derive any value for a design input that names an option set the document does not have or maps a set to an option that is not that set's, nor for a design whose view is not valid. {#FS-CORE-19.6.2 MUST NOT}
 The view of a checked design is valid whenever the document is; only a design that chooses
@@ -145,7 +145,7 @@ option set. For every option set it gives:
   - `rooms` — every room of the option's own design, with its net area (6.4): the option design
     of an option that is not primary, and the primary design for the primary;
   - `affected` — the IDs, sorted, of every element and program item that is in both the primary
-    design's view and that design's view and for which anything chapters 5 to 7 and 11 to 17
+    design's view and that design's view and for which anything chapters 5 to 7 and 11 to 18
     derive differs between the two: a common wall whose face ends move where an option's wall
     meets it, a common room whose polygon or area changes, a common door now reachable another
     way. The primary option's `affected` is empty.
@@ -167,7 +167,7 @@ An exporter SHOULD export the primary design unless it is asked for another, and
 
 ## 19.8 Lints
 
-A validator SHOULD report `FS-LINT-018` (info) for each option set with exactly one option: it has nothing to choose between. {#FS-CORE-19.8.1 SHOULD}
+A validator SHOULD report `FS-LINT-017` (info) for each option set with exactly one option: it has nothing to choose between. {#FS-CORE-19.8.1 SHOULD}
 
 ## 19.9 What this draft does not define
 
@@ -184,5 +184,5 @@ A validator SHOULD report `FS-LINT-018` (info) for each option set with exactly 
 FLR-REQ-120 (option sets with membership and a primary), FLR-REQ-121 (create, switch and compare
 options side by side), FLR-ADR-002 (rooms are found, so a common room follows each option's walls).
 Chapters 3 (references), 10 (validation and its order, `FS-INV-1101`, `FS-INV-1102`,
-`FS-LINT-018`) and Annex A (exports). Floorspec Ops edits options with its primitives and
+`FS-LINT-017`) and Annex A (exports). Floorspec Ops edits options with its primitives and
 normalizes a level option by option (Ops 2.2, 5.5); Floorspec Rules evaluates one design (Rules 1.2).

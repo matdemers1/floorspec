@@ -21,6 +21,7 @@ import re
 import sys
 
 import tools.oracle.author02 as v02                    # declares the 0.2 suite: v02.BASE + v02.NEW
+import tools.oracle.author03_materials as materials    # chapter 18: the group `materials`
 from tools.oracle.author import room_doc as room_doc_01
 from tools.oracle.author02 import element, free, surface, wall_face, with_elements
 from tools.oracle.author_lib import IN, MM, REPO, TESTS, J, R, W, box, level_doc, t, write_all
@@ -81,7 +82,7 @@ def retarget(tc):
     if tc['raw'] is not None:
         tc['raw'] = _RAW_VERSION.sub(rb'\1"0.3"', tc['raw'])
     tc['slug'] = SLUGS.get(slug, slug)
-    return tc
+    return materials.retarget(tc)
 
 
 SUITE02 = v02.BASE + v02.NEW
@@ -554,6 +555,9 @@ n('hosting', 'read-0.2-surface-hosts', 'A document declaring "0.2" with a light 
   'its floor, read by a reader of 0.3: the light hangs from the level\'s elevation plus its height, 2700 mm, and the '
   'piece stands at its elevation, 0 - exactly where a reader of 0.2 places them; the room\'s floor and ceiling are '
   'there too.', ['15.6.1', '1.2.6', '13.4.1'], d)
+
+# =================================================================================== materials (0.3): chapter 18
+materials.declare()
 
 # =================================================================================== roofs (0.3): chapter 16
 # The standard room (above) under a roof: its walls' outer faces run from (-50 mm, -50 mm) to (4050 mm, 3050 mm), and
@@ -1315,8 +1319,8 @@ n('options', 'unused-type-once', 'A window type nothing uses: FS-LINT-006 is of 
 d = kitchen()
 d['optionSets']['DS'] = {'name': 'Deck', 'primary': 'DA'}
 d['options']['DA'] = {'set': 'DS', 'name': 'Deck'}
-n('options', 'option-set-with-one-option', 'A Deck set whose only option is DA, primary: valid, with FS-LINT-018 - '
-  'there is nothing to choose between.', ['19.8.1'], d, [('FS-LINT-018', ['DS'])])
+n('options', 'option-set-with-one-option', 'A Deck set whose only option is DA, primary: valid, with FS-LINT-017 - '
+  'there is nothing to choose between.', ['19.8.1'], d, [('FS-LINT-017', ['DS'])])
 
 # ---- extension elements in options
 # A fridge 900 mm wide and 750 mm deep, its frame's origin at the middle of its front, its body behind it (-y)
