@@ -16,6 +16,7 @@ conformance/
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
   core/0.1/…         the Core 0.1 suite, as published; unchanged
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
 ```
 
 **Core 0.2** (`core/0.2/`) is the suite of the current spec text, and the one `pnpm coverage`
@@ -292,3 +293,48 @@ checks (1.2, 7.1), one diagnostic per failing opening or lock (7.1.2), what `$do
 (2.3), minting past every ID A or the batch has used (1.5), property differences first in the
 inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizing inwards at a T
 (4.4) - and the tests that pin each say so in their description.
+
+## Extensions
+
+Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
+`conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`) against it as it gates Core's. A test there may also cover Core
+or Ops statements it exercises.
+
+An extension suite is run by **an implementation of that one extension**: a Core 0.2 reader,
+validator and deriver that implements `<NAME>` at `<version>` and no other extension (it passes
+`FS-DOC-002` for `<NAME>` alone), configured with the test's `registry.json` as its known
+extensions — usually just `<NAME>`'s own registry entry — or with none when the test has none. In
+the D3 Floorspec engine that is `extensions: ['<NAME>']` with `knownExtensions` from
+`registry.json`.
+
+Two kinds of test share the suite:
+
+- **Validator and deriver tests**, laid out as Core 0.2's (`test.json`, `input.json`,
+  `registry.json`, `expected.json`, `canonical.json`). `expected.json` is Core's, and its `derived`
+  has one more member, always present: `extensions`, mapping each extension the run evaluated
+  (each specification's §1.2) to what it derives — `{}` when none was, as in a test without
+  `registry.json`.
+- **Ops tests**, in the group `ops`, laid out as Ops 0.2's (`test.json`, `input.json`,
+  `request.json`, `registry.json`, `expected.json`, `output.json`), applied by an applier whose
+  validator is that implementation, configured with `registry.json`. A batch whose result breaks
+  one of the extension's invariants is rejected with that diagnostic (Ops §1.2 step 6).
+
+Groups: `examples` (the Phase 5 demo house: a panel, kitchen receptacles on two 20 A circuits, a
+toilet, a lavatory, a water heater, a gas furnace and range, low-voltage devices — read by an
+implementation that knows the extension, by one that knows none, and by one that knows all four
+official entries), `activation` (when an extension is evaluated at all), `order` (Core first, then
+the extension's schema, then its invariants, lints only for a valid document), `schema`,
+`invariants`, `lints`, `derived` and `ops` (`…-move-a-wall-and-watch-them-follow`: the Phase 5 demo,
+where moving a wall leaves the devices' bytes unchanged and moves their derived placements).
+
+The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house,
+with every expected diagnostic written by hand and the derived values that matter — a circuit's
+loads and connected load, a panel's spaces, the room each device is in, a stack's connections —
+asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
+specification alone, and reads each extension's schema with a small, independent interpreter of the
+JSON Schema keywords the official schemas use (`tools/oracle/ext/jsonschema.py`).
+`python3.13 -m tools.oracle.ext_author` rewrites the extension suites, `python3.13 -m
+tools.oracle.regenerate` re-verifies them with the others, and `pnpm schema:check` checks that each
+extension's schema rejects its data exactly in the tests that expect `FS-<CODE>-SCH-001` and accepts
+it in every valid test that evaluates it.

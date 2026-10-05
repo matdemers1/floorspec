@@ -596,8 +596,15 @@ def opening_in_join(doc: Doc, oid) -> bool:
 
 # ------------------------------------------------------------------------------ the pipeline
 
-def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None):
-    """Returns (result, canonical bytes or None, notes)."""
+def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None):
+    """Returns (result, canonical bytes or None, notes).
+
+    ``extensions`` is the official extensions this run implements (tools/oracle/ext: name ->
+    module), or None for a core-only reader - every Core suite. When it is given, the run is a
+    reader of those extensions: they pass FS-DOC-002, each is evaluated after the Core invariants
+    as its specification's 1.2 says, and the derived values gain `extensions`, the derived values of
+    each extension evaluated (empty when none is)."""
+    implemented = {} if extensions is None else extensions
     notes = []
     known = None
     if registry is not None:                                    # tier 0: configuration (12.2)
@@ -623,7 +630,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         if (isinstance(req, list) and all(isinstance(n, str) for n in req) and len(set(req)) == len(req)
                 and isinstance(used, dict) and all(n in used for n in req)):
             for n in req:
-                if n not in IMPLEMENTED_EXTENSIONS:
+                if n not in IMPLEMENTED_EXTENSIONS and n not in implemented:
                     ds.append(diag('FS-DOC-002'))
     if ds:
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
@@ -654,12 +661,23 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
     if any(x['severity'] == 'error' for x in ds):
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
     doc = Doc(value)
+    ext_ctxs = []
+    if extensions is not None:                                  # each extension's spec, 1.2
+        from .ext import official as ext
+        eds, ext_ctxs = ext.evaluate(doc, known, implemented)
+        if any(x['severity'] == 'error' for x in eds):
+            return {'valid': False, 'diagnostics': sort_diags(eds)}, None, notes
+        ds.extend(eds)
     ds.extend(lints(doc))
     derived = derive_all(doc)
     if reader.v02:
         ds.extend(program_lints(doc, diag))
         ds.extend(circulation_lints(doc, diag))
         derived.update(derive_02(doc))
+    if extensions is not None:
+        from .ext import official as ext
+        eds, derived['extensions'] = ext.finish(ext_ctxs)
+        ds.extend(eds)
     result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value),
               'derived': derived}
     return result, canon.canonical_bytes(value), notes

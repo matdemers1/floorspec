@@ -1,5 +1,6 @@
 /**
- * The MUST-coverage gate (FLR-ADR-009, FLR-REQ-032, FLR-REQ-159): every mandatory statement
+ * The MUST-coverage gate (FLR-ADR-009, FLR-REQ-032, FLR-REQ-159): every mandatory statement of Core,
+ * Ops and every extension specification in registry/ (gated against conformance/ext/<NAME>/<version>/)
  * (MUST / MUST NOT) has at least one conformance test whose test.json `covers` names it, and every
  * ID a test names exists. Fails the build otherwise. Writes build/coverage.json and
  * build/coverage.md, which the spec site publishes.
@@ -14,7 +15,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { CORE_VERSIONS, CURRENT_CORE, CURRENT_OPS, OPS_VERSIONS } from '../tools/schema.ts';
-import { extract, MANDATORY, retired, type Statement } from '../tools/statements.ts';
+import { extensionSpecs, extract, extractExtension, MANDATORY, retired, type Statement } from '../tools/statements.ts';
 
 const root = join(import.meta.dirname, '..');
 
@@ -99,6 +100,48 @@ for (const spec of ['core', 'ops', 'rules'] as const) {
     covered: mandatory.length - uncovered.length,
   };
   lines.push(`## Floorspec ${spec[0]!.toUpperCase()}${spec.slice(1)}`, '', `${mandatory.length - uncovered.length} of ${mandatory.length} mandatory statements covered by ${cases.length} tests.`, '', '| Statement | Level | Tests |', '|---|---|---|');
+  for (const s of statements) lines.push(`| ${s.id} | ${s.level} | ${(coveredBy.get(s.id) ?? []).length} |`);
+  lines.push('');
+}
+
+// Each extension's specification (registry/<NAME>/spec.md) is gated against its own suite,
+// conformance/ext/<NAME>/<version>/, in its own ID space.
+const exts = extensionSpecs(root);
+const coreAndOps = new Set([...extract(root, 'core').statements, ...extract(root, 'ops').statements].map((s) => s.id));
+for (const p of exts.problems) console.error(`${p.file}:${p.line}: ${p.message}`);
+failed ||= exts.problems.length > 0;
+for (const ext of exts.specs) {
+  const { statements, problems } = extractExtension(root, ext);
+  for (const p of problems) console.error(`${p.file}:${p.line}: ${p.message}`);
+  failed ||= problems.length > 0;
+  const byId = new Set(statements.map((s) => s.id));
+  const cases = tests(ext.suite);
+  const coveredBy = new Map<string, string[]>();
+  for (const t of cases)
+    for (const id of t.covers) {
+      // An extension's test may also cover Core or Ops statements; it must name only real ones.
+      if (!byId.has(id) && !coreAndOps.has(id)) {
+        console.error(`${t.path}: covers ${id}, which is no statement of FS-${ext.code}, Core or Ops`);
+        failed = true;
+        continue;
+      }
+      coveredBy.set(id, [...(coveredBy.get(id) ?? []), t.path]);
+    }
+  const mandatory = statements.filter((s) => MANDATORY.includes(s.level));
+  const uncovered = mandatory.filter((s) => !coveredBy.has(s.id));
+  for (const s of uncovered) console.error(`${s.file}:${s.line}: ${s.id} (${s.level}) has no conformance test`);
+  failed ||= uncovered.length > 0 || cases.length === 0;
+  if (cases.length === 0) console.error(`${ext.name}: no conformance tests in ${relative(root, ext.suite)}`);
+  const pct = mandatory.length ? Math.floor((100 * (mandatory.length - uncovered.length)) / mandatory.length) : 100;
+  console.log(`FS-${ext.code} (${ext.name} ${ext.version}): ${mandatory.length - uncovered.length}/${mandatory.length} mandatory statements covered (${pct}%) by ${cases.length} tests`);
+  report[ext.name] = {
+    version: ext.version,
+    tests: cases.length,
+    statements: statements.map((s) => ({ id: s.id, level: s.level, section: s.section, tests: coveredBy.get(s.id) ?? [] })),
+    mandatory: mandatory.length,
+    covered: mandatory.length - uncovered.length,
+  };
+  lines.push(`## ${ext.name} ${ext.version}`, '', `${mandatory.length - uncovered.length} of ${mandatory.length} mandatory statements covered by ${cases.length} tests.`, '', '| Statement | Level | Tests |', '|---|---|---|');
   for (const s of statements) lines.push(`| ${s.id} | ${s.level} | ${(coveredBy.get(s.id) ?? []).length} |`);
   lines.push('');
 }

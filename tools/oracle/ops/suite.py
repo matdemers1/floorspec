@@ -24,7 +24,6 @@ import json
 import os
 
 from ..jsonparse import Malformed, parse
-from ..validate import check as core_check
 from .engine import apply
 from .version import OPS_01, PROFILES, Profile, profile_for
 
@@ -85,7 +84,7 @@ def request_context(req_bytes: bytes) -> dict:
 def properties(a_bytes: bytes, req_bytes: bytes, result: dict, b_bytes: bytes, profile: Profile = OPS_01) -> list[str]:
     """1.3.1, 1.3.2, 1.4.1 and 1.6.1 for a committed result."""
     errors = []
-    _, b_canon, _ = core_check(b_bytes, profile.reader)
+    _, b_canon, _ = profile.validate(b_bytes)
     if b_canon != b_bytes:
         errors.append('the committed document is not in canonical form (1.3.1)')
     r2, b2 = apply(a_bytes, req_bytes, profile)
@@ -97,7 +96,7 @@ def properties(a_bytes: bytes, req_bytes: bytes, result: dict, b_bytes: bytes, p
     if r3['status'] != 'committed' or b3 != b_bytes:
         errors.append('applying `resolved` to A does not commit the same B (1.4.1): '
                       + json.dumps(r3.get('diagnostics')))
-    _, a_canon, _ = core_check(a_bytes, profile.reader)
+    _, a_canon, _ = profile.validate(a_bytes)
     if not result['inverse']:
         if b_bytes != a_canon:
             errors.append('the inverse is empty but B is not A (1.6.1)')
@@ -114,9 +113,11 @@ def test_dirs(suite=SUITE):
             yield dirpath
 
 
-def verify(path: str, write: bool = False) -> list[str]:
+def verify(path: str, write: bool = False, profile: Profile | None = None) -> list[str]:
+    """One test; with the draft its directory belongs to unless a profile is given (an extension
+    suite's Ops tests are applied as Ops 0.2, with the test's known extensions)."""
     rel = os.path.relpath(path, ROOT)
-    profile = profile_for(path)
+    profile = profile_for(path) if profile is None else profile
     errors = []
     try:
         with open(os.path.join(path, 'test.json'), encoding='utf-8') as f:

@@ -18,10 +18,23 @@ from ..validate import READER_01, READER_02, Reader
 
 
 class Profile:
-    def __init__(self, version: str, reader: Reader):
+    def __init__(self, version: str, reader: Reader, registry: bytes | None = None, extensions=None):
         self.version = version
         self.reader = reader                    # how A and the result are validated (1.2 steps 1, 6)
         self.v02 = version == '0.2'
+        # The validator's known extensions (Core 12.2) and the official extensions it implements
+        # (tools/oracle/ext): none in the Ops suites (Ops 0.2); an extension suite's Ops tests
+        # (conformance/ext/) configure them from the test.
+        self.registry = registry
+        self.extensions = extensions
+
+    def validate(self, data: bytes):
+        """Core validation as this applier's validator performs it."""
+        from ..validate import check
+        return check(data, self.reader, self.registry, self.extensions)
+
+    def configured(self, registry: bytes | None, extensions) -> 'Profile':
+        return Profile(self.version, self.reader, registry, extensions)
 
     def __repr__(self):
         return f'Ops {self.version}'
