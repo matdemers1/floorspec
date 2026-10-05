@@ -1,7 +1,7 @@
 """What the four official extensions share: their activation, the one space of IDs, the room an
 element is in, and diagnostics in an extension's own namespace.
 
-An extension module (electrical.py, ...) defines NAME, VERSION, SCHEMA (the path of its schema
+An extension module (electrical.py, ...) defines NAME, VERSION, CORE, SCHEMA (the path of its schema
 file), SEVERITY (its lints' severities; every other code is an error), and three functions of a
 Context: invariants(ctx), lints(ctx) and derive(ctx). validate.check runs them for every extension
 it implements that the document uses at a version at which it is known (spec.md 1.2 of each).

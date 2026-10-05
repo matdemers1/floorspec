@@ -319,12 +319,15 @@ Each extension with a specification in `registry/<NAME>/spec.md` has its suite a
 `FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
-An extension suite is run by **an implementation of that one extension**: a Core 0.2 reader,
-validator and deriver that implements `<NAME>` at `<version>` and no other extension (it passes
-`FS-DOC-002` for `<NAME>` alone), configured with the test's `registry.json` as its known
+An extension suite is run by **an implementation of that one extension**: a reader, validator and
+deriver of the Core draft each test's document declares — Core 0.3 for a document that declares
+`"0.3"`, Core 0.2 for every other — that implements `<NAME>` at `<version>` and no other extension
+(it passes `FS-DOC-002` for `<NAME>` alone), configured with the test's `registry.json` as its known
 extensions — usually just `<NAME>`'s own registry entry — or with none when the test has none. In
 the D3 Floorspec engine that is `extensions: ['<NAME>']` with `knownExtensions` from
-`registry.json`.
+`registry.json`, and `core` the draft the document declares. Every official extension at 0.1.0 is
+evaluated for Core 0.2 and 0.3 documents (each specification's 1.1), and its `activation` group
+reads the demo house declaring `"0.3"` as well.
 
 Two kinds of test share the suite:
 

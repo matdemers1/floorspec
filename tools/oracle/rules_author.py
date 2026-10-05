@@ -532,6 +532,16 @@ R('typing', 'the-same-rules-with-the-extensions-known',
   edit(lambda d: furniture(d, {'P1': {'fallback': {'level': 'L1', 'box': box(-300, -300, 0, 300, 300, 900)},
                                       'host': {'mode': 'free', 'level': 'L1', 'position': [18 * FT, 6 * FT]}, 'finish': 'oak'}})),
   req(EXT_PACK), diags=[D('FS-RULES-009', pack='test-pack', rule='FURNITURE')])
+R('typing', 'extension-rules-on-a-core-0.3-document',
+  'The same document and pack, declaring Core "0.3", for an evaluator that knows FS_electrical and FS_mechanical: the '
+  'official extensions at 0.1.0 are evaluated for Core 0.3 documents too (each one\'s 1.2), so every FS_electrical rule '
+  'is evaluated, exactly as for the "0.2" document; only the EXT_furniture rule is FS-RULES-009.',
+  ['FS-RULES-3.10.1', 'FS-RULES-1.2.1'],
+  edit(lambda d: (furniture(d, {'P1': {'fallback': {'level': 'L1', 'box': box(-300, -300, 0, 300, 300, 900)},
+                                       'host': {'mode': 'free', 'level': 'L1', 'position': [18 * FT, 6 * FT]},
+                                       'finish': 'oak'}}), d.update(floorspec='0.3'))),
+  req(EXT_PACK), diags=[D('FS-RULES-009', pack='test-pack', rule='FURNITURE')],
+  check=lambda r: ensure('CIRCUITS' in [e['rule'] for e in r['evaluated']], [e['rule'] for e in r['evaluated']]))
 
 
 # ============================================================================= subjects and selection (3.4 - 3.6)

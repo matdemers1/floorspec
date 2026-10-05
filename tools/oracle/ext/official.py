@@ -1,5 +1,6 @@
 """The official extensions the oracle implements: FS_electrical, FS_plumbing, FS_mechanical and
-FS_lowvoltage 0.1.0 (registry/). Each is a module with NAME, VERSION, CODE, SCHEMA, SEVERITY and
+FS_lowvoltage 0.1.0 (registry/). Each is a module with NAME, VERSION, CODE, CORE (the Core drafts
+it lists, 1.1), SCHEMA, SEVERITY and
 invariants / lints / derive; validate.check takes a mapping of the ones a run implements.
 
 ``evaluate(doc, known, implemented)`` is the extension tier of each specification's 1.2: for every
@@ -25,12 +26,10 @@ def implemented(*names):
 def active(doc, known, implemented_):
     """The implemented extensions this document is evaluated against (each spec, 1.2)."""
     d = doc.d
-    if d.get('floorspec') != '0.2':
-        return []
     out = []
     for name, decl in sorted(d.get('extensionsUsed', {}).items()):
         m = implemented_.get(name)
-        if m is None:
+        if m is None or d.get('floorspec') not in m.CORE:
             continue
         v = decl['version'] if isinstance(decl, dict) else decl
         if reg.entry_for(known, name, v) is not None and reg.compare(v, m.VERSION) == 0:
