@@ -130,6 +130,8 @@ const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, 
 for (const x of extensionSchemas(root)) {
   if (!registry(x.entry)) problems.push(`registry/${x.name}/extension.json does not match the registry entry schema:\n    ${formatErrors(registry.errors ?? []).join('\n    ')}`);
   const own = x.files.find((f) => f.id === x.entry.schema);
+  // A Proposal needs no schema yet (registry/README.md); from Draft on, tools/registry-gates.ts requires it.
+  if (!own && x.entry.status === 'proposal' && x.files.length === 0) continue;
   if (!own) {
     problems.push(`registry/${x.name}: no schema file has the $id ${String(x.entry.schema)} that its entry names`);
     continue;
@@ -144,8 +146,10 @@ for (const x of extensionSchemas(root)) {
     problems.push(`registry/${x.name}: has no spec.md, so its statement and diagnostic code is not known`);
     continue;
   }
+  // An extension with data on core elements (FS_structural) defines it at #/$defs/coreElements.
+  const onElements = (own.schema.$defs as Record<string, unknown> | undefined)?.coreElements ? ajv.getSchema(`${own.id}#/$defs/coreElements`) : undefined;
   const data = checkExtensionSuite(suiteDir, x.name, code, validateData, requestValidator(opsAjv['0.2'], '0.2'), root,
-    requestValidator(opsAjv['0.3'], '0.3'));
+    requestValidator(opsAjv['0.3'], '0.3'), onElements);
   problems.push(...data.problems);
   console.log(`schema: ${x.name} ${x.version}: ${docs.checked} documents checked against Core's schema, ${data.checked} against the extension's or Ops's`);
 }

@@ -387,13 +387,42 @@ export function testDirs(dir: string): string[] {
 }
 
 /**
- * Checks an extension's schema against its suite: the schema rejects the extension's top-level
- * data exactly in the tests that expect `[FS-<CODE>-SCH-001]` alone, and accepts it in every valid
- * test that derives the extension's values (where the extension was evaluated). An Ops test's
- * request must match the Ops 0.2 request schema - Ops 0.3's when its document declares "0.3".
+ * The elements of a document that may carry extension data (Core 1.6), as `[collection, data]` for
+ * every one whose `extensions` has a member `name`: the core collections, program items (`items`),
+ * option sets and options.
+ */
+export function elementExtensionData(doc: unknown, name: string): [string, unknown][] {
+  const out: [string, unknown][] = [];
+  if (doc === null || typeof doc !== 'object') return out;
+  const d = doc as Record<string, unknown>;
+  const program = d.program as { items?: unknown } | undefined;
+  const collections: [string, unknown][] = [
+    ...['buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms', 'slabs', 'types', 'materials',
+      'assets', 'roofs', 'stairs', 'optionSets', 'options'].map((c) => [c, d[c]] as [string, unknown]),
+    ['items', program && typeof program === 'object' ? program.items : undefined],
+  ];
+  for (const [c, elements] of collections) {
+    if (elements === null || typeof elements !== 'object') continue;
+    for (const el of Object.values(elements as Record<string, unknown>)) {
+      const x = (el as { extensions?: Record<string, unknown> } | null)?.extensions;
+      if (x && typeof x === 'object' && name in x) out.push([c, x[name]]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Checks an extension's schema against its suite: the schema rejects the extension's data exactly
+ * in the tests that expect `[FS-<CODE>-SCH-001]` alone, and accepts it in every valid test that
+ * derives the extension's values (where the extension was evaluated). The data is the top-level
+ * data, and - for an extension whose schema has `#/$defs/coreElements` (FS_structural), given as
+ * `validateOn` - the data on every element, checked as `{ <collection>: data }` against that
+ * definition. An Ops test's request must match the Ops 0.2 request schema - Ops 0.3's when its
+ * document declares "0.3".
  */
 export function checkExtensionSuite(suite: string, name: string, code: string, validateData: ValidateFunction,
-  validateRequest: ValidateFunction, base = suite, validateRequest03: ValidateFunction = validateRequest): SuiteResult {
+  validateRequest: ValidateFunction, base = suite, validateRequest03: ValidateFunction = validateRequest,
+  validateOn?: ValidateFunction): SuiteResult {
   const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
   for (const dir of testDirs(suite)) {
     const rel = relative(base, dir) || '.';
@@ -417,11 +446,19 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
     }
     const doc = parseForSchema(readFileSync(join(dir, 'input.json'), 'utf8')) as { extensions?: Record<string, unknown> };
     const data = doc.extensions?.[name] ?? {};
-    const valid = validateData(data) as boolean;
+    let valid = validateData(data) as boolean;
+    let errors = validateData.errors ?? [];
+    if (valid && validateOn)
+      for (const [c, x] of elementExtensionData(doc, name))
+        if (!(validateOn({ [c]: x }) as boolean)) {
+          valid = false;
+          errors = validateOn.errors ?? [];
+          break;
+        }
     result.checked++;
     if (mustReject && valid) result.problems.push(`${rel}: expects [FS-${code}-SCH-001], but the ${name} schema accepts its data`);
     if (evaluated && !valid)
-      result.problems.push(`${rel}: ${name} is evaluated and the test is valid, but the ${name} schema rejects its data:\n    ${formatErrors(validateData.errors ?? []).join('\n    ')}`);
+      result.problems.push(`${rel}: ${name} is evaluated and the test is valid, but the ${name} schema rejects its data:\n    ${formatErrors(errors).join('\n    ')}`);
   }
   return result;
 }

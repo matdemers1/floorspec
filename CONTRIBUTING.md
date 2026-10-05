@@ -5,9 +5,13 @@ Every normative statement uses RFC 2119 / RFC 8174 keywords and carries a stable
 (e.g. `{#FS-CORE-5.2.1 MUST}`). A MUST without a conformance test fails CI.
 
 ## Extensions
-Propose an extension by pull request under `registry/<PREFIX>_<name>/` with a schema, conformance
-files and a description. Lifecycle: Proposal → Draft → Release Candidate → Ratified. Ratification
-requires two independent implementations passing the extension's conformance tests.
+Propose an extension by pull request under `registry/<PREFIX>_<name>/`, using the extension
+template (add `?template=extension.md` to the pull request's URL): a Proposal is its entry and a
+written rationale, `proposal.md`. Lifecycle: Proposal → Draft → Release Candidate → Ratified, one
+step per pull request. A Draft adds a specification, a schema at a versioned URL and a conformance
+suite covering every MUST; a Release Candidate an implementation with evidence of passing the
+suite; Ratified two independent implementations with evidence. `pnpm registry:check` runs the gates
+CI runs; [registry/README.md](registry/README.md) has the rules, the evidence format and who decides.
 
 ## Rule packs — read this before contributing a rule
 **The full rules, the certification every rule carries, and the checklist are in

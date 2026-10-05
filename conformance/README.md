@@ -20,7 +20,7 @@ conformance/
                      then run by a package validator, given exactly these files at these paths
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
 ```
 
@@ -463,7 +463,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -510,8 +510,18 @@ found only in B's design) and `package` (the flat run by a package validator giv
 files, and given a wrong one); its `ops` group places, moves and removes items, and places one into
 option B as Ops 0.3 with `context.option`.
 
+FS_structural's suite starts from the Phase 10 framed house (`examples/…-p10-framed-house`): the
+demo house's plan with bearing and shear walls framed with studs, headers over the openings in
+bearing walls, the Kitchen's floor joists and the Bath's slab on grade, and a deck with a recorded
+span. FS_structural adds no kind of element, so every datum is on a wall, an opening, a room or a
+slab - and its `schema` group also tests data on elements that may not carry any. Its `invariants`
+group includes `…-no-judgement-of-adequacy`: framing no engineer would accept, valid, with nothing
+derived that says otherwise (FS-STRC-1.4). Its `options` group puts two decks in deck options A and
+B; its `ops` group sets and unsets flags and headers with `setProperty`, rejects a framing whose
+studs are closer than they are wide, and moves a wall to show the Kitchen's derived span follow it.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
@@ -519,7 +529,8 @@ JSON Schema keywords the official schemas use (`tools/oracle/ext/jsonschema.py`)
 `python3.13 -m tools.oracle.ext_author` rewrites the extension suites, `python3.13 -m
 tools.oracle.regenerate` re-verifies them with the others, and `pnpm schema:check` checks that each
 extension's schema rejects its data exactly in the tests that expect `FS-<CODE>-SCH-001` and accepts
-it in every valid test that evaluates it.
+it in every valid test that evaluates it - for FS_structural, its data on every element too, against
+its schema's `#/$defs/coreElements`.
 
 ## Floorspec Rules
 
