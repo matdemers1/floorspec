@@ -80,14 +80,21 @@ units, that grow to the right and upwards as seen by someone facing the surface:
 |---|---|---|
 | the `"right"` face of wall `W` (5.4) | `(P − S) · e` | `z − b` |
 | the `"left"` face of wall `W` | `(S − P) · e` | `z − b` |
+| a region (18.5) of the `"right"` face of wall `W` | `(P − S) · e − from` | `z − b − bottom` |
+| a region of the `"left"` face of wall `W` | `(S − P) · e + to` | `z − b − bottom` |
 | a room's floor (15.1) | `x` | `y` |
 | a room's ceiling (15.2), but for the vertical step of a tray | `−x` | `y` |
 
 For a point `P = (x, y)` in plan at elevation `z`: `S` is the position of `W`'s start junction, `e`
-the unit vector along `W`'s direction (5.2) and `b` its base elevation (5.9). So a wall's two faces
-are both measured from the line through its start junction, each running to the right of a person
-looking at it, and a ceiling is seen from below; a floor's and a ceiling's coordinates are the
-plan's own, so a floor laid through a doorway runs on unbroken.
+the unit vector along `W`'s direction (5.2), `b` its base elevation (5.9), and `from`, `to` and
+`bottom` the region's. So a wall's two faces are both measured from the line through its start
+junction, each running to the right of a person looking at it, and a ceiling is seen from below;
+a floor's and a ceiling's coordinates are the plan's own, so a floor laid through a doorway runs on
+unbroken. A region's coordinates start at its own lower corner on the left of a person looking at
+it — `(from, bottom)` on a right face, `(to, bottom)` on a left face, where the location line runs
+the other way — so the tiles of a backsplash start at the counter and at the end of the run, as a
+tiler lays them, wherever the region is on its wall. The rest of the face keeps the face's
+coordinates: a material that is both a face's and a region's is laid twice, from two origins.
 
 A texture's **tile coordinates** `(s', t')` of a point are its surface coordinates moved by
 `offset = [ox, oy]` and turned back by `rotation`, through the facing vector `F(rotation) = (fx, fy)`
@@ -110,7 +117,9 @@ Software that draws a material's maps on a surface this section lists SHOULD pla
 Where a surface slopes — a vaulted ceiling, or a tray's raised centre seen past its border — its
 coordinates are still its plan's, so a map is projected straight up onto it and its tiles stretch
 across the slope. This draft does not define the coordinates of a tray's vertical step, the end of
-a wall at a free end, a slab, a roof or a stair (0.5).
+a wall at a free end, a slab, a roof or a stair (0.5). The suite derives no texture coordinates, so
+it cannot test where a renderer places a map; a glTF exporter's coordinates can be, and are tested
+with export (FLR-T-9.2).
 
 ## 18.4 Assets and the package
 

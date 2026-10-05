@@ -166,3 +166,26 @@ def derive(doc: Doc) -> dict:
             v['regions'] = regions
             walls.setdefault(wid, {})[side] = v
     return {'finishes': {'rooms': rooms, 'walls': walls}}
+
+
+# ------------------------------------------------------------------------------ texture space (18.3)
+
+def surface_st(doc: Doc, wid, side, point, z, region=None):
+    """18.3: the exact surface coordinates (s, t) of the plan point `point` at elevation `z` on the
+    `side` face of wall `wid` - or, given one of that face's regions, in the region's coordinates, from
+    its lower corner on the left of a person facing it: (from, bottom) on a right face, (to, bottom) on
+    a left one. s is a Surd (one radicand, |d|^2), t an integer. Nothing derived reports these; they
+    pin the definition a renderer and an exporter follow."""
+    from fractions import Fraction
+    from .surd import Surd
+    w = doc.walls[wid]
+    S, E = doc.junctions[w['start']]['position'], doc.junctions[w['end']]['position']
+    d = (E[0] - S[0], E[1] - S[1])
+    D = d[0] * d[0] + d[1] * d[1]
+    along = Surd.sqrt(D, Fraction((point[0] - S[0]) * d[0] + (point[1] - S[1]) * d[1], D))   # (P - S) . e
+    s = along if side == 'right' else -along
+    t = z - doc.base_elevation(wid)
+    if region is not None:
+        s = s - region['from'] if side == 'right' else s + region['to']
+        t -= region['bottom']
+    return s, t

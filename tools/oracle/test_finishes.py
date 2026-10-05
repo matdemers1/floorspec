@@ -181,6 +181,40 @@ class Package(unittest.TestCase):
         self.assertEqual(codes(run(d, package={})[0]), [])
 
 
+class TextureSpace(unittest.TestCase):
+    """18.3: surface coordinates, by hand, on W2 of house(): J2 (0, 4 m) to J3 (3 m, 4 m), base 0."""
+    def setUp(self):
+        from tools.oracle.derive import Doc
+        self.doc = Doc(house())
+        self.region = {'from': 600 * MM, 'to': 2400 * MM, 'bottom': 36 * IN, 'top': 54 * IN, 'material': 'R'}
+
+    def st(self, side, x, z, region=None):
+        from tools.oracle.finishes import surface_st
+        s, t = surface_st(self.doc, 'W2', side, (x, 4000 * MM), z, region)
+        return s.round(), t
+
+    def test_faces_run_from_the_start_junction_to_the_viewers_right(self):
+        self.assertEqual(self.st('right', 1000 * MM, 50 * MM), (1000 * MM, 50 * MM))
+        self.assertEqual(self.st('left', 1000 * MM, 50 * MM), (-1000 * MM, 50 * MM))
+
+    def test_a_region_starts_at_its_lower_corner_on_the_viewers_left(self):
+        # a right face: (from, bottom), so the tiles start at the counter, at the run's start
+        self.assertEqual(self.st('right', 600 * MM, 36 * IN, self.region), (0, 0))
+        self.assertEqual(self.st('right', 1000 * MM, 40 * IN, self.region), (400 * MM, 4 * IN))
+        # a left face, seen from the other side: (to, bottom)
+        self.assertEqual(self.st('left', 2400 * MM, 36 * IN, self.region), (0, 0))
+        self.assertEqual(self.st('left', 2000 * MM, 36 * IN, self.region), (400 * MM, 0))
+
+    def test_oblique_wall_is_exact(self):
+        from tools.oracle.derive import Doc
+        from tools.oracle.finishes import surface_st
+        d = house()
+        d['junctions']['J9'] = {'level': 'L1', 'position': [1000 * MM, 2000 * MM]}
+        d['walls']['W9'] = {'level': 'L1', 'start': 'J1', 'end': 'J9', 'type': 'WT'}
+        s, _ = surface_st(Doc(d), 'W9', 'right', (1000 * MM, 2000 * MM), 0)
+        self.assertEqual(s.round(), 2862167)                      # 1280000 * sqrt(5) = 2862167.08...
+
+
 class Canonical(unittest.TestCase):
     def test_constant_defaults(self):
         d = house(materials={'M': {'metallic': 0, 'roughness': 1000,

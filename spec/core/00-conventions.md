@@ -89,7 +89,7 @@ reserved for later drafts and a 0.3 document cannot contain them:
   and layers of a floor's thickness;
 - finishes of a wall's ends, of baseboards and trim, and regions of a floor or a ceiling; a texture's
   coordinates on a tray's vertical step, a slab, a roof or a stair (18.3); a material's transparency,
-  emission, clear coat or sheen;
+  emission, clear coat or sheen; a map in any image format but PNG, JPEG, WebP and KTX2, such as AVIF;
 - the packaged `.floorspec` form (a ZIP of `model.json` and `assets/`);
 - edit operations, which are a separate specification, Floorspec Ops;
 - clearance envelopes of any shape but a box, and clearances on an element rather than its type
