@@ -28,7 +28,7 @@ from .. import canon, plane
 from ..jsonparse import Malformed, parse
 from ..surd import Surd
 from .errors import OpsError, Rejected, esc
-from .faces import LevelFaces, coll, is_point
+from .faces import LevelFaces, coll, edit_view, is_point
 from .normalize import OpsStraddle, effective_width, normalize
 from .refs import DIRECTIONS, area, half, length
 from .request import COLLECTIONS, ITEMS, check_request
@@ -40,7 +40,8 @@ PREFIX = {'buildings': 'B', 'levels': 'L', 'junctions': 'J', 'walls': 'W', 'sepa
           'openings': 'O', 'rooms': 'R', 'slabs': 'SL', 'types': 'T', 'materials': 'M', 'assets': 'A',
           ITEMS: 'P',                               # Ops 0.2: program items
           'roofs': 'RF',                            # Ops 0.3: roofs (Core 16.1)
-          'stairs': 'ST'}                           # Ops 0.3: stairs (Core 17.1)
+          'stairs': 'ST',                           # Ops 0.3: stairs (Core 17.1)
+          'optionSets': 'OS', 'options': 'OP'}      # Ops 0.3: design options (Core 19.1)
 EXT_PREFIX = 'X'                                    # Ops 0.2: every extension collection
 DOC_MEMBERS = ('floorspec', 'project', 'site', 'extensionsUsed', 'extensionsRequired', 'extensions', 'extras')
 DOC_MEMBERS_02 = DOC_MEMBERS + ('program',)
@@ -49,9 +50,11 @@ INVERSE_ORDER = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions
 # Ops 0.2, 1.6 step 2: extension elements first, program items before levels
 INVERSE_ORDER_02 = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
                     'buildings', 'types', 'materials', 'assets')
-# Ops 0.3: roofs after slabs, and stairs after roofs
-INVERSE_ORDER_03 = ('openings', 'rooms', 'slabs', 'roofs', 'stairs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
-                    'buildings', 'types', 'materials', 'assets')
+# Ops 0.3: roofs after slabs, stairs after roofs, and options, then option sets, after junctions
+INVERSE_ORDER_03 = ('openings', 'rooms', 'slabs', 'roofs', 'stairs', 'separators', 'walls', 'junctions', 'options',
+                    'optionSets', ITEMS, 'levels', 'buildings', 'types', 'materials', 'assets')
+# Ops 0.3, 2.8: the collections whose elements a batch adds in `context.option` (Core 19.2), beside extension elements
+IN_OPTIONS = ('junctions', 'walls', 'separators', 'openings', 'rooms', 'slabs', 'roofs', 'stairs')
 WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top')
 COMMON = ('name', 'extensions', 'extras')     # Core 1.4: what every element may carry
 
@@ -99,6 +102,7 @@ class Transaction:
         self.locks = context.get('locks', [])
         self.minted: set[str] = set()
         self.resolved: list[dict] = []
+        self.option = context.get('option') if profile.v03 else None      # Ops 0.3, 2.8
 
     # ------------------------------------------------------------------ 1.5 minting
     def mint(self, prefix: str) -> str:
@@ -120,7 +124,7 @@ class Transaction:
     # ------------------------------------------------------------------ steps 2-4
     def run(self, batch):
         for n, op in enumerate(batch):
-            prims = getattr(self, 'x_' + op['op'])(Resolver(self.wc, self.P), op, f'/batch/{n}')
+            prims = getattr(self, 'x_' + op['op'])(Resolver(self.wc, self.P, self.option), op, f'/batch/{n}')
             for p in prims:
                 self.apply(p, f'/batch/{n}')
                 self.resolved.append(p)
@@ -168,6 +172,9 @@ class Transaction:
         target = self.container(place, ptr)
         self.used.add(eid)
         target[eid] = copy.deepcopy(element)
+        if self.option is not None and (place[0] in IN_OPTIONS or place[0] == EXT) and isd(target[eid]) \
+                and 'option' not in target[eid]:
+            target[eid]['option'] = self.option                     # Ops 0.3, 2.8.1
 
     def locate(self, eid):
         return locate(self.wc, eid, self.P)
@@ -232,6 +239,12 @@ class Transaction:
             ext(self._fallback_is('asset', 'symbol', eid))
         elif k == ITEMS:
             where('rooms', lambda e: e.get('brief') == eid)
+        elif k == 'optionSets':                                     # Ops 0.3: its options
+            where('options', lambda e: e.get('set') == eid)
+        elif k == 'options':                                        # Ops 0.3: what is in it
+            for cc in IN_OPTIONS:
+                where(cc, lambda e: e.get('option') == eid)
+            ext(lambda el: el.get('option') == eid)
         return sorted(set(out) - {eid})
 
     def takes(self, place, eid: str):
@@ -256,6 +269,12 @@ class Transaction:
             out.extend(self._ext_where(self._host_is('wall', eid)))
         elif k == 'rooms':
             out.extend(self._ext_where(self._host_is('room', eid)))
+        elif k == 'optionSets':                                     # Ops 0.3
+            where('options', lambda e: e.get('set') == eid)
+        elif k == 'options':
+            for cc in IN_OPTIONS:
+                where(cc, lambda e: e.get('option') == eid)
+            out.extend(self._ext_where(lambda el: el.get('option') == eid))
         return out
 
     def remove(self, eid: str, cascade: bool, ptr: str) -> None:
@@ -476,7 +495,7 @@ class Transaction:
         level = R.element(op['level'], ('levels',), f'{P}/level')[1]
         ends = [R.point_or_junction(op[k], f'{P}/{k}') for k in ('from', 'to')]
         at = {}
-        for jid, j in sorted(coll(self.wc, 'junctions').items(), reverse=True):
+        for jid, j in sorted(coll(R.view, 'junctions').items(), reverse=True):   # Ops 0.3: in the edit design (2.8)
             if isd(j) and j.get('level') == level and is_point(j.get('position')):
                 at[tuple(j['position'])] = jid            # the least ID wins a shared position
         prims, ids = [], []
@@ -625,7 +644,7 @@ class Transaction:
         hx, hy = half(v[0]), half(v[1])
         across = set()
         for eid, s, t in run:
-            across.update(lf.rooms_in(self.wc, lf.he_face.get((eid, t, s))))
+            across.update(lf.rooms_in(R.view, lf.he_face.get((eid, t, s))))
         for r in [rid] + sorted(across - {rid}):
             ax, ay = self.wc['rooms'][r]['anchor']
             prims.append({'op': 'setProperty', 'id': r, 'path': '/anchor', 'value': [ax + hx, ay + hy]})
@@ -703,8 +722,8 @@ class Transaction:
         w = self.wc['walls'][wid]
         lf = R.level_faces(w.get('level'), f'{P}/wall')
         s, t = w['start'], w['end']
-        left = lf.rooms_in(self.wc, lf.he_face.get((wid, s, t)))
-        right = lf.rooms_in(self.wc, lf.he_face.get((wid, t, s)))
+        left = lf.rooms_in(R.view, lf.he_face.get((wid, s, t)))
+        right = lf.rooms_in(R.view, lf.he_face.get((wid, t, s)))
         prims = []
         if len(left) == 1 and len(right) == 1 and left != right:
             if keep not in (left[0], right[0]):
@@ -835,14 +854,14 @@ def lock_valid_in_a(a: dict, lock: dict, profile: Profile = OPS_01) -> bool:
     return plane.cross(d1, d2) == 0
 
 
-def _room_cycle(doc, rid):
+def _room_cycle(doc, rid, option=None):
     r = doc['rooms'][rid]
-    lf = LevelFaces(doc, r['level'])
+    lf = LevelFaces(edit_view(doc, option), r['level'])
     f = lf.face_of(r['anchor'])
     return {u: lf.pos[u] for _, u, _ in lf.faces[f]['outer']}
 
 
-def lock_holds(a: dict, b: dict, lock: dict, profile: Profile = OPS_01) -> bool:
+def lock_holds(a: dict, b: dict, lock: dict, profile: Profile = OPS_01, option=None) -> bool:
     """a and b in canonical form (constant defaults omitted); both valid."""
     (k, v), = lock.items()
     if k == 'element':
@@ -864,7 +883,7 @@ def lock_holds(a: dict, b: dict, lock: dict, profile: Profile = OPS_01) -> bool:
                        for j, p in unmoved.items())
         if c == 'rooms':
             return all(j in coll(b, 'junctions') and tuple(b['junctions'][j]['position']) == p
-                       for j, p in _room_cycle(a, v).items())
+                       for j, p in _room_cycle(a, v, option).items())
         return True
     if k == 'length':
         if v not in coll(b, 'walls'):
@@ -1043,7 +1062,7 @@ def _apply(a_bytes, request, profile: Profile):
     a_c = canon.omit_defaults(a)
     b, _ = parse(b_canonical)
     broken = [OpsError('FS-OPS-011', lock_ids(lock), f'/context/locks/{i}')
-              for i, lock in enumerate(context.get('locks', [])) if not lock_holds(a_c, b, lock, profile)]
+              for i, lock in enumerate(context.get('locks', [])) if not lock_holds(a_c, b, lock, profile, tx.option)]
     if broken:
         raise Rejected([e.diagnostic() for e in broken])
     ids_a, ids_b = all_ids(a, profile), all_ids(b, profile)

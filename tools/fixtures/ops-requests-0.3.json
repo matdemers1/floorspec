@@ -432,7 +432,7 @@
       "batch": [
         {
           "op": "addElement",
-          "collection": "optionSets",
+          "collection": "furniture",
           "element": {}
         }
       ]
@@ -467,6 +467,70 @@
           }
         }
       ]
+    }
+  },
+  {
+    "name": "addElement into optionSets and options (Core 0.3)",
+    "malformed": false,
+    "new03": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "optionSets",
+          "id": "KS",
+          "element": {
+            "primary": "KA"
+          }
+        },
+        {
+          "op": "addElement",
+          "collection": "options",
+          "id": "KA",
+          "element": {
+            "set": "KS"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "context.option (Ops 0.3)",
+    "malformed": false,
+    "new03": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            0
+          ]
+        }
+      ],
+      "context": {
+        "option": "KB"
+      }
+    }
+  },
+  {
+    "name": "context.option that is not an ID",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            0
+          ]
+        }
+      ],
+      "context": {
+        "option": 2
+      }
     }
   },
   {

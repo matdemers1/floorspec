@@ -65,7 +65,8 @@ def expected_view(result: dict) -> dict:
     """The members of a result that expected.json holds: everything but `document`, with each
     diagnostic reduced to code, severity and elements."""
     out = {'status': result['status'],
-           'diagnostics': [{'code': d['code'], 'severity': d['severity'], 'elements': d['elements']}
+           'diagnostics': [{'code': d['code'], 'severity': d['severity'], 'elements': d['elements'],
+                            **({'design': d['design']} if 'design' in d else {})}
                            for d in result['diagnostics']]}
     if result['status'] == 'committed':
         for k in ('hash', 'created', 'removed', 'resolved', 'inverse'):

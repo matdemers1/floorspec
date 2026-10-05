@@ -14,7 +14,9 @@ each group, the tests of what 0.3 adds: Core 0.3 documents, whose door and windo
 operation and a clear opening and whose openings may override it, and whose rooms have floors and
 flat, tray or vaulted ceilings and whose slabs a purpose, edited with the primitives Ops already
 has; moveRoom moving a vaulted ceiling's ridge with its room (4.3.2); and roofs, Core 0.3's twelfth
-collection (Core chapter 16), added, edited and removed with the primitives. Every expected status and diagnostic is written by hand and cross-checked against the
+collection (Core chapter 16), added, edited and removed with the primitives; stairs; and design options
+(Core chapter 19): option sets and options, `context.option`, the edit design and normalization option by
+option (2.8, 5.5). Every expected status and diagnostic is written by hand and cross-checked against the
 oracle, applied as Ops 0.3 (version.OPS_03); the values that matter are asserted by hand in each
 test's check. Afterwards, `python3.13 -m tools.oracle.regenerate` re-verifies the suite from the
 files alone. Add new tests at the end of their group's section.
@@ -46,10 +48,10 @@ DESCRIPTIONS = {
 def carry(tc):
     tc = copy.deepcopy(tc)
     tc['covers'] = [RETIRED.get(c, c) for c in tc['covers']]
-    if tc['slug'] == 'unknown-collection':                 # "roofs" is a collection of 0.3; "optionSets" is not
-        tc['request'] = req({'op': 'addElement', 'collection': 'optionSets', 'element': {}})
+    if tc['slug'] == 'unknown-collection':                 # "roofs" and "optionSets" are collections of 0.3
+        tc['request'] = req({'op': 'addElement', 'collection': 'furniture', 'element': {}})
         tc['description'] = ('addElement\'s collection is one of the collections of Core 1.1 or the program\'s '
-                             'items; "optionSets" is reserved, not a collection of 0.3.')
+                             'items; "furniture" is not a collection of Core 0.3: furniture is an extension\'s.')
     for old, new in DESCRIPTIONS.get(tc['slug'], []):
         assert old in tc['description'], (tc['slug'], old)
         tc['description'] = tc['description'].replace(old, new)
@@ -433,6 +435,186 @@ T('inverse', 'level-and-stair-removed-and-undone', 'Removing L2 with cascade, it
   req({'op': 'removeElement', 'id': 'L2', 'cascade': True}),
   check=lambda r, B: ensure([p['id'] for p in r['inverse']].index('L2') < [p['id'] for p in r['inverse']].index('ST1'),
                             r['inverse']))
+
+
+# ============================================================================= design options (0.3): Core chapter 19
+# The kitchen house of the Core suite (options/): one level, 8 m x 4 m inside 100 mm walls, the north and south walls
+# split at x = 4 m and 5 m; dining (DIN) west and kitchen (KIT) east, both common; a front door O1 in the west wall.
+# Option set KS: KA (primary) adds the wall WA at x = 5 m with the door OA; KB adds the separator SB at x = 4 m and a
+# window OB in the common north wall W4.
+from tools.oracle.ops_author_lib import level_doc                                   # noqa: E402
+
+KX, KY = 8000 * MM, 4000 * MM
+
+
+def kitchen_house(options=True, a=True, b=True, kit=True):
+    def j(x, y, **kw):
+        return {'level': 'L1', 'position': [x, y], **kw}
+
+    def w(s_, e_, **kw):
+        return {'level': 'L1', 'start': s_, 'end': e_, 'type': 'WT', **kw}
+    d = v3(level_doc(
+        junctions={'J1': j(0, 0), 'J2': j(0, KY), 'J3': j(KX, KY), 'J4': j(KX, 0), 'S4': j(4000 * MM, 0),
+                   'S5': j(5000 * MM, 0), 'N4': j(4000 * MM, KY), 'N5': j(5000 * MM, KY)},
+        walls={'W1': w('J1', 'J2'), 'W2': w('J2', 'N4'), 'W3': w('N4', 'N5'), 'W4': w('N5', 'J3'),
+               'W5': w('J3', 'J4'), 'W6': w('J4', 'S5'), 'W7': w('S5', 'S4'), 'W8': w('S4', 'J1')},
+        rooms={'DIN': {'level': 'L1', 'anchor': [2000 * MM, 2000 * MM], 'name': 'Dining'},
+               'KIT': {'level': 'L1', 'anchor': [6500 * MM, 2000 * MM], 'name': 'Kitchen'}},
+        openings={'O1': {'wall': 'W1', 'offset': 1500 * MM, 'fill': 'T-door-36'}}))
+    d['types']['G'] = {'kind': 'windowType', 'width': 1200 * MM, 'height': 1200 * MM, 'sill': 900 * MM}
+    if not kit:                                  # without the kitchen room, every design is valid without A or B
+        del d['rooms']['KIT']
+    if options:
+        d['optionSets'] = {'KS': {'name': 'Kitchen', 'primary': 'KA'}}
+        d['options'] = {'KA': {'set': 'KS', 'name': 'A'}, 'KB': {'set': 'KS', 'name': 'B'}}
+    if a:
+        d['walls']['WA'] = w('S5', 'N5', option='KA')
+        d['openings']['OA'] = {'wall': 'WA', 'offset': 1500 * MM, 'fill': 'T-door-36', 'option': 'KA'}
+    if b:
+        d['separators'] = {'SB': {'level': 'L1', 'start': 'S4', 'end': 'N4', 'option': 'KB'}}
+        d['openings']['OB'] = {'wall': 'W4', 'offset': 500 * MM, 'fill': 'G', 'option': 'KB'}
+    return d
+
+
+def crossed():
+    """The kitchen house with a short wall WB of option B across A's wall WA, at y = 2 m: never in one design."""
+    d = kitchen_house()
+    d['junctions'].update(BJ1={'level': 'L1', 'position': [4500 * MM, 2000 * MM], 'option': 'KB'},
+                          BJ2={'level': 'L1', 'position': [5500 * MM, 2000 * MM], 'option': 'KB'})
+    d['walls']['WB'] = {'level': 'L1', 'start': 'BJ1', 'end': 'BJ2', 'type': 'WT', 'option': 'KB'}
+    return d
+
+
+T('primitives', 'add-an-option-set', 'addElement adds the Kitchen option set, naming A its primary, and its options A '
+  'and B: valid, and the set derives its options.', ['2.1.1', '1.3.1'], kitchen_house(False, False, False, kit=False),
+  req({'op': 'addElement', 'collection': 'optionSets', 'id': 'KS', 'element': {'name': 'Kitchen', 'primary': 'KA'}},
+      {'op': 'addElement', 'collection': 'options', 'id': 'KA', 'element': {'set': 'KS', 'name': 'A'}},
+      {'op': 'addElement', 'collection': 'options', 'id': 'KB', 'element': {'set': 'KS', 'name': 'B'}}),
+  check=lambda r, B: ensure(r['created'] == ['KA', 'KB', 'KS'] and sorted(derived(B)['options']['KS']['options']) == ['KA', 'KB'], r))
+T('primitives', 'mint-option-set-and-option-ids', 'An option set and two options added with no IDs: they are minted '
+  'with the prefixes OS and OP - OS1, then OP1 and OP2, which the set names as its primary before it exists.',
+  ['1.5.1', '2.1.1'], kitchen_house(False, False, False, kit=False),
+  req({'op': 'addElement', 'collection': 'optionSets', 'element': {'primary': 'OP1'}},
+      {'op': 'addElement', 'collection': 'options', 'element': {'set': 'OS1'}},
+      {'op': 'addElement', 'collection': 'options', 'element': {'set': 'OS1'}}),
+  check=lambda r, B: ensure(r['created'] == ['OP1', 'OP2', 'OS1'], r['created']))
+T('primitives', 'add-a-wall-in-an-option', 'With context.option KA, addWall adds A\'s wall between the kitchen and '
+  'the dining room, and addElement its door: both are added in option A, and the junctions they use stay common.',
+  ['2.8.1', '2.1.1'], kitchen_house(a=False, kit=False),
+  req({'op': 'addWall', 'id': 'WA', 'level': 'L1', 'start': 'S5', 'end': 'N5', 'type': 'WT'},
+      {'op': 'addElement', 'collection': 'openings', 'id': 'OA', 'element': {'wall': 'WA', 'offset': 1500 * MM, 'fill': 'T-door-36'}},
+      option='KA'),
+  check=lambda r, B: ensure(B['walls']['WA']['option'] == 'KA' and B['openings']['OA']['option'] == 'KA'
+                            and 'option' not in B['junctions']['S5'] and r['resolved'][0].get('option') is None, B))
+T('primitives', 'option-named-by-an-element-is-kept', 'With context.option KA, an addElement whose element names '
+  'option KB: it is added in KB, as given.', ['2.8.1'], kitchen_house(b=False, kit=False),
+  req({'op': 'addElement', 'collection': 'separators', 'id': 'SB',
+       'element': {'level': 'L1', 'start': 'S4', 'end': 'N4', 'option': 'KB'}}, option='KA'),
+  check=lambda r, B: ensure(B['separators']['SB']['option'] == 'KB', B['separators']))
+T('primitives', 'context-option-only-where-an-option-may-be', 'With context.option KA, addElement adds a level and a '
+  'type: neither may be in an option (Core 19.2.1), so neither is given one.', ['2.8.1'], kitchen_house(),
+  req({'op': 'addElement', 'collection': 'levels', 'id': 'L2', 'element': {'building': 'B1', 'elevation': 2700 * MM, 'height': 2700 * MM}},
+      {'op': 'addElement', 'collection': 'types', 'id': 'T2', 'element': {'kind': 'doorType'}}, option='KA'),
+  check=lambda r, B: ensure('option' not in B['levels']['L2'] and 'option' not in B['types']['T2'], B))
+T('primitives', 'switch-the-primary-option', 'setProperty of the set\'s /primary to KB: B\'s design is now the one '
+  'derived - the open kitchen, 3950 mm wide.', ['2.3.1', '2.8.1'], kitchen_house(),
+  req({'op': 'setProperty', 'id': 'KS', 'path': '/primary', 'value': 'KB'}),
+  check=lambda r, B: ensure(derived(B)['options']['KS']['chosen'] == 'KB' and 'WA' not in derived(B)['walls'], derived(B)))
+T('primitives', 'move-an-element-to-another-option', 'setProperty of the window OB\'s /option to KA: the window is '
+  'option A\'s now, in the common north wall.', ['2.3.1'], kitchen_house(),
+  req({'op': 'setProperty', 'id': 'OB', 'path': '/option', 'value': 'KA'}),
+  check=lambda r, B: ensure(derived(B)['options']['KS']['options']['KA']['members'] == ['OA', 'OB', 'WA'], derived(B)['options']))
+T('primitives', 'make-an-element-common', 'unsetProperty of the window OB\'s /option: it is in every design.',
+  ['2.3.1'], kitchen_house(), req({'op': 'unsetProperty', 'id': 'OB', 'path': '/option'}),
+  check=lambda r, B: ensure('option' not in B['openings']['OB'] and 'OB' in derived(B)['openings'], B['openings']))
+T('primitives', 'remove-an-option-blocked', 'Removing option KB without cascade is blocked by what is in it.',
+  ['2.2.1'], kitchen_house(), req({'op': 'removeElement', 'id': 'KB'}), 'rejected', [('FS-OPS-006', ['KB', 'OB', 'SB'])])
+T('primitives', 'remove-an-option-and-what-is-in-it', 'Removing option KB with cascade takes its separator and its '
+  'window; the set has one option left, which Core only lints.', ['2.2.2'], kitchen_house(),
+  req({'op': 'removeElement', 'id': 'KB', 'cascade': True}),
+  check=lambda r, B: ensure(r['removed'] == ['KB', 'OB', 'SB'], r['removed']))
+T('primitives', 'remove-the-primary-option', 'Removing option KA, the set\'s primary, with cascade: the set\'s '
+  '`primary` blocks nothing, and names no option afterwards, so the result is invalid: FS-INV-002.',
+  ['2.2.2', '1.2.3'], kitchen_house(), req({'op': 'removeElement', 'id': 'KA', 'cascade': True}), 'rejected',
+  [('FS-INV-002', ['KS'])])
+T('primitives', 'remove-the-primary-and-switch', 'Removing KA with cascade and making KB primary in the same batch: '
+  'valid, the kitchen open.', ['2.2.2', '2.3.1'], kitchen_house(),
+  req({'op': 'removeElement', 'id': 'KA', 'cascade': True}, {'op': 'setProperty', 'id': 'KS', 'path': '/primary', 'value': 'KB'}),
+  check=lambda r, B: ensure(r['removed'] == ['KA', 'OA', 'WA'], r['removed']))
+T('primitives', 'remove-an-option-set-blocked', 'Removing the set without cascade is blocked by its options.',
+  ['2.2.1'], kitchen_house(), req({'op': 'removeElement', 'id': 'KS'}), 'rejected', [('FS-OPS-006', ['KA', 'KB', 'KS'])])
+T('primitives', 'remove-an-option-set', 'Removing the set with cascade takes its options and everything in them: the '
+  'house is left with only its common elements.', ['2.2.2'], kitchen_house(kit=False),
+  req({'op': 'removeElement', 'id': 'KS', 'cascade': True}),
+  check=lambda r, B: ensure(r['removed'] == ['KA', 'KB', 'KS', 'OA', 'OB', 'SB', 'WA'] and 'optionSets' not in B, r['removed']))
+T('primitives', 'add-into-another-option-rejected', 'With context.option KB, a door added in A\'s wall: it is in B, '
+  'and refers to an element of A, so the result is invalid: FS-INV-1102.', ['1.2.3', '2.8.1'], kitchen_house(),
+  req({'op': 'addElement', 'collection': 'openings', 'id': 'OX', 'element': {'wall': 'WA', 'offset': 300 * MM, 'fill': 'T-door-36'}},
+      option='KB'), 'rejected', [('FS-INV-1102', ['OX', 'WA'])])
+T('primitives', 'invalid-only-in-an-option-design', 'With context.option KB, a pantry room anchored at x = 4.5 m: '
+  'in B\'s design the open kitchen\'s face has KIT\'s anchor too, so B\'s design is invalid and the rejection carries '
+  'FS-INV-202 with "design": "KB".', ['1.2.3', '2.8.1'], kitchen_house(),
+  req({'op': 'addElement', 'collection': 'rooms', 'id': 'PANTRY', 'element': {'level': 'L1', 'anchor': [4500 * MM, 2000 * MM]}},
+      option='KB'), 'rejected', [('FS-INV-202', ['KIT', 'PANTRY'], 'KB')])
+T('transactions', 'option-sets-in-a-0.2-document', 'An option set added to a document that declares "0.2": Core '
+  '0.2\'s schema has no optionSets, so the result is invalid: FS-SCH-001.', ['1.2.3', '2.1.1'],
+  v02.v2(kitchen_house(False, False, False, kit=False)),
+  req({'op': 'addElement', 'collection': 'optionSets', 'id': 'KS', 'element': {'primary': 'KA'}}), 'rejected',
+  [('FS-SCH-001', [])])
+T('transactions', 'context-option-not-an-id', 'A context whose option is a number: the request is malformed.',
+  ['1.1.3'], kitchen_house(), {'batch': [{'op': 'setProperty', 'id': 'R1', 'path': '/name', 'value': 'x'}],
+                               'context': {'option': 2}}, 'rejected', [('FS-OPS-001', [])])
+T('transactions', 'context-option-in-ops-0.3-only', 'A context with an unknown member beside option is still '
+  'malformed: option is the only member 0.3 adds.', ['1.1.3'], kitchen_house(),
+  {'batch': [{'op': 'setProperty', 'id': 'DIN', 'path': '/name', 'value': 'x'}], 'context': {'option': 'KA', 'design': {}}},
+  'rejected', [('FS-OPS-001', [])])
+
+T('references', 'faces-of-the-edit-design', 'B draws a short wall WB across A\'s wall WA: the level as a whole is not '
+  'planar, but each design is. With context.option KA, "wall between DIN and KIT" reads the faces of A\'s design, '
+  'and is WA: the door is added there, in A.', ['2.8.2', '3.4.1', '2.8.1'], crossed(),
+  req({'op': 'addOpening', 'id': 'OA2', 'wall': 'wall between DIN and KIT', 'at': 2600 * MM, 'fill': 'T-door-36'},
+      option='KA'),
+  check=lambda r, B: ensure(B['openings']['OA2']['wall'] == 'WA' and B['openings']['OA2']['option'] == 'KA', B['openings']))
+T('references', 'faces-of-the-primary-design', 'The same door with no context.option: the edit design is the primary '
+  'design, A\'s, so the selector finds WA; the door is common, and WA is A\'s, so the result is invalid: FS-INV-1102.',
+  ['2.8.2', '1.2.3'], crossed(),
+  req({'op': 'addOpening', 'id': 'OA2', 'wall': 'wall between DIN and KIT', 'at': 2600 * MM, 'fill': 'T-door-36'}),
+  'rejected', [('FS-INV-1102', ['OA2', 'WA'])])
+T('references', 'draw-from-junctions-of-the-edit-design', 'With context.option KB, drawSeparator from S4\'s position '
+  'to N4\'s: both are common, so in the edit design, and the separator is drawn between them, in B.',
+  ['2.8.2', '4.1.1', '2.8.1'], kitchen_house(b=False, kit=False),
+  req({'op': 'drawSeparator', 'id': 'SB', 'level': 'L1', 'from': [4000 * MM, 0], 'to': [4000 * MM, KY]}, option='KB'),
+  check=lambda r, B: ensure(B['separators']['SB'] == {'level': 'L1', 'start': 'S4', 'end': 'N4', 'option': 'KB'}
+                            and r['created'] == ['SB'], r))
+
+T('normalization', 'option-wall-ends-on-a-common-wall', 'With context.option KB, drawWall from a point in the kitchen '
+  'to a point on the common north wall W4: W4 is split there into two common walls, and the junction where they meet '
+  '- added by drawWall in B - is common now, since a common wall ends at it; the drawn wall stays in B.',
+  ['5.5.1', '5.2.1', '2.8.1'], kitchen_house(),
+  req({'op': 'drawWall', 'id': 'WP', 'level': 'L1', 'from': [7300 * MM, 1500 * MM], 'to': [7300 * MM, KY], 'type': 'WT'},
+      option='KB'),
+  check=lambda r, B: ensure(B['walls']['WP']['option'] == 'KB' and 'option' not in B['junctions'][B['walls']['WP']['end']]
+                            and B['junctions'][B['walls']['WP']['start']]['option'] == 'KB'
+                            and all('option' not in B['walls'][x] for x in r['created'] if x in B['walls'] and x != 'WP'), B))
+T('normalization', 'two-options-never-planarized', 'With context.option KB, drawWall across A\'s wall WA: two options '
+  'of one set are never in one design, so neither wall is split.', ['5.5.1'], kitchen_house(),
+  req({'op': 'drawWall', 'id': 'WB', 'level': 'L1', 'from': [4500 * MM, 2000 * MM], 'to': [5500 * MM, 2000 * MM], 'type': 'WT'},
+      option='KB'),
+  check=lambda r, B: ensure(B['walls']['WA']['start'] == 'S5' and B['walls']['WA']['end'] == 'N5'
+                            and sorted(x for x in r['created'] if x.startswith('W')) == ['WB'], r['created']))
+T('normalization', 'option-junctions-merge-into-common-ones', 'With context.option KB, two junctions added at the '
+  'positions of the common junctions S4 and N4, and a separator between them: 5.1 merges each into the common one, '
+  'so B\'s separator ends at S4 and N4.', ['5.5.1', '5.1.1'], kitchen_house(b=False, kit=False),
+  req({'op': 'addJunction', 'id': 'JX', 'level': 'L1', 'position': [4000 * MM, 0]},
+      {'op': 'addJunction', 'id': 'JY', 'level': 'L1', 'position': [4000 * MM, KY]},
+      {'op': 'addSeparator', 'id': 'SB', 'level': 'L1', 'start': 'JX', 'end': 'JY'}, option='KB'),
+  check=lambda r, B: ensure(B['separators']['SB'] == {'level': 'L1', 'start': 'S4', 'end': 'N4', 'option': 'KB'}
+                            and 'JX' not in B['junctions'], B['separators']))
+T('inverse', 'option-set-removed-and-undone', 'Removing the set with cascade: the inverse adds the set, then its '
+  'options, then what was in them - option sets and options come after junctions in step 2\'s order - and applying '
+  'it gives back A exactly (1.6.1).', ['1.6.1'], kitchen_house(kit=False),
+  req({'op': 'removeElement', 'id': 'KS', 'cascade': True}),
+  check=lambda r, B: ensure([p['id'] for p in r['inverse']] == ['KS', 'KA', 'KB', 'WA', 'SB', 'OA', 'OB'], r['inverse']))
 
 NEW = list(TESTS)
 del TESTS[:]

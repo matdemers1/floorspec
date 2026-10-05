@@ -29,7 +29,7 @@ from fractions import Fraction
 from ..schema import ID_RE
 from ..surd import Surd
 from .errors import OpsError
-from .faces import Broken, LevelFaces, coll, is_point
+from .faces import Broken, LevelFaces, coll, edit_view, is_point
 from .refs import CENTERED, DIR_OF, DIRECTIONS, FROM_END, FROM_TOWARD, VECTOR, length
 from .space import kind, items, ext_elements, locate
 from .version import OPS_01, Profile
@@ -66,10 +66,19 @@ def outward_normal(pos, half_edge):
 
 
 class Resolver:
-    def __init__(self, wc: dict, profile: Profile = OPS_01):
+    def __init__(self, wc: dict, profile: Profile = OPS_01, option=None):
         self.wc = wc
         self.profile = profile
+        self.option = option                     # Ops 0.3, 2.8: context.option
+        self._view = None
         self._levels: dict[str, LevelFaces | Broken] = {}
+
+    @property
+    def view(self) -> dict:
+        """The working copy as seen in the edit design (Ops 0.3, 2.8): what faces and rooms are read from."""
+        if self._view is None:
+            self._view = edit_view(self.wc, self.option)
+        return self._view
 
     # ------------------------------------------------------------------ document access
     def collection_of(self, eid: str) -> str | None:
@@ -86,7 +95,7 @@ class Resolver:
             raise OpsError('FS-OPS-007', [], pointer, 'the room is on no level')
         if level not in self._levels:
             try:
-                self._levels[level] = LevelFaces(self.wc, level)
+                self._levels[level] = LevelFaces(self.view, level)
             except Broken as e:
                 self._levels[level] = e
         lf = self._levels[level]

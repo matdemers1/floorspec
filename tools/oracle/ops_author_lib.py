@@ -123,13 +123,15 @@ def house(**members):
     return d
 
 
-def req(*ops, locks=None, retired=None):
+def req(*ops, locks=None, retired=None, option=None):
     r = {'batch': list(ops)}
     ctx = {}
     if locks is not None:
         ctx['locks'] = locks
     if retired is not None:
         ctx['retired'] = retired
+    if option is not None:                      # Ops 0.3, 2.8
+        ctx['option'] = option
     if ctx:
         r['context'] = ctx
     return r
@@ -141,12 +143,17 @@ def cov(*ids):
 
 def T(group, slug, description, covers, a, request, status='committed', diags=(), check=None,
       raw_a=None, raw_req=None, same_as=None):
-    """diags: (code, [elements]) pairs, written by hand. same_as: the slug of an earlier test in
+    """diags: (code, [elements]) pairs - or, for a Core diagnostic found in an option design (Core 0.3,
+    19.5), (code, [elements], option) - written by hand. same_as: the slug of an earlier test in
     the same group whose output.json must be byte-identical (shorthand / primitive equivalence)."""
+    def dg(c, e, design=None):
+        x = {'code': c, 'severity': SEVERITY.get(c, 'error'), 'elements': sorted(set(e))}
+        if design is not None:
+            x['design'] = design
+        return x
     TESTS.append(dict(group=group, slug=slug, description=description, covers=cov(*covers), a=a,
                       request=request, raw_a=raw_a, raw_req=raw_req, status=status, check=check, same_as=same_as,
-                      diags=[{'code': c, 'severity': SEVERITY.get(c, 'error'), 'elements': sorted(set(e))}
-                             for c, e in diags]))
+                      diags=[dg(*x) for x in diags]))
 
 
 def ops(result):
@@ -174,7 +181,7 @@ def write_all(prune=False, tests=None, suite=None, profile=OPS_01):
             f.write(json.dumps({'description': tc['description'], 'covers': tc['covers']}, indent=2, ensure_ascii=False) + '\n')
         result, b = apply(a, r, profile)
         view = expected_view(result)
-        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
+        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements'], 'design' in x, x.get('design', '')))
         problems = []
         if view['status'] != tc['status'] or view['diagnostics'] != hand:
             problems.append(f'hand   {tc["status"]} {json.dumps(hand)}\n  oracle {view["status"]} {json.dumps(result["diagnostics"])}')

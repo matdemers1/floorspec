@@ -33,11 +33,12 @@ COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openi
                'slabs', 'types', 'materials', 'assets')
 ROOFS = 'roofs'                                  # Ops 0.3: Core 0.3's twelfth collection (Core 16.1)
 STAIRS = 'stairs'                                # Ops 0.3: Core 0.3's thirteenth collection (Core 17.1)
+OPTION_SETS, OPTIONS = 'optionSets', 'options'   # Ops 0.3: Core 0.3's design options (Core 19.1)
 
 
 def collections(profile: Profile) -> tuple:
     """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` and `stairs` too."""
-    return COLLECTIONS + ((ROOFS, STAIRS) if profile.version == '0.3' else ())
+    return COLLECTIONS + ((ROOFS, STAIRS, OPTION_SETS, OPTIONS) if profile.version == '0.3' else ())
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them
@@ -246,8 +247,10 @@ def check_request(req, profile: Profile = OPS_01) -> None:
         if not isinstance(ctx, dict):
             _bad('/context', 'not an object')
         for k in ctx:
-            if k not in ('locks', 'retired'):
+            if k not in ('locks', 'retired') + (('option',) if profile.v03 else ()):
                 _bad(f'/context/{esc(k)}', f'unknown member "{k}"')
+        if 'option' in ctx and not isinstance(ctx['option'], str):        # Ops 0.3, 2.8
+            _bad('/context/option', 'not an ID')
         if 'locks' in ctx:
             if not isinstance(ctx['locks'], list):
                 _bad('/context/locks', 'not an array')
