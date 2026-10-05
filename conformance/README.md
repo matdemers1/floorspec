@@ -17,6 +17,7 @@ conformance/
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
+  rules/0.1/…        the Floorspec Rules 0.1 suite (below)
 ```
 
 **Core 0.2** (`core/0.2/`) is the suite of the current spec text, and the one `pnpm coverage`
@@ -338,3 +339,58 @@ JSON Schema keywords the official schemas use (`tools/oracle/ext/jsonschema.py`)
 tools.oracle.regenerate` re-verifies them with the others, and `pnpm schema:check` checks that each
 extension's schema rejects its data exactly in the tests that expect `FS-<CODE>-SCH-001` and accepts
 it in every valid test that evaluates it.
+
+## Floorspec Rules
+
+The Rules suite, `rules/0.1/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
+packs against a document under a jurisdiction profile. It is run by an evaluator that implements the
+four official extensions at 0.1.0, configured with the test's `registry.json` as its known
+extensions - or with none, when the test has none - exactly as a Core 0.2 validator is. `pnpm
+coverage` gates FS-RULES 0.1 against it.
+
+```text
+conformance/
+  rules/0.1/<group>/<NNN-slug>/
+    test.json        what the test is and which FS-RULES statements it covers
+    input.json       the document (Core 0.2, with official extensions where the test needs them)
+    registry.json    optional: the evaluator's known extensions
+    request.json     a report test: the evaluation request (Rules §1.1) - packs, profile, units
+    measures.json    a measure test: { "units"?: …, "calls": [ { "target", "measure", "args"? }, … ] }
+    expected.json    the report (Rules §9.1), or { "results": [ measure result, … ] } (Rules §4.7)
+```
+
+**expected.json is compared byte for byte.** A report is written as Core §9.2 step 2 writes a value
+(Rules §9.8): members sorted, two spaces of indentation, a final line feed; so is a measure test's
+`{ "results": [ … ] }`. An evaluator conforms on a report test when it returns exactly those bytes
+for input.json, registry.json and request.json; on a measure test, when the result of each call, in
+order, is exactly the expected one.
+
+Every rule of every pack in the suite is **synthetic**: it cites the invented codes `TEST-CODE` and
+`TEST-ELEC` with invented sections and invented thresholds, or - only to test which editions the
+default profile adopts - a model code's name with a section `TEST-n` and a paraphrase that says it
+states no requirement of that code. No requirement of a real code is encoded here; real packs are
+in `rules/` and have fixtures of their own.
+
+Groups: `request`, `document`, `packs`, `typing` (well-typed rules, deferred measures, rules that read
+an extension that is not evaluated), `selection` (subjects and candidates), `exceptions`, `tests`
+(every operator, exact areas, no value), `findings` (messages, order, coverage, every reason a rule is
+not evaluated), `profiles` (malformed profiles, editions in force by date, the default profile, packs
+by range, amendments), `examples` (the Phase 6 demo with synthetic rules: the boiler beside the panel
+and the bedroom without a window), and the measure groups `measures-rooms`, `measures-openings`,
+`measures-elements`, `measures-envelopes`, `measures-walllines` and `measures-circuits-and-levels`,
+built on one plan - **the rules house**: a bedroom, a living room and a utility room in a row, with a
+panel, a boiler, a smoke alarm and two receptacles - so that most values can be checked by hand.
+
+The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
+expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can
+check - axis-aligned walls, round numbers - written by hand too; the oblique ones (a room with
+oblique walls, a piece turned 30°) are the oracle's, bounded by hand. `python3.13 -m
+tools.oracle.rules_author` rewrites the suite and fails if the oracle disagrees with anything written
+by hand; `python3.13 -m tools.oracle.regenerate` re-verifies it with the others - every report byte
+for byte, none matching the assurance pattern (Rules §9.5), each with the notice, and each that
+evaluated its document carrying that document's own content hash (Rules §1.5); and `python3.13 -m
+tools.oracle.rules <test-dir>` prints one test's expected output. The oracle's evaluator is
+`tools/oracle/rules/`, written from `spec/rules/` alone, with its own exact arithmetic in
+`Q(√m)` for local coordinates. `pnpm schema:check` checks that the request, profile and pack schemas
+reject exactly the inputs whose expected diagnostics say they should, that every report matches the
+report schema and every measure result the measure result definition.

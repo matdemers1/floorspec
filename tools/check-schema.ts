@@ -15,7 +15,10 @@
  *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's).
  *
  *   5. every extension in registry/ - its entry, its schema, and its suite (conformance/ext/), as
- *      checkExtensionSuite says.
+ *      checkExtensionSuite says;
+ *   6. the Floorspec Rules schemas (schema/rules/<v>/) - the default profile of spec/rules 10.6 matches
+ *      the profile schema, and the Rules suite (conformance/rules/<v>/) agrees with them, as
+ *      checkRulesSuite says.
  *
  *   pnpm schema:check
  */
@@ -32,7 +35,12 @@ import {
   versionedValidator,
   defaults,
   checkExtensionSuite,
+  checkRulesSuite,
+  defaultProfile,
   extensionSchemas,
+  RULES_VERSIONS,
+  rulesSchemaDir,
+  rulesValidators,
   formatErrors,
   loadSchemaFiles,
   OPS_CORE,
@@ -134,6 +142,16 @@ for (const x of extensionSchemas(root)) {
   const data = checkExtensionSuite(suiteDir, x.name, code, validateData, requestValidator(opsAjv['0.2'], '0.2'), root);
   problems.push(...data.problems);
   console.log(`schema: ${x.name} ${x.version}: ${docs.checked} documents checked against Core's schema, ${data.checked} against the extension's or Ops's`);
+}
+
+// 6. Floorspec Rules: its schemas, the default profile of 10.6, and its suite.
+for (const v of RULES_VERSIONS) {
+  const rv = rulesValidators(compile(`rules/${v}`, loadSchemaFiles(rulesSchemaDir(v))), v);
+  const profile0 = defaultProfile(root);
+  if (!rv.profile(profile0)) problems.push(`spec/rules/10-profiles.md: the default profile does not match the profile schema:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
+  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores), registry, profile0, root);
+  problems.push(...rules.problems);
+  console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
 }
 
 if (problems.length) fail();

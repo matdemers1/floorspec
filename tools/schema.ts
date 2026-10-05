@@ -409,3 +409,164 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
   }
   return result;
 }
+
+/** The Floorspec Rules drafts this repository publishes, oldest first. */
+export const RULES_VERSIONS = ['0.1'] as const;
+export type RulesVersion = (typeof RULES_VERSIONS)[number];
+/** The draft the spec text in spec/rules/ is. */
+export const CURRENT_RULES: RulesVersion = '0.1';
+
+export const rulesSchemaBase = (v: RulesVersion) => `https://d3cloud.io/floorspec/schema/rules/${v}/`;
+export const rulesId = (v: RulesVersion, name: string) => `${rulesSchemaBase(v)}${name}.schema.json`;
+export const rulesSchemaDir = (v: RulesVersion) => join(import.meta.dirname, '..', 'schema', 'rules', v);
+
+/** The validators of one Rules draft: the evaluation request, a pack, a profile, a report, and a measure result. */
+export interface RulesValidators {
+  request: ValidateFunction;
+  pack: ValidateFunction;
+  profile: ValidateFunction;
+  report: ValidateFunction;
+  measureResult: ValidateFunction;
+}
+
+export function rulesValidators(ajv = createAjv(loadSchemaFiles(rulesSchemaDir('0.1'))), v: RulesVersion = '0.1'): RulesValidators {
+  const get = (id: string) => {
+    const f = ajv.getSchema(id);
+    if (!f) throw new Error(`schema ${id} is not loaded`);
+    return f;
+  };
+  return {
+    request: get(rulesId(v, 'request')),
+    pack: get(rulesId(v, 'pack')),
+    profile: get(rulesId(v, 'profile')),
+    report: get(rulesId(v, 'report')),
+    measureResult: get(`${rulesId(v, 'finding')}#/$defs/measureResult`),
+  };
+}
+
+/** The default profile (Rules 10.6), as the JSON block of spec/rules/10-profiles.md under "## 10.6" gives it. */
+export function defaultProfile(root = join(import.meta.dirname, '..')): unknown {
+  const md = readFileSync(join(root, 'spec', 'rules', '10-profiles.md'), 'utf8');
+  const section = md.split(/^## 10\.6 /m)[1] ?? '';
+  const block = /```json\n([\s\S]*?)\n```/.exec(section);
+  if (!block) throw new Error('spec/rules/10-profiles.md: no JSON block under 10.6');
+  return JSON.parse(block[1]!);
+}
+
+/**
+ * Whether a JSON text has an object with two members of one name (Core 9.1.2). JSON.parse keeps the
+ * last of them silently, so a request that is malformed only because of one is found here.
+ */
+export function hasDuplicateMember(text: string): boolean {
+  let i = 0;
+  let dup = false;
+  const ws = () => {
+    while (i < text.length && ' \t\n\r'.includes(text[i]!)) i++;
+  };
+  const str = (): string => {
+    const start = i;
+    i++;
+    while (text[i] !== '"') i += text[i] === '\\' ? 2 : 1;
+    i++;
+    return JSON.parse(text.slice(start, i)) as string;
+  };
+  const value = (): void => {
+    ws();
+    const c = text[i];
+    if (c === '{') {
+      i++;
+      const seen = new Set<string>();
+      ws();
+      if (text[i] === '}') return void i++;
+      for (;;) {
+        ws();
+        const k = str();
+        if (seen.has(k)) dup = true;
+        seen.add(k);
+        ws();
+        i++; // :
+        value();
+        ws();
+        if (text[i++] === '}') return;
+      }
+    } else if (c === '[') {
+      i++;
+      ws();
+      if (text[i] === ']') return void i++;
+      for (;;) {
+        value();
+        ws();
+        if (text[i++] === ']') return;
+      }
+    } else if (c === '"') str();
+    else while (i < text.length && !',]} \t\n\r'.includes(text[i]!)) i++;
+  };
+  value();
+  return dup;
+}
+
+/**
+ * Checks the Rules schemas against the Rules suite (conformance/rules/<v>). For a report test, with
+ * the diagnostics of expected.json: the request schema rejects request.json exactly when FS-RULES-001
+ * is expected (a request that is not JSON, or has a duplicate member, needs no schema to be
+ * malformed); unless FS-RULES-001 is, the profile schema accepts the request's profile - or the
+ * default profile - whenever FS-RULES-002 is not expected; unless one of FS-RULES-001 to 003 is, the
+ * pack schema rejects each pack exactly when FS-RULES-004 names its index; the document matches the
+ * Core schema whenever the evaluation reached it and FS-RULES-003 is not expected; and expected.json
+ * matches the report schema. For a measure test, every result matches the measure result definition
+ * and the document matches the Core schema. Every registry.json matches the registry entry schema.
+ */
+export function checkRulesSuite(suite: string, rv: RulesValidators, validateDocument: ValidateFunction,
+  validateEntry: ValidateFunction, profile0: unknown, base = suite): SuiteResult {
+  const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
+  for (const dir of testDirs(suite)) {
+    const rel = relative(base, dir) || '.';
+    const read = (f: string) => readFileSync(join(dir, f), 'utf8');
+    const has = (f: string) => existsSync(join(dir, f));
+    if (has('registry.json'))
+      (JSON.parse(read('registry.json')) as unknown[]).forEach((e, i) => {
+        if (!validateEntry(e)) result.problems.push(`${rel}: registry.json entry ${i} does not match the registry entry schema`);
+      });
+    const expected = JSON.parse(read('expected.json')) as { diagnostics?: { code: string; packIndex?: number }[]; results?: unknown[] };
+    const document = () => {
+      const d = validateText(read('input.json'), validateDocument);
+      if (!d.valid) result.problems.push(`${rel}: the document does not match the Core schema:\n    ${formatErrors(d.errors).join('\n    ')}`);
+    };
+    result.checked++;
+    if (has('measures.json')) {
+      for (const [i, r] of (expected.results ?? []).entries())
+        if (!rv.measureResult(r)) result.problems.push(`${rel}: result ${i} does not match the measure result definition:\n    ${formatErrors(rv.measureResult.errors ?? []).join('\n    ')}`);
+      document();
+      continue;
+    }
+    if (!rv.report(expected)) result.problems.push(`${rel}: expected.json does not match the report schema:\n    ${formatErrors(rv.report.errors ?? []).join('\n    ')}`);
+    const codes = (expected.diagnostics ?? []).map((d) => d.code);
+    const text = read('request.json');
+    let request: unknown;
+    try {
+      request = parseForSchema(text);
+    } catch {
+      if (!codes.includes('FS-RULES-001')) result.problems.push(`${rel}: request.json is not JSON, but FS-RULES-001 is not expected`);
+      continue;
+    }
+    const requestOk = (rv.request(request) as boolean) && !hasDuplicateMember(text);
+    if (codes.includes('FS-RULES-001') === requestOk)
+      result.problems.push(`${rel}: the request schema ${requestOk ? 'accepts' : 'rejects'} request.json, and FS-RULES-001 is ${requestOk ? '' : 'not '}expected`);
+    if (codes.includes('FS-RULES-001')) continue;
+    const r = request as { profile?: unknown; packs: unknown[] };
+    const profile = r.profile === undefined ? profile0 : r.profile;
+    if (!codes.includes('FS-RULES-002') && !rv.profile(profile))
+      result.problems.push(`${rel}: FS-RULES-002 is not expected, but the profile schema rejects the profile:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
+    if (codes.includes('FS-RULES-002')) continue;
+    if (!codes.includes('FS-RULES-003')) document();
+    if (codes.includes('FS-RULES-003')) continue;
+    const bad = new Set((expected.diagnostics ?? []).filter((d) => d.code === 'FS-RULES-004').map((d) => d.packIndex));
+    r.packs.forEach((p, i) => {
+      const ok = rv.pack(p) as boolean;
+      if (ok === bad.has(i))
+        result.problems.push(`${rel}: the pack schema ${ok ? 'accepts' : 'rejects'} pack ${i}, and FS-RULES-004 is ${ok ? '' : 'not '}expected for it` +
+          (ok ? '' : `:\n    ${formatErrors(rv.pack.errors ?? []).join('\n    ')}`));
+    });
+  }
+  return result;
+}

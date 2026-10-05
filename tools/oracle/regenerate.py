@@ -1,5 +1,6 @@
-"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2, and
-every official extension's suite (conformance/ext/<NAME>/<version>/) - against the oracle.
+"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2,
+every official extension's suite (conformance/ext/<NAME>/<version>/) and Floorspec Rules 0.1
+(conformance/rules/0.1/, by tools/oracle/rules/suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
@@ -171,6 +172,9 @@ def main(argv) -> int:
         n, errors = verify_ext(name, suite, write)
         ext_counts[f'{name} {os.path.basename(suite)}'] = (n, len(errors))
         ops_errors.extend(errors)
+    from .rules.suite import verify_all as verify_rules
+    rules_n, rules_errors = verify_rules(write)
+    ops_errors.extend(rules_errors)
     for e in all_errors + ops_errors:
         print(e)
     for version, (n, k) in counts.items():
@@ -179,6 +183,7 @@ def main(argv) -> int:
         print(f'Ops {version}: {n} tests, {k} differences from the oracle')
     for label, (n, k) in ext_counts.items():
         print(f'{label}: {n} tests, {k} differences from the oracle')
+    print(f'Rules 0.1: {rules_n} tests, {len(rules_errors)} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
 
 
