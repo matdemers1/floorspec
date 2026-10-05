@@ -15,6 +15,7 @@ MESSAGES = {
     'FS-OPS-010': 'a lock names elements that do not exist, or walls that are not parallel',
     'FS-OPS-011': 'the result breaks a lock',
     'FS-OPS-012': 'a length, point or vector string does not match the grammar',
+    'FS-OPS-013': 'planarization would route an arc edge',
 }
 
 

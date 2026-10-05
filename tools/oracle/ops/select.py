@@ -281,12 +281,11 @@ class Resolver:
         return (d * ux, d * uy)
 
     @staticmethod
-    def position(v, D: int, w: int, pointer) -> int:
-        """3.5: the near edge's offset along a wall whose location line has squared length D,
-        for a width w."""
+    def position(v, L, w: int, pointer) -> int:
+        """3.5: the near edge's offset along a wall whose location line has the exact length L (a Surd) - an arc
+        wall's along its polyline (Core 21.6) - for a width w."""
         if type(v) is int:
             return v
-        L = Surd.sqrt(D)
         if CENTERED.fullmatch(v):
             return ((L - w) / 2).round()
         m = FROM_END.fullmatch(v)

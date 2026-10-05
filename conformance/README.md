@@ -390,7 +390,11 @@ holds every Ops 0.3 test on the same documents - Ops 0.4 applies to Core 0.3, 0.
 exactly as Ops 0.3 did, with a Core 0.4 reader - with `document-other-version` declaring `"0.5"`, and,
 after them in each group, the tests of what 0.4 adds: Core 0.4 documents, a stair's `minHeadroom` and a
 winder stair's `newel` set and unset, the upgrade of a 0.3 document to 0.4 as one batch
-(`transactions/…-upgrade-to-0.4`), and batches rejected with FS-INV-905 and FS-INV-906. Its requests
+(`transactions/…-upgrade-to-0.4`), and batches rejected with FS-INV-905 and FS-INV-906; and the group
+`arcs`, arc edges (Core chapter 21) added, bent, flipped, straightened and moved with the primitives Ops
+already has, doors placed along an arc's length, locks and selectors on arcs, and planarization that
+splits the straight walls beside an arc but never the arc itself (`FS-OPS-013`), declared in
+`tools/oracle/ops_author04_arcs.py`. Its requests
 match `schema/ops/0.3/`: Ops 0.4 has no request schema of its own. Its tests are declared in
 `tools/oracle/ops_author04.py`, which carries every 0.3 declaration forward.
 

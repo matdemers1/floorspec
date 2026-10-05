@@ -93,6 +93,20 @@ stays where it was: exactly, when the crossing is at an integer point of the ori
 line, as it is wherever axis-aligned walls cross; otherwise within the rounding that moved the
 pieces' ends.
 
+**Arc edges** (Ops 0.4). An arc edge (Core §21) is never routed or split: its polyline is made by the
+iterated snap rounding of Core §21.2 from its two junctions and its sagitta, and the pieces of an arc cut at
+a hot pixel would each be another arc with a polyline of its own, whose new crossings a single pass of
+snap rounding could not settle. So on a level that is not planar — that breaks Core §5.3, or §21.3.1 — the
+arc edges are looked at first,
+with Core's own tests on their polylines (Core §21.3.1): when an arc edge's location line meets another
+edge's at a point interior to both, overlaps one, or has a junction in its interior, the batch is rejected
+with `FS-OPS-013`, naming every such arc edge on the level — draw the junction where the walls meet first,
+and the arc ends there. Otherwise the level is planarized as steps 1 to 7 say, among its straight edges
+alone: an arc edge contributes no hot pixel and is left exactly as it is, and an arc that ends at a junction
+step 3 inserts in a straight edge — a bay drawn onto the middle of a wall — keeps its arc.
+
+An applier MUST NOT route or split an arc edge, and MUST reject with `FS-OPS-013`, naming every such arc edge on the level, a batch that leaves a level to be planarized on which an arc edge breaks Core §21.3.1; it MUST otherwise planarize the level's straight edges alone, as steps 1 to 7 define. {#FS-OPS-5.2.4 MUST}
+
 ## 5.3 Join cleanup
 
 A junction whose `join.through` names a wall that no longer ends at that junction has its `join`

@@ -13,7 +13,8 @@ keeps only junctions and edges (thickness plays no part in which face is which).
 
 from __future__ import annotations
 
-from .. import plane
+from .. import arcs, plane
+from ..validate import in_interior, location_lines_meet
 from ..derive import Doc, LevelGraph
 
 
@@ -70,6 +71,7 @@ class LevelFaces:
                     raise Broken(f'junction {jid} has no position')
                 self.pos[jid] = tuple(j['position'])
         self.edges: dict[str, tuple[str, str, str]] = {}      # id -> (collection, start, end)
+        self.arc: dict[str, int] = {}                           # id -> sagitta, for an arc edge (Core 0.4, 21.1)
         for c in ('walls', 'separators'):
             for eid, e in coll(wc, c).items():
                 if isinstance(e, dict) and e.get('level') == level:
@@ -77,12 +79,24 @@ class LevelFaces:
                     if not (isinstance(s, str) and isinstance(t, str) and s in self.pos and t in self.pos):
                         raise Broken(f'edge {eid} does not run between two junctions on {level}')
                     self.edges[eid] = (c, s, t)
+                    a = e.get('arc')                                        # Core 0.4, 21.1: an arc edge
+                    h = a.get('sagitta') if isinstance(a, dict) else None
+                    if type(h) is int and h != 0 and self.pos[s] != self.pos[t] and arcs.fits(self.pos[s], self.pos[t], h):
+                        self.arc[eid] = h
+        self.lines = {eid: (arcs.polyline(self.pos[s], self.pos[t], self.arc[eid]) if eid in self.arc
+                            else (self.pos[s], self.pos[t])) for eid, (_, s, t) in self.edges.items()}
         self._planar()
+
+        def edge(eid, s, t):
+            e = {'level': level, 'start': s, 'end': t}
+            if eid in self.arc:
+                e['arc'] = {'sagitta': self.arc[eid]}
+            return e
         sanitized = {
             'levels': {level: {}},
             'junctions': {j: {'level': level, 'position': list(p)} for j, p in self.pos.items()},
-            'walls': {e: {'level': level, 'start': s, 'end': t} for e, (c, s, t) in self.edges.items() if c == 'walls'},
-            'separators': {e: {'level': level, 'start': s, 'end': t} for e, (c, s, t) in self.edges.items() if c == 'separators'},
+            'walls': {e: edge(e, s, t) for e, (c, s, t) in self.edges.items() if c == 'walls'},
+            'separators': {e: edge(e, s, t) for e, (c, s, t) in self.edges.items() if c == 'separators'},
         }
         self.g = LevelGraph(Doc(sanitized), level)
         self._faces()
@@ -98,11 +112,10 @@ class LevelFaces:
             for y, (_, sy, ey) in es[i + 1:]:
                 if {sx, ex} == {sy, ey}:
                     raise Broken(f'edges {x} and {y} connect the same junctions')
-                p1, p2, q1, q2 = self.pos[sx], self.pos[ex], self.pos[sy], self.pos[ey]
-                if plane.proper_cross(p1, p2, q1, q2) or plane.collinear_overlap(p1, p2, q1, q2):
+                if location_lines_meet(self.lines[x], self.lines[y]) is not None:   # 5.3, 21.3.1
                     raise Broken(f'edges {x} and {y} cross or overlap')
             for j, p in self.pos.items():
-                if plane.in_open_segment(p, self.pos[sx], self.pos[ex]):
+                if in_interior(p, self.lines[x]):
                     raise Broken(f'junction {j} lies inside edge {x}')
 
     def _faces(self):
@@ -120,7 +133,7 @@ class LevelFaces:
         info = []
         for w in walks:
             pos = g.walk_positions(w)
-            info.append({'walk': w, 'pos': pos, 'area2': plane.area2(pos), 'comp': find(w[0][1])})
+            info.append({'walk': self._collapse(w), 'pos': pos, 'area2': plane.area2(pos), 'comp': find(w[0][1])})
         self.faces = [{'outer': x['walk'], 'pos': x['pos'], 'area2': x['area2'], 'comp': x['comp'], 'holes': []}
                       for x in info if x['area2'] > 0]
         self.he_face: dict[tuple, int | None] = {}
@@ -140,11 +153,28 @@ class LevelFaces:
             for h in x['walk']:
                 self.he_face[h] = best
 
+    def _collapse(self, walk):
+        """A walk of the level graph with each run of an arc edge's segments (Core 21.3) made one half-edge of the
+        arc edge, between its junctions - so that a walk names the document's edges and junctions only."""
+        g = self.g
+        k = next((i for i, (_, u, _) in enumerate(walk) if u in self.pos), 0)
+        walk = walk[k:] + walk[:k]
+        out = []
+        for eid, u, v in walk:
+            src = g.edges[eid].src
+            if src == eid:
+                out.append((eid, u, v))
+            elif u in self.pos:
+                out.append([src, u, v])
+            else:
+                out[-1][2] = v
+        return [tuple(h) for h in out]
+
     def face_of(self, point) -> int | None:
         """The bounded face containing a point, or None when the point is in the unbounded face
         or on a location line."""
         p = tuple(point)
-        if any(plane.on_closed_segment(p, self.pos[s], self.pos[t]) for _, s, t in self.edges.values()):
+        if any(plane.on_closed_segment(p, a, b) for line in self.lines.values() for a, b in zip(line, line[1:])):
             return None
         best = None
         for i, f in enumerate(self.faces):
