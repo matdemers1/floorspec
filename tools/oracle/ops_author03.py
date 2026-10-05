@@ -264,6 +264,76 @@ T('inverse', 'ceiling-and-floor-set-and-undone', 'Giving R1 a vaulted ceiling an
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'unsetProperty', 'id': 'R1', 'path': '/ceiling'},
                                              {'op': 'unsetProperty', 'id': 'R1', 'path': '/floor'}], r['inverse']))
 
+# ============================================================================= stairs (0.3): Core chapter 17
+# upstairs(): the box on L1, and on L2 above it an 8' x 8' loft R2 with a slab SL1 and a window O1. The stair rises
+# east from (1', 2'), 3' wide, 14 risers on 9" treads; its head, 9'9" further east, is past the loft, in no room.
+from tools.oracle.ops_author import upstairs                                   # noqa: E402
+
+STAIR = {'level': 'L1', 'to': 'L2', 'position': [FT, 2 * FT], 'width': 3 * FT, 'tread': 9 * IN, 'risers': 14}
+
+
+def with_stair(**st):
+    d = v3(upstairs())
+    d['stairs'] = {'ST1': {**copy.deepcopy(STAIR), **st}}
+    return d
+
+
+T('primitives', 'add-a-stair', 'addElement adds a stair to the stairs collection Core 0.3 adds: the result is valid, '
+  'and its stair is derived.', ['2.1.1', '1.3.1'], v3(upstairs()),
+  req({'op': 'addElement', 'collection': 'stairs', 'id': 'ST1', 'element': STAIR}),
+  check=lambda r, B: ensure(r['created'] == ['ST1'] and derived(B)['stairs']['ST1']['risers'] == 14, r['created']))
+T('primitives', 'add-a-stair-minting-its-id', 'addElement into stairs with no id: the applier mints ST1, the prefix '
+  'of the stairs collection being ST.', ['1.5.1', '2.1.1'], v3(upstairs()),
+  req({'op': 'addElement', 'collection': 'stairs', 'element': STAIR}),
+  check=lambda r, B: ensure(r['created'] == ['ST1'] and 'ST1' in B['stairs'], r['created']))
+T('primitives', 'set-a-stair-form', 'setProperty makes the stair an L, turning left after 7 risers, and declares its '
+  'handrail: valid, and derived with a landing.', ['2.3.1'], with_stair(),
+  req({'op': 'setProperty', 'id': 'ST1', 'path': '/form', 'value': {'kind': 'lShaped', 'turn': 'left', 'risersBeforeTurn': 7}},
+      {'op': 'setProperty', 'id': 'ST1', 'path': '/handrail', 'value': {'height': 36 * IN}}),
+  check=lambda r, B: ensure(sum(1 for s in derived(B)['stairs']['ST1']['steps'] if s.get('landing')) == 1,
+                            derived(B)['stairs']['ST1']))
+T('primitives', 'stair-to-its-own-level', 'setProperty of the stair\'s /to to L1, its own level: the result has '
+  'FS-INV-901, so the batch is rejected with it.', ['1.2.3', '2.3.1'], with_stair(),
+  req({'op': 'setProperty', 'id': 'ST1', 'path': '/to', 'value': 'L1'}), 'rejected', [('FS-INV-901', ['ST1'])])
+T('primitives', 'unset-a-stair-riser-count', 'unsetProperty of the stair\'s /risers: it has neither risers nor '
+  'maxRiser, which Core 0.3\'s schema rejects: FS-SCH-001.', ['1.2.3', '2.3.1'], with_stair(),
+  req({'op': 'unsetProperty', 'id': 'ST1', 'path': '/risers'}), 'rejected', [('FS-SCH-001', [])])
+T('primitives', 'riser-count-from-a-greatest-riser', 'unsetProperty of /risers and setProperty of /maxRiser in one '
+  'batch: the stair derives its riser count, 2700 mm over 7 3/4 in risers, 14.', ['2.3.1'], with_stair(),
+  req({'op': 'unsetProperty', 'id': 'ST1', 'path': '/risers'},
+      {'op': 'setProperty', 'id': 'ST1', 'path': '/maxRiser', 'value': 31 * IN // 4}),
+  check=lambda r, B: ensure(derived(B)['stairs']['ST1']['risers'] == 14, derived(B)['stairs']))
+T('primitives', 'remove-a-stair', 'removeElement removes a stair, and nothing depends on it.', ['2.2.1', '2.2.2'],
+  with_stair(), req({'op': 'removeElement', 'id': 'ST1'}),
+  check=lambda r, B: ensure(r['removed'] == ['ST1'] and 'stairs' not in B, r['removed']))
+T('primitives', 'remove-level-blocked-by-a-stair', 'Removing L2 without cascade is blocked by everything on it and by '
+  'the stair that rises to it: a stair depends on both its levels.', ['2.2.1'], with_stair(),
+  req({'op': 'removeElement', 'id': 'L2'}), 'rejected',
+  [('FS-OPS-006', ['L2', 'K1', 'K2', 'K3', 'K4', 'R2', 'SL1', 'ST1', 'V1', 'V2', 'V3', 'V4'])])
+T('primitives', 'remove-level-cascades-to-a-stair', 'Removing L2 with cascade takes the stair that rises to it with '
+  'everything on it.', ['2.2.2'], with_stair(), req({'op': 'removeElement', 'id': 'L2', 'cascade': True}),
+  check=lambda r, B: ensure(r['removed'] == ['K1', 'K2', 'K3', 'K4', 'L2', 'O1', 'R2', 'SL1', 'ST1', 'V1', 'V2', 'V3', 'V4'],
+                            r['removed']))
+T('primitives', 'remove-lower-level-cascades-to-a-stair', 'Removing L1 with cascade takes the stair that rises from '
+  'it, as well as the box on it; L2 and its loft stay.', ['2.2.2'], with_stair(),
+  req({'op': 'removeElement', 'id': 'L1', 'cascade': True}),
+  check=lambda r, B: ensure(r['removed'] == ['J1', 'J2', 'J3', 'J4', 'L1', 'R1', 'ST1', 'W1', 'W2', 'W3', 'W4']
+                            and 'L2' in B['levels'], r['removed']))
+T('transactions', 'stair-in-a-0.2-document', 'A stair added to a Core 0.2 document that does not declare "0.3": '
+  'Ops 0.3 adds to the stairs collection, but Core 0.2\'s schema has none, so the result is invalid: FS-SCH-001.',
+  ['1.2.3', '2.1.1'], v02.v2(upstairs()), req({'op': 'addElement', 'collection': 'stairs', 'id': 'ST1', 'element': STAIR}),
+  'rejected', [('FS-SCH-001', [])])
+T('inverse', 'stair-added-and-undone', 'Adding a stair: the inverse removes it, and applying it gives back A '
+  'exactly (1.6.1).', ['1.6.1'], v3(upstairs()),
+  req({'op': 'addElement', 'collection': 'stairs', 'id': 'ST1', 'element': STAIR}),
+  check=lambda r, B: ensure(r['inverse'] == [{'op': 'removeElement', 'id': 'ST1'}], r['inverse']))
+T('inverse', 'level-and-stair-removed-and-undone', 'Removing L2 with cascade, its stair with it: the inverse adds L2 '
+  'back before the stair that rises to it - stairs come after slabs in step 2\'s order, so they are added after '
+  'levels in step 3\'s - and applying it gives back A exactly (1.6.1).', ['1.6.1'], with_stair(),
+  req({'op': 'removeElement', 'id': 'L2', 'cascade': True}),
+  check=lambda r, B: ensure([p['id'] for p in r['inverse']].index('L2') < [p['id'] for p in r['inverse']].index('ST1'),
+                            r['inverse']))
+
 NEW = list(TESTS)
 del TESTS[:]
 

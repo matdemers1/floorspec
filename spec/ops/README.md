@@ -3,7 +3,8 @@
 The normative specification of edits to a Floorspec document — **Draft 0.3**, operating on Core 0.3
 documents (and so on 0.2 and 0.1 documents), versioned independently of Core (FLR-ADR-008). Ops
 0.1 is published from commit `3bf4f35` and Ops 0.2 from `6f9bc07`; chapter 0 (0.4) says what each
-later draft adds and changes. Ops 0.3's requests have Ops 0.2's shape, `schema/ops/0.2/`.
+later draft adds and changes. Ops 0.3's requests have Ops 0.2's shape with `"stairs"` among `addElement`'s collections:
+`schema/ops/0.3/`.
 
 | Chapter | |
 |---|---|

@@ -1,7 +1,7 @@
 """The shape of an apply request (Ops 1.1): what FS-OPS-001 rejects, for each draft.
 
 Transcribed from chapters 1, 2, 4 and 6 of each draft, and kept in step with its schema
-(schema/ops/0.1, schema/ops/0.2): check-schema runs each schema over every test's request in its
+(schema/ops/0.1, schema/ops/0.2, schema/ops/0.3): check-schema runs each schema over every test's request in its
 suite, and must agree with this module on which requests are FS-OPS-001. Every object is closed;
 every operation has exactly the members its definition lists, exactly one member of each group of
 alternatives (ONE_OF), and a member allowed only beside another only with it (NEEDS).
@@ -31,6 +31,12 @@ from .version import OPS_01, Profile
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets')
+STAIRS = 'stairs'                                # Ops 0.3: the collection Core 0.3 adds (chapter 17)
+
+
+def collections(profile: Profile) -> tuple:
+    """The collections of Core 1.1 an applier of this draft adds elements to: Core 0.3's stairs too."""
+    return COLLECTIONS + (STAIRS,) if profile.v03 else COLLECTIONS
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them
@@ -198,7 +204,7 @@ def check_operation(op, pointer: str, profile: Profile = OPS_01) -> None:
     for k, other in NEEDS_02.get(name, {}).items():
         if k in op and other not in op:
             _bad(f'{pointer}/{esc(k)}', f'"{k}" is allowed only with "{other}"')
-    if name == 'addElement' and 'extension' not in op and op['collection'] not in COLLECTIONS + (ITEMS,):
+    if name == 'addElement' and 'extension' not in op and op['collection'] not in collections(profile) + (ITEMS,):
         _bad(f'{pointer}/collection', f'unknown collection {op["collection"]!r}')
     if 'host' in op and name in ('placeElement', 'moveElement'):
         check_host(op['host'], f'{pointer}/host')

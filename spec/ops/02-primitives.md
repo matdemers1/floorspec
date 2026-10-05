@@ -12,7 +12,8 @@ when it cannot.
 ```
 
 Adds `element` to `collection` under `id`, or under a minted ID when `id` is absent (1.5).
-`collection` is one of the eleven collections of Core §1.1, or `"items"`: the program's items
+`collection` is one of the collections of Core §1.1 — the eleven of Core 0.2, and `"stairs"`,
+which Core 0.3 adds — or `"items"`: the program's items
 (Core §11.1). With an `extension` member — an extension name — `collection` is instead the name of
 one of that extension's collections, and the element is an extension element (Core §12.5):
 
@@ -61,11 +62,11 @@ pointing at nothing, so `removeElement` follows this table:
 | Removing | Takes with it, when `cascade` is `true` | Blocks, otherwise |
 |---|---|---|
 | a building | its levels (and what they take) | its levels |
-| a level | its junctions, walls, separators, rooms and slabs, every wall's openings, and every extension element whose `fallback.level` or `host.level` it is (and what they all take) | anything on it — those, and any wall whose `base.level` or `top.level` it is |
+| a level | its junctions, walls, separators, rooms and slabs, every wall's openings, every extension element whose `fallback.level` or `host.level` it is, and every stair whose `level` or `to` it is (and what they all take) | anything on it — those, and any wall whose `base.level` or `top.level` it is |
 | a junction | the walls and separators that end at it (and what they take) | those walls and separators |
 | a wall | its openings, and the extension elements whose `host.wall` it is; and it is removed from any junction's `join.through`, which unsets that `join` | its openings and those extension elements |
 | a room | the extension elements whose `host.room` it is | those extension elements |
-| a separator, opening, slab or extension element | nothing | nothing |
+| a separator, opening, slab, stair or extension element | nothing | nothing |
 | a program item | nothing — `cascade` does not apply; every adjacency that names it is removed | every room whose `brief` names it |
 | a type, material or asset | nothing — `cascade` does not apply | every element that refers to it, including an extension element whose `fallback.asset` or `fallback.symbol` it is |
 

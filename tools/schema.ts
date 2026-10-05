@@ -34,10 +34,10 @@ export const CURRENT_OPS: OpsVersion = '0.3';
 /** The Core draft each Ops draft operates on: its document A is valid under that draft's reader. */
 export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
 /** The Ops request schemas, schema/ops/<v>/, oldest first. */
-export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2'] as const;
+export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
-/** The request schema each Ops draft's requests match: Ops 0.3 adds no operation and no member (Ops 0.4), so it has 0.2's. */
-export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.2' };
+/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with Core 0.3's `stairs` among addElement's collections (Ops 0.4). */
+export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
 
 export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
 export const opsRootId = (v: OpsSchemaVersion) => `${opsSchemaBase(v)}request.schema.json`;

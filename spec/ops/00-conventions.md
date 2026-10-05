@@ -46,7 +46,8 @@ applier is configured with; the conformance suite configures none.
 In this specification an **element** is any of the three kinds of thing that have an ID in a
 document's one space of IDs (Core §3.1.3):
 
-- an element of one of Core's eleven collections (Core §1.4);
+- an element of one of Core's collections (Core §1.1, §1.4): the eleven of Core 0.1 and 0.2, and
+  `stairs`, which Core 0.3 adds (Core §17.1);
 - a **program item** (Core §11.1), in the program's `items`;
 - an **extension element** (Core §12.5), in a collection of an extension's top-level data.
 
@@ -62,8 +63,9 @@ in one that declares `"0.1"` the program is not a member and top-level extension
 **From 0.2 to 0.3.** Ops 0.3 is a new draft, not an edit of 0.2. The text of Ops 0.2 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`6f9bc07` in the
 standard's repository); its schema is at `/floorspec/schema/ops/0.2/` and its suite at
-`conformance/ops/0.2/`, and neither changes. This draft's suite is at `conformance/ops/0.3/`, which
-holds every 0.2 test on the same documents, as well as the new ones.
+`conformance/ops/0.2/`, and neither changes. This draft's schema is at `/floorspec/schema/ops/0.3/`
+and its suite at `conformance/ops/0.3/`, which holds every 0.2 test on the same documents, as well
+as the new ones.
 
 What 0.3 adds:
 
@@ -79,17 +81,26 @@ What 0.3 adds:
   plan point, which nothing else moves;
 - a batch may make a 0.2 document declare `"0.3"` with `setProperty` of `$document`
   `/floorspec`, as a 0.2 batch could make a 0.1 document declare `"0.2"`;
+- **stairs** (Core chapter 17): `addElement` adds to the `stairs` collection (2.1), minting IDs with
+  the prefix `ST` (1.5); a stair depends on both its levels, so removing either level takes the
+  stair with it or is blocked by it (2.2); stairs come after slabs in the inverse's order (1.6); and
+  a batch sets and unsets a stair's members like any other's, judged by Core 0.3's stair invariants
+  (`FS-INV-901` to `FS-INV-904`, 1.2.3);
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
   (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test.
 
-Ops 0.3 adds no operation and changes no member of a request, so its requests have exactly the
-shape of Ops 0.2's: they match `schema/ops/0.2/request.schema.json`, and Ops 0.3 has no request schema of its
-own (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
+Ops 0.3 adds no operation and no member of a request, and changes the type of none, so its requests
+have Ops 0.2's shape, with one value more: `"stairs"` among `addElement`'s collections. Its schema,
+`schema/ops/0.3/request.schema.json`, is Ops 0.2's with that value added (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
 rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`: a
-0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did. No statement of
-0.2 changed its meaning, so 0.3 retires none; where a table or a list it refers to has grown — the
-steps of `moveRoom` among them — the statement applies to what was added too.
+0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did, and no stair, so
+removing a level takes or is blocked by what it was. One request is rejected differently: an
+`addElement` into `stairs`, which an Ops 0.2 applier rejects as naming no collection (`FS-OPS-001`),
+is applied by an Ops 0.3 applier, and its result is then rejected by the document's own draft's
+schema (`FS-SCH-001`, 1.2.3). No statement of 0.2 changed its meaning, so 0.3 retires none; where a
+table or a list it refers to has grown — the steps of `moveRoom`, the collections, the minting
+prefixes and the removal table among them — the statement applies to what was added too.
 
 **From 0.1 to 0.2.** Ops 0.2 was a new draft, not an edit of 0.1. The text of Ops 0.1 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`3bf4f35` in the
@@ -131,7 +142,8 @@ of `$document`, the steps of a composite — the statement applies to what was a
 
 ## 0.5 Not in this draft
 
-Operations on roofs, stairs and design options; references inside an extension's own members,
+Operations on roofs and design options, and composite operations for stairs — drawing one, or
+moving one with a room (a stair's `position` is a plan point, which `moveRoom` does not move); references inside an extension's own members,
 which core does not read and so no removal follows (an electrical circuit that names a device);
 an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); dimension locks
 other than the two of chapter 6; operations that edit several documents at once.

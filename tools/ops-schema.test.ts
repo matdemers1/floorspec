@@ -17,7 +17,8 @@ interface Case {
   new?: boolean;
   request: unknown;
 }
-// Ops 0.3's requests have Ops 0.2's shape (Ops 0.4), so the same cases hold for it.
+// Ops 0.3's requests have Ops 0.2's shape, with Core 0.3's `stairs` among addElement's collections (Ops 0.4),
+// so the same cases hold for it.
 const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.2.json' };
 const load = (v: OpsVersion) => JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', FIXTURES[v]), 'utf8')) as Case[];
 const validators = Object.fromEntries(OPS_VERSIONS.map((v) => [v, requestValidator(undefined, v)]));
@@ -52,4 +53,11 @@ test('ops 0.2 request: an area written 1.5 is not an integer, but "1.5 m2" is an
   const validate = validators['0.2']!;
   assert.equal(validateText('{ "batch": [{ "op": "addProgramItem", "function": "bedroom", "minArea": 1.5 }] }', validate).valid, false);
   assert.equal(validateText('{ "batch": [{ "op": "addProgramItem", "function": "bedroom", "minArea": "1.5 m2" }] }', validate).valid, true);
+});
+
+test('ops 0.3 request: addElement into stairs, which Core 0.3 adds, is well formed in 0.3 and malformed in 0.2', () => {
+  const add = { batch: [{ op: 'addElement', collection: 'stairs', element: { level: 'L1' } }] };
+  assert.equal(validators['0.3']!(add), true, formatErrors(validators['0.3']!.errors ?? []).join('\n'));
+  assert.equal(validators['0.2']!(add), false);
+  assert.equal(validators['0.3']!({ batch: [{ op: 'addElement', collection: 'roofs', element: {} }] }), false);
 });
