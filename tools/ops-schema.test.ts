@@ -15,10 +15,12 @@ interface Case {
   name: string;
   malformed: boolean;
   new?: boolean;
+  new03?: boolean;
   request: unknown;
 }
-// Ops 0.3's requests have Ops 0.2's shape (Ops 0.4), so the same cases hold for it.
-const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.2.json' };
+// Ops 0.3's requests have Ops 0.2's shape and may add an element to Core 0.3's `roofs` (Ops 0.4): its cases are
+// 0.2's, with "unknown collection" naming a name that is still reserved and a case adding a roof.
+const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.3.json' };
 const load = (v: OpsVersion) => JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', FIXTURES[v]), 'utf8')) as Case[];
 const validators = Object.fromEntries(OPS_VERSIONS.map((v) => [v, requestValidator(undefined, v)]));
 
@@ -53,3 +55,8 @@ test('ops 0.2 request: an area written 1.5 is not an integer, but "1.5 m2" is an
   assert.equal(validateText('{ "batch": [{ "op": "addProgramItem", "function": "bedroom", "minArea": 1.5 }] }', validate).valid, false);
   assert.equal(validateText('{ "batch": [{ "op": "addProgramItem", "function": "bedroom", "minArea": "1.5 m2" }] }', validate).valid, true);
 });
+
+for (const c of load('0.3').filter((x) => x.new03))
+  test(`ops 0.2 request: ${c.name} is malformed, since only 0.3 has that form`, () => {
+    assert.equal(validators['0.2']!(c.request), false);
+  });

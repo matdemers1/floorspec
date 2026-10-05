@@ -46,7 +46,7 @@ applier is configured with; the conformance suite configures none.
 In this specification an **element** is any of the three kinds of thing that have an ID in a
 document's one space of IDs (Core §3.1.3):
 
-- an element of one of Core's eleven collections (Core §1.4);
+- an element of one of Core's twelve collections (Core §1.4) — eleven, and Core 0.3's `roofs`;
 - a **program item** (Core §11.1), in the program's `items`;
 - an **extension element** (Core §12.5), in a collection of an extension's top-level data.
 
@@ -79,17 +79,30 @@ What 0.3 adds:
   plan point, which nothing else moves;
 - a batch may make a 0.2 document declare `"0.3"` with `setProperty` of `$document`
   `/floorspec`, as a 0.2 batch could make a 0.1 document declare `"0.2"`;
+- **roofs** (Core chapter 16), Core 0.3's twelfth collection: `addElement` adds one, minting an
+  ID with the prefix `RF` (1.5), `setProperty` and `unsetProperty` edit its pitch, its gables and
+  its overhangs like any other member (2.3), and removing its level takes it or is blocked by it
+  (2.2); for that, Ops 0.3 has a request schema of its own, `schema/ops/0.3/`, which is Ops 0.2's
+  with `roofs` among `addElement`'s collections (1.1.3). The result is judged by Core 0.3's roof
+  invariants — an edge out of range, a roof part flat, or one whose every edge is a gable rejects
+  the batch with the Core diagnostic (1.2.3) — while a roof whose surface Core 0.3 does not derive
+  only carries its lint;
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
   (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test.
 
-Ops 0.3 adds no operation and changes no member of a request, so its requests have exactly the
-shape of Ops 0.2's: they match `schema/ops/0.2/request.schema.json`, and Ops 0.3 has no request schema of its
-own (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
+Ops 0.3 adds no operation and changes no member of a request, so its requests have the shape of
+Ops 0.2's, and `schema/ops/0.3/request.schema.json` is Ops 0.2's with one difference: an
+`addElement` may name the collection `roofs` (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
 rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`: a
 0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did. No statement of
-0.2 changed its meaning, so 0.3 retires none; where a table or a list it refers to has grown — the
-steps of `moveRoom` among them — the statement applies to what was added too.
+0.2 changed its meaning but one, which 0.3 retires; where a table or a list it refers to has grown —
+the steps of `moveRoom`, the collections, the minting prefixes, the removal table and the order of
+the inverse among them — the statement applies to what was added too.
+
+| Retired | Replaced by | Why |
+|---|---|---|
+| `FS-OPS-1.1.2` | `FS-OPS-1.1.3` | a request has the shape `schema/ops/0.3` gives it |
 
 **From 0.1 to 0.2.** Ops 0.2 was a new draft, not an edit of 0.1. The text of Ops 0.1 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`3bf4f35` in the
@@ -131,7 +144,8 @@ of `$document`, the steps of a composite — the statement applies to what was a
 
 ## 0.5 Not in this draft
 
-Operations on roofs, stairs and design options; references inside an extension's own members,
+Composite operations on roofs — a roof's footprint is plan points (Core §16.1), which `moveRoom`,
+`moveWall` and `resizeRoom` do not move — and operations on stairs and design options; references inside an extension's own members,
 which core does not read and so no removal follows (an electrical circuit that names a device);
 an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); dimension locks
 other than the two of chapter 6; operations that edit several documents at once.

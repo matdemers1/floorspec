@@ -31,6 +31,12 @@ from .version import OPS_01, Profile
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets')
+ROOFS = 'roofs'                                  # Ops 0.3: Core 0.3's twelfth collection (Core 16.1)
+
+
+def collections(profile: Profile) -> tuple:
+    """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` too."""
+    return COLLECTIONS + ((ROOFS,) if profile.version == '0.3' else ())
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them
@@ -198,7 +204,7 @@ def check_operation(op, pointer: str, profile: Profile = OPS_01) -> None:
     for k, other in NEEDS_02.get(name, {}).items():
         if k in op and other not in op:
             _bad(f'{pointer}/{esc(k)}', f'"{k}" is allowed only with "{other}"')
-    if name == 'addElement' and 'extension' not in op and op['collection'] not in COLLECTIONS + (ITEMS,):
+    if name == 'addElement' and 'extension' not in op and op['collection'] not in collections(profile) + (ITEMS,):
         _bad(f'{pointer}/collection', f'unknown collection {op["collection"]!r}')
     if 'host' in op and name in ('placeElement', 'moveElement'):
         check_host(op['host'], f'{pointer}/host')

@@ -66,8 +66,7 @@ An angle MUST be a JSON integer. {#FS-CORE-2.4.1 MUST}
 ## 2.5 Other quantities
 
 - **Pitch** is a pair of positive integers `{ "rise": r, "run": n }` (a roof at 6:12 is
-  `{ "rise": 6, "run": 12 }`). A vaulted ceiling's slope is one (15.3); roofs, in a later draft,
-  will use it too.
+  `{ "rise": 6, "run": 12 }`). A vaulted ceiling's slope is one (15.3), and so is a roof's (16.1).
 - **Scaled decimals** — a thermal resistance, a fire rating — are integers with the scale named
   in the member's definition (for example, "R-value in thousandths").
 - **Areas** are in square base units. An area of the geometry — a room's net area — is always

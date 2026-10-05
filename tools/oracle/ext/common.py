@@ -18,7 +18,7 @@ from .jsonschema import Schema
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 CORE_COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms', 'slabs',
-                    'types', 'materials', 'assets')
+                    'types', 'materials', 'assets', 'roofs')
 
 
 def load_schema(name: str, short: str) -> Schema:

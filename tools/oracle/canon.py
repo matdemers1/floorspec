@@ -18,7 +18,7 @@ import hashlib
 import math
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
-               'slabs', 'types', 'materials', 'assets')
+               'slabs', 'types', 'materials', 'assets', 'roofs')
 
 
 def _is_int(v, n=None) -> bool:
@@ -95,6 +95,22 @@ def omit_defaults(doc: dict) -> dict:
         _drop_common(e)
         if _is_int(e.get('offset'), 0):
             del e['offset']
+    for e in d.get('roofs', {}).values():                # 16.1 (Core 0.3)
+        _drop_common(e)
+        if _is_int(e.get('overhang'), 0):               # overhang: constant 0
+            del e['overhang']
+        edges = e.get('edges')
+        if isinstance(edges, dict):
+            for k in list(edges):
+                x = edges[k]
+                if isinstance(x, dict):
+                    if x.get('gable') is False:         # gable: constant false
+                        del x['gable']
+                    # an edge's pitch and overhang default to the roof's: derived, never omitted
+                    if not x:                           # an edge: constant {}
+                        del edges[k]
+            if not edges:                               # edges: constant {}
+                del e['edges']
     for c in ('buildings', 'levels', 'separators', 'types', 'materials', 'assets'):
         for e in d.get(c, {}).values():
             _drop_common(e)

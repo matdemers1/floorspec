@@ -42,7 +42,8 @@ that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
 `openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
-`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs) and `roofs`
+(chapter 16). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -191,6 +192,26 @@ draft it declares (with nothing in them for a document with no rooms or slabs):
   tray its centre (`tray`, a polygon as a room's is).
 - `slabs` — every slab's outline (a ring), top, bottom and box (15.7).
 
+And a fourth, for roofs (chapter 16), empty for a document with none — so every valid 0.3 test's
+`derived` has a `roofs` member too:
+
+```json
+{
+  "roofs": {
+    "RF1": { "kind": "gable", "outline": [[-448000, -448000], …], "eave": 3456000,
+             "surface": { "high": 4640000, "box": { "min": […], "max": […] },
+                          "faces": [{ "edge": 1, "polygon": [[x, y, z], …], "area": "…" }, …],
+                          "gables": [{ "edge": 0, "polygon": [[x, y, z], …] }, …],
+                          "lines": [{ "kind": "ridge", "from": [x, y, z], "to": [x, y, z] }, …] } },
+    "RF2": { "kind": "hip", "outline": […], "eave": 3456000, "surface": null }
+  }
+}
+```
+
+- `roofs` — every roof's kind, eave outline and eave (16.2, 16.3), and its surface (16.5): its high,
+  box, faces, gable ends, and ridges, hips and valleys; `null` for a roof whose surface this draft
+  does not derive (16.4.4), which the validator reports with `FS-LINT-015`.
+
 A deriver conforms when what it derives equals `derived` exactly.
 
 ## Writing a test
@@ -241,15 +262,17 @@ numbers; the 0.1 and 0.2 suites are published and do not change.
 The Ops suites test an **applier** (Ops §0.2): software that applies a batch of operations to a
 document. A test gives it a document A and an apply request, and says what it must return.
 **Ops 0.3** (`ops/0.3/`) is the suite of the current text and the one `pnpm coverage` gates; it
-holds every Ops 0.2 test on the same documents (Ops 0.3 retires no statement), the five tests that
+holds every Ops 0.2 test on the same documents (Ops 0.3 retires one statement, below), the five tests that
 pin what the text says as the oracle does - declared after 0.2 was published, and so first
 published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
 documents, whose operations and clear openings, floors, ceilings and slabs a batch edits with
-`setProperty`, `unsetProperty` and `addElement`, and `moveRoom` moving a vaulted ceiling's ridge
-(`composites/068-move-room-moves-its-vault`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+`setProperty`, `unsetProperty` and `addElement`, `moveRoom` moving a vaulted ceiling's ridge
+(`composites/068-move-room-moves-its-vault`), and roofs added, edited and removed
+(`primitives/068` to `078`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
-exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape: it has no request
-schema of its own, and its suite is checked against `schema/ops/0.2/`.
+exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape, and may also add
+to Core 0.3's `roofs`: its suite is checked against its own `schema/ops/0.3/`, and its tests cover
+`FS-OPS-1.1.3` where the 0.2 test covered the retired `1.1.2`.
 
 ```text
 conformance/
@@ -318,7 +341,7 @@ also checks what the specification promises of any result: B is in canonical for
 applying the batch again gives the same bytes (1.3.2); applying `resolved` to A in place of the
 batch, with the same context, commits the same B (1.4.1); and applying `inverse` to B commits a
 document whose canonical form is A's (1.6.1). `pnpm schema:check` applies each draft's request
-schema (`schema/ops/0.1/`, `schema/ops/0.2/`, which is Ops 0.3's too) to every request.json of its suite: it must reject
+schema (`schema/ops/0.1/`, `schema/ops/0.2/`, `schema/ops/0.3/`) to every request.json of its suite: it must reject
 exactly the requests whose expected diagnostics are `[FS-OPS-001]`, and accept every other; and
 every document A outside the FS-OPS-002 tests must match the Core schema of its draft (a document
 declaring an earlier draft that draft's). The Ops 0.2 and 0.3 suites assume a validator
