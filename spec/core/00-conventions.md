@@ -35,13 +35,13 @@ Floorspec Core 0.4 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
-| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–19) |
+| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–19, 21) |
 | **Reader** | software that loads documents | apply defaults and the version and extension rules (1.2, 1.5, 1.6, 12.1) |
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
 | **Package validator** | a validator that is also given the files of the document's package (18.4) | check every packaged asset against its file, as well (18.4) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–18, for the design asked for (19.6) |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7, 11–18 and 21, for the design asked for (19.6) |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 | **Migrator** | software that migrates a document to a later draft (chapter 20) | write exactly the migration chapter 20 defines, and refuse what it refuses |
 
@@ -82,7 +82,8 @@ and a 0.4 document cannot contain them:
 - the surface of a roof with sloped edges at different pitches, or of one with two or more sloped
   edges on an outline with an oblique edge (16.4.4), and a roof's footprint that follows its walls;
 - a door's or window's frame, glazing and hardware, and a casement's hand or a pivot's axis (8.4);
-- arc walls (core walls are straight);
+- edges along any curve but a circular arc of at most a semicircle, and derived geometry of the exact
+  circle rather than its polyline (21.9);
 - 3D geometry beyond the bounding geometry of floors, ceilings and slabs (chapter 15) and the
   faces of roofs (chapter 16): meshes of walls with their openings cut, of floors, ceilings, roofs
   and stairs are not normative in any 0.x draft yet, and neither is the structure between a ceiling
@@ -135,6 +136,18 @@ What 0.4 adds, for stairs (chapter 17):
   reader of 0.4 no longer reports `FS-LINT-016`, which said that 0.3 did not derive a winder's or a
   spiral's steps;
 - the step from 0.3 to 0.4 of a migration (20.7), which only changes the version a document declares.
+
+And for walls and separators (chapter 21):
+
+- **arc edges**: a wall's or a separator's `arc`, a sagitta, makes it run along a circular arc of at most
+  a semicircle between its junctions (21.1); every value derived from it comes from its **polyline**,
+  made by iterated snap rounding — the arc's midpoint rounded to the grid, the two halves' sagittas
+  rounded on its circle, each half halved in turn until it is within 1 mm of its chord — exact and the
+  same in every implementation (21.2); its segments take part in planarity, wedges, joins, outlines and
+  faces as straight edges do (21.3–21.5); and distances along it are measured on stations of rounded
+  segment lengths, for openings, which stand on their chords, hosts and finish regions (21.6);
+- the diagnostics `FS-INV-113` and `FS-LINT-020` (chapter 10), and `FS-INV-104` to `FS-INV-106`,
+  `FS-INV-109`, `FS-INV-302`, `FS-INV-501` and `FS-INV-1002` for arc edges as for straight ones.
 
 A 0.4 reader reads 0.1, 0.2 and 0.3 documents as well (1.2.8). Both members 0.4 adds are optional,
 and absent they mean what 0.3 meant: a stair that declares no headroom, and a winder stair with no

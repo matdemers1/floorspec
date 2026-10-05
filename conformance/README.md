@@ -43,6 +43,14 @@ reader derives the steps of every winder and spiral stair, so the four 0.3 tests
 FS-LINT-018 where their treads meet at a point in place of 0.3's FS-LINT-016; every other expected
 value is the 0.3 suite's, byte for byte.
 
+The group `arcs` holds the tests of Core 0.4's chapter 21, arc edges: walls and separators along
+circular arcs, their polylines by iterated snap rounding, planarity on polylines (`FS-INV-104` to
+`FS-INV-106` where a polyline meets another line, `FS-INV-113` for an arc of more than a semicircle),
+face paths cut at sharp joins, curved rooms and their areas, and openings, hosts and finish regions
+measured along an arc's stations. Most are one change to one plan, `arcs/001-bay-room`: a 5000 mm by
+4000 mm room whose north wall bulges 1000 mm. Its declarations are in `tools/oracle/author04_arcs.py`,
+which `author04.py` imports, and `tools/oracle/arcs.py` is the oracle's polyline.
+
 **Core 0.3** (`core/0.3/`) is the suite of the published 0.3 text, kept as it was. It holds every
 Core 0.2 test re-targeted to 0.3 — same group, same number,
 declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
@@ -153,7 +161,8 @@ are illustrative only.
 - All five members are always present, even when empty (`{}` or `[]`); in the 0.2 suite, so are
   the six members below.
 - `walls` — every wall on every level: its four face ends (5.7, 5.8) and its base and top
-  elevations (5.9).
+  elevations (5.9); from Core 0.4, an arc wall (chapter 21) also has its `polyline`, its `length` and
+  its `left` and `right` face vertices (21.7).
 - `junctionFills` — every junction whose fill is not empty (5.7), as a ring.
 - `rooms` — every room: its room polygon (6.2) and net area (6.4).
 - `unanchored` — every bounded face with no anchor and a room polygon that is not degenerate,

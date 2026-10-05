@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from . import canon, frames, plane, registry as reg, schema
+from . import arcs, canon, frames, plane, registry as reg, schema
 from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, rpoint, strictly_inside
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
@@ -64,6 +64,7 @@ SEVERITY = {
     'FS-LINT-016': 'info',                                            # stairs (Core 0.3, 17.7)
     'FS-LINT-017': 'info',                                            # design options (Core 0.3, 19.8)
     'FS-LINT-018': 'warning', 'FS-LINT-019': 'warning',               # stairs (Core 0.4, 17.6, 17.7)
+    'FS-LINT-020': 'info',                                            # arc edges (Core 0.4, 21.8)
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -259,9 +260,19 @@ def graph_tier(doc: Doc):
             for b in jl[i + 1:]:
                 if js[a] == js[b]:
                     found.append(diag('FS-INV-101', [a, b]))
+        polys, bad_arcs = {}, set()
         for eid, (s, e) in edges.items():
             if s == e:
                 found.append(diag('FS-INV-102', [eid]))
+                continue
+            h = arcs.sagitta(doc.walls.get(eid) or doc.separators[eid])
+            if h is not None and not arcs.fits(js[s], js[e], h):         # 21.1.2
+                found.append(diag('FS-INV-113', [eid]))
+                bad_arcs.add(eid)
+                continue
+            if js[s] == js[e]:
+                continue
+            polys[eid] = (js[s], js[e]) if h is None else arcs.polyline(js[s], js[e], h)
         el = sorted(edges)
         for i, x in enumerate(el):
             for y in el[i + 1:]:
@@ -270,16 +281,14 @@ def graph_tier(doc: Doc):
                 if {sx, ex} == {sy, ey}:
                     found.append(diag('FS-INV-103', [x, y]))
                     continue
-                p1, p2, q1, q2 = js[sx], js[ex], js[sy], js[ey]
-                if p1 == p2 or q1 == q2:
+                if x not in polys or y not in polys:
                     continue
-                if plane.proper_cross(p1, p2, q1, q2):
-                    found.append(diag('FS-INV-104', [x, y]))
-                elif plane.collinear_overlap(p1, p2, q1, q2):
-                    found.append(diag('FS-INV-106', [x, y]))
+                code = location_lines_meet(polys[x], polys[y])
+                if code is not None:
+                    found.append(diag(code, [x, y]))
         for j in jl:
-            for eid, (s, e) in edges.items():
-                if plane.in_open_segment(js[j], js[s], js[e]):
+            for eid in sorted(polys):
+                if in_interior(js[j], polys[eid]):
                     found.append(diag('FS-INV-105', [j, eid]))
         for wid, w in doc.walls.items():
             if w['level'] != level:
@@ -288,8 +297,8 @@ def graph_tier(doc: Doc):
                 found.append(diag('FS-INV-107', [wid]))
             elif w.get('justification') == 'coreFace' and not doc.core_ok(wid):
                 found.append(diag('FS-INV-108', [wid]))
-        no_faces = {d['elements'][0] for d in found if d['code'] in ('FS-INV-107', 'FS-INV-108')}
-        found.extend(join_applicability(doc, level, js, edges, no_faces))
+        no_faces = {d['elements'][0] for d in found if d['code'] in ('FS-INV-107', 'FS-INV-108')} | bad_arcs
+        found.extend(join_applicability(doc, level, js, edges, no_faces, polys))
         for wid, w in doc.walls.items():
             if w['level'] == level and doc.top_elevation(wid) <= doc.base_elevation(wid):
                 ds.append(diag('FS-INV-112', [wid]))
@@ -300,7 +309,41 @@ def graph_tier(doc: Doc):
     return ds, bad_levels, no_top
 
 
-def join_applicability(doc: Doc, level, js, edges, no_faces):
+def in_interior(p, poly) -> bool:
+    """5.3.2, 21.3.1: p lies on a location line - a segment, or an arc's polyline - and is not one of its ends."""
+    if len(poly) == 2:
+        return plane.in_open_segment(p, poly[0], poly[1])
+    return p != poly[0] and p != poly[-1] and any(plane.on_closed_segment(p, a, b) for a, b in zip(poly, poly[1:]))
+
+
+def location_lines_meet(A, B):
+    """FS-INV-106 when two location lines overlap along a segment, FS-INV-104 when they meet at a point interior
+    to both (5.3.1, 5.3.3, 21.3.1), else None. Two straight lines are 5.3's tests exactly; a junction inside the
+    other line is FS-INV-105's, not this."""
+    if len(A) == 2 and len(B) == 2:
+        p1, p2, q1, q2 = A[0], A[1], B[0], B[1]
+        if plane.proper_cross(p1, p2, q1, q2):
+            return 'FS-INV-104'
+        if plane.collinear_overlap(p1, p2, q1, q2):
+            return 'FS-INV-106'
+        return None
+    sa, sb = list(zip(A, A[1:])), list(zip(B, B[1:]))
+    if any(plane.collinear_overlap(a1, a2, b1, b2) for a1, a2 in sa for b1, b2 in sb):
+        return 'FS-INV-106'
+    ends = {A[0], A[-1], B[0], B[-1]}
+    for a1, a2 in sa:
+        for b1, b2 in sb:
+            if not plane.segments_touch(a1, a2, b1, b2):
+                continue
+            if plane.proper_cross(a1, a2, b1, b2):
+                return 'FS-INV-104'
+            for p in (a1, a2, b1, b2):
+                if p not in ends and plane.on_closed_segment(p, a1, a2) and plane.on_closed_segment(p, b1, b2):
+                    return 'FS-INV-104'
+    return None
+
+
+def join_applicability(doc: Doc, level, js, edges, no_faces, polys=None):
     """FS-INV-111: 5.8.1-5.8.3. Not evaluated for a junction with a wall that has FS-INV-107 or
     FS-INV-108 (10.3): such a wall has no face lines to compare."""
     ds = []
@@ -312,10 +355,11 @@ def join_applicability(doc: Doc, level, js, edges, no_faces):
         if any(e in no_faces for e in incident):
             continue
 
-        def out(eid):
+        def out(eid):                                   # an arc edge's segment at the junction (21.3)
             s, t = edges[eid]
-            o = t if s == jid else s
-            return (js[o][0] - js[jid][0], js[o][1] - js[jid][1])
+            poly = (polys or {}).get(eid, (js[s], js[t]))
+            o = poly[1] if s == jid else poly[-2]
+            return (o[0] - js[jid][0], o[1] - js[jid][1])
         ok = all(w in incident and w in doc.walls for w in through)
         if ok and len(through) == 1:
             ok = len(incident) == 2 and plane.cross(out(incident[0]), out(incident[1])) != 0
@@ -344,12 +388,11 @@ def join_and_room_tier(doc: Doc, level):
     diagnostics, which is how the hosting tier knows to skip FS-INV-503 for them (10.3)."""
     ds = []
     g = LevelGraph(doc, level)
-    for wid, e in g.edges.items():
-        if e.kind == 'wall':
-            ring = g.outline(wid)
-            if not plane.is_simple(ring) or plane.area2(ring) <= 0:
-                ds.append(diag('FS-INV-109', [wid]))
-    for j in g.pos:
+    for wid in g.walls:
+        ring = g.outline(wid)
+        if not plane.is_simple(ring) or plane.area2(ring) <= 0:
+            ds.append(diag('FS-INV-109', [wid]))
+    for j in g.junctions:
         ring = g.fill(j)
         if ring is None or len(ring) < 3 or plane.area2(ring) == 0:
             continue
@@ -382,6 +425,13 @@ def join_and_room_tier(doc: Doc, level):
 
 
 def wall_length_ok(doc: Doc, wid, reach) -> bool:
+    """reach <= the wall's length: exactly, for a straight wall (7.3); for an arc wall, its length (21.5),
+    and true for one whose arc does not fit, which has none (10.3)."""
+    if arcs.unfit(doc, wid):
+        return True
+    poly = arcs.wall_arc(doc, wid)
+    if poly is not None:
+        return reach <= arcs.length(poly)
     w = doc.walls[wid]
     s, e = doc.junctions[w['start']]['position'], doc.junctions[w['end']]['position']
     return reach * reach <= (e[0] - s[0]) ** 2 + (e[1] - s[1]) ** 2
@@ -603,7 +653,8 @@ def design_lints(doc: Doc):
     ds = []
     for level in doc.levels:
         g = LevelGraph(doc, level)
-        for j, es in g.inc.items():
+        for j in g.junctions:                               # not the vertices of an arc's polyline (21.3)
+            es = g.inc[j]
             if not es:
                 ds.append(diag('FS-LINT-002', [j]))
             k = len(es)
@@ -618,7 +669,7 @@ def design_lints(doc: Doc):
                     continue
                 dt = plane.dot(d1, d2)
                 if dt > 0 and 4 * dt * dt > 3 * plane.dot(d1, d1) * plane.dot(d2, d2):
-                    ds.append(diag('FS-LINT-001', [j, e1, e2]))
+                    ds.append(diag('FS-LINT-001', [j, g.edges[e1].src, g.edges[e2].src]))
         faces = g.faces()
         anchored = set()
         for r in doc.rooms.values():
@@ -634,6 +685,11 @@ def design_lints(doc: Doc):
     for oid, o in doc.openings.items():
         if opening_in_join(doc, oid):
             ds.append(diag('FS-LINT-005', [oid]))
+    for coll in (doc.walls, doc.separators):                # 21.8: a flat arc, derived as its chord
+        for eid, e in coll.items():
+            h = arcs.sagitta(e)
+            if h is not None and abs(h) <= arcs.TAU:
+                ds.append(diag('FS-LINT-020', [eid]))
     return ds
 
 
@@ -656,17 +712,32 @@ def document_lints(doc: Doc):
 
 
 def opening_in_join(doc: Doc, oid) -> bool:
-    """7.5, measured along the location line from the rounded face ends."""
+    """7.5, measured along the location line from the rounded face ends - for an arc wall, along its first
+    segment at the start and its last at the end, with its length (21.6)."""
     o = doc.openings[oid]
     wid = o['wall']
     w = doc.walls[wid]
     g = LevelGraph(doc, w['level'])
     f = {k: rpoint(v) for k, v in g.face_ends(wid).items()}
     S, E = tuple(doc.junctions[w['start']]['position']), tuple(doc.junctions[w['end']]['position'])
-    d = (E[0] - S[0], E[1] - S[1])
-    D = plane.dot(d, d)
     width, _, _ = doc.opening_dims(oid)
     lo, hi = o['offset'], o['offset'] + width
+    poly = arcs.wall_arc(doc, wid)
+    if poly is not None:
+        L = arcs.length(poly)
+        d0 = plane.sub(poly[1], S)
+        dn = plane.sub(E, poly[-2])
+        for k in ('startLeft', 'startRight'):
+            if (Surd(plane.dot(plane.sub(f[k], S), d0)) - Surd.sqrt(plane.dot(d0, d0), lo)).sign() > 0:
+                return True
+        for k in ('endLeft', 'endRight'):
+            # (L - hi) < q / |dn|  <=>  (L - hi) sqrt(Dn) < q
+            q = plane.dot(plane.sub(E, f[k]), dn)
+            if (Surd(q) - Surd.sqrt(plane.dot(dn, dn), L - hi)).sign() > 0:
+                return True
+        return False
+    d = (E[0] - S[0], E[1] - S[1])
+    D = plane.dot(d, d)
     # distance from S of point P along the line: (P - S).d / |d|
     for k in ('startLeft', 'startRight'):
         proj = plane.dot(plane.sub(f[k], S), d)

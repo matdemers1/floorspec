@@ -17,6 +17,7 @@ from __future__ import annotations
 from decimal import Decimal, localcontext
 from fractions import Fraction
 
+from . import arcs
 from .surd import Surd
 
 K = 10 ** 9
@@ -138,9 +139,32 @@ def wall_point(doc, wid, along, normal):
             Surd(S[1]) + Surd.sqrt(D, (along * dy + normal * dx) / D))
 
 
+def arc_wall_point(poly, along, normal):
+    """21.6: the point at distance `along` on an arc wall's polyline, moved `normal` to the left of the segment it
+    falls on; and that segment's left normal, a vector of integers."""
+    k, _ = arcs.segment_at(poly, along)
+    a, b = poly[k], poly[k + 1]
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    D = dx * dx + dy * dy
+    px, py = arcs.point_at(poly, along)
+    normal = Fraction(normal)
+    return (Surd(px) + Surd.sqrt(D, -normal * dy / D), Surd(py) + Surd.sqrt(D, normal * dx / D)), (-dy, dx)
+
+
 def host_frame(doc, host) -> Frame:
     """13.1: the frame of a host."""
     mode = host['mode']
+    if mode == 'wallFace' and arcs.wall_arc(doc, host['wall']) is not None:      # 21.6: on an arc wall
+        wid = host['wall']
+        a, b = doc.offsets(wid)
+        poly = arcs.wall_arc(doc, wid)
+        if host['side'] == 'left':
+            (x, y), n = arc_wall_point(poly, host['offset'], a)
+            f = n
+        else:
+            (x, y), n = arc_wall_point(poly, host['offset'], -b)
+            f = (-n[0], -n[1])
+        return Frame(x, y, doc.base_elevation(wid) + host['height'], f)
     if mode == 'wallFace':
         wid = host['wall']
         a, b = doc.offsets(wid)
@@ -164,6 +188,14 @@ def opening_frame(doc, oid) -> Frame:
     o = doc.openings[oid]
     wid = o['wall']
     width, _, sill = doc.opening_dims(oid)
+    poly = arcs.wall_arc(doc, wid)
+    if poly is not None:                    # 21.6: at the middle of the opening's chord, facing across it
+        s = arcs.point_at(poly, o['offset'])
+        e = arcs.point_at(poly, o['offset'] + width)
+        c = arcs.primitive((e[0] - s[0], e[1] - s[1]))
+        n = (-c[1], c[0])
+        f = n if o.get('swing', 'right') == 'left' else (-n[0], -n[1])
+        return Frame((s[0] + e[0]) / 2, (s[1] + e[1]) / 2, doc.base_elevation(wid) + sill, f)
     x, y = wall_point(doc, wid, Fraction(2 * o['offset'] + width, 2), 0)
     _, (dx, dy), _ = _wall_geometry(doc, wid)
     f = (-dy, dx) if o.get('swing', 'right') == 'left' else (dy, -dx)
