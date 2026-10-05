@@ -18,12 +18,17 @@ cut, exactly, with t + eps symbolic (a pair (a, b) for a + b*eps, compared lexic
 side of it on a sloped edge's moving line sweeps a trapezoid of that edge's face until the next time.
 The trapezoids of a face are united by cancelling opposite atomic edges. A self-check labels every
 trapezoid's centroid by the pointwise definition of 16.4.3 and asserts the two agree.
+
+A reader of Core 0.4 (v04) derives every roof with two or more sloped edges by the weighted straight skeleton
+instead (16.4.3 to 16.4.6 of 0.4; skeleton.py), which gives the same values on every roof 0.3 derives; flat and shed
+roofs are as in 0.3.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from fractions import Fraction as F
+from math import isqrt
 
 from . import plane
 from .derive import LevelGraph
@@ -165,8 +170,9 @@ class Outline:
         return self.ring[j], self.ring[(j + 1) % self.n]
 
 
-def method(roof, outline):
-    """'flat', 'shed', 'skeleton' - or None when this draft does not derive the roof's surface (16.4)."""
+def method(roof, outline, v04=False):
+    """'flat', 'shed', 'skeleton' (0.3: equal pitches, 16.4.3 of 0.3), 'weighted' (0.4: the weighted straight
+    skeleton, 16.4.3 of 0.4) - or None when the draft does not derive the roof's surface (16.4)."""
     ks = kinds(roof)
     if all(k == 'level' for k in ks):
         return 'flat'
@@ -176,6 +182,8 @@ def method(roof, outline):
         a, b = o.seg(sloped[0])
         nrm = (-(b[1] - a[1]), b[0] - a[0])
         return 'shed' if all(plane.dot(nrm, plane.sub(v, a)) >= 0 for v in o.ring) else None
+    if v04:
+        return 'weighted' if weighted_faces(roof, o) is not None else None
     if len({pitch_of(roof, o.index[j]) for j in sloped}) != 1:
         return None
     if not rectilinear(o.ring):
@@ -522,10 +530,10 @@ class _turn:
         return plane.cross(self.v, other.v) > 0
 
 
-def lints(doc, diag):
-    """FS-LINT-015: every roof whose surface this draft does not derive (16.4.4)."""
+def lints(doc, diag, v04=False):
+    """FS-LINT-015: every roof whose surface the draft does not derive (16.4.4 of 0.3, 16.4.6 of 0.4)."""
     return [diag('FS-LINT-015', [rid]) for rid in sorted(doc.roofs)
-            if method(doc.roofs[rid], eave_outline(doc.roofs[rid])) is None]
+            if method(doc.roofs[rid], eave_outline(doc.roofs[rid]), v04) is None]
 
 
 # ------------------------------------------------------------------------------ derived values (16.5)
@@ -548,8 +556,8 @@ def _area(ring3):
     return plane.area_string(plane.area2([(p[0], p[1]) for p in ring3]))
 
 
-def derive(doc) -> dict:
-    """{roofs} of a valid document."""
+def derive(doc, v04=False) -> dict:
+    """{roofs} of a valid document, as a reader of 0.3 or (v04) of 0.4 derives them."""
     out = {}
     for rid in sorted(doc.roofs):
         r = doc.roofs[rid]
@@ -558,7 +566,7 @@ def derive(doc) -> dict:
         e = eave(doc, r)
         ring = outline if plane.area2(outline) > 0 else outline[::-1]
         v = {'kind': roof_kind(ks), 'outline': [list(p) for p in plane.least_first(ring)], 'eave': e}
-        m = method(r, outline)
+        m = method(r, outline, v04)
         v['surface'] = None if m is None else _surface(r, outline, ks, e, m)
         out[rid] = v
     return {'roofs': out}
@@ -587,6 +595,8 @@ def _surface(r, outline, ks, e, m):
             if o.kind[g] == 'gable':
                 ga, gb = o.seg(g)
                 gables.append(_gable(o.index[g], ga, gb, [ga, gb], lambda p: z(p).round(), e))
+    elif m == 'weighted':
+        return _weighted_surface(r, o, e)
     else:
         k = pitch_of(r, o.index[next(j for j in range(o.n) if o.kind[j] == 'sloped')])
         rings, segs, by_j = skeleton(o)
@@ -703,4 +713,109 @@ def _merge(es):
                 out.append((start, path[i]))
                 start = path[i]
         out.append((start, path[-1]))
+    return out
+
+
+# ------------------------------------------------------------------------------ Core 0.4: the weighted skeleton
+
+_WEIGHTED = {}
+
+
+def weighted_faces(roof, o: Outline):
+    """The faces of the weighted straight skeleton (16.4.3 to 16.4.5 of 0.4) on the counter-clockwise outline,
+    {ring edge: [rings]}, or None when the roof's surface is not derived (16.4.6)."""
+    from . import skeleton as sk
+    pitches = [pitch_of(roof, o.index[j]) if o.kind[j] == 'sloped' else None for j in range(o.n)]
+    key = (tuple(o.ring), tuple(o.kind), tuple(pitches))
+    if key not in _WEIGHTED:
+        try:
+            _WEIGHTED[key] = sk.skeleton(o.ring, o.kind, pitches)
+        except sk.Unsupported:
+            _WEIGHTED[key] = None
+    return _WEIGHTED[key]
+
+
+def _weighted_surface(r, o: Outline, e):
+    """16.5 for a roof derived by the weighted straight skeleton."""
+    rings = weighted_faces(r, o)
+    pitch = {j: pitch_of(r, o.index[j]) for j in rings}
+    nrm, c0, length = {}, {}, {}
+    for j in rings:
+        a, b = o.seg(j)
+        n = (-(b[1] - a[1]), b[0] - a[0])
+        nrm[j], c0[j] = n, plane.dot(n, a)
+        length[j] = F(isqrt(n[0] * n[0] + n[1] * n[1]))
+        assert length[j] * length[j] == n[0] * n[0] + n[1] * n[1]
+
+    def plane_z(j, p):
+        return F(e) + pitch[j] * (plane.dot(nrm[j], p) - c0[j]) / length[j]
+    zx = {}
+    for j, rs in rings.items():
+        for rg in rs:
+            for p in rg:
+                z = plane_z(j, p)
+                assert zx.setdefault(p, z) == z, ('faces disagree on an elevation', p)
+
+    def zr(p):
+        return round(zx[p])
+
+    def rd(p):
+        return [round(F(p[0])), round(F(p[1])), zr(p)]
+    nodes = set(o.ring)
+    for rs in rings.values():
+        for rg in rs:
+            nodes.update(_corners(rg))
+    faces_out, gables = [], []
+    for j in sorted(rings, key=lambda j: o.index[j]):
+        for rg in rings[j]:
+            poly = _dedupe([rd(p) for p in rg if p in nodes])
+            if len(poly) >= 3:
+                faces_out.append({'edge': o.index[j], 'polygon': _out_ring(poly), 'area': _area(poly)})
+    allpts = {p for rs in rings.values() for rg in rs for p in rg}
+    for g in range(o.n):
+        if o.kind[g] == 'gable':
+            ga, gb = o.seg(g)
+            on = [p for p in allpts if p in nodes and plane.on_closed_segment(p, ga, gb)]
+            gables.append(_gable(o.index[g], ga, gb, on, zr, e))
+    lines = _weighted_lines(r, o, rings, zx, rd, pitch, nrm, length)
+    faces_out.sort(key=lambda f: (f.get('edge', -1), f['polygon'][0]))
+    gables.sort(key=lambda g: g['edge'])
+    high = round(max(zx.values()))
+    xs = [p[0] for p in o.ring]
+    ys = [p[1] for p in o.ring]
+    box = {'min': [min(xs), min(ys), e - r.get('thickness', 0)], 'max': [max(xs), max(ys), high]}
+    return {'high': high, 'box': box, 'faces': faces_out, 'gables': gables, 'lines': lines}
+
+
+def _weighted_lines(r, o, rings, zx, rd, pitch, nrm, length):
+    """16.5 with 16.4.5 of 0.4: every boundary between the faces of two sloped edges that do not share a plane,
+    merged where it runs straight - a ridge or a break when level, else a hip or a valley."""
+    from .skeleton import plane_key
+    key = {j: plane_key(o.ring, j, pitch[j]) for j in rings}
+    owner = {}
+    for j, rs in rings.items():
+        for rg in rs:
+            n = len(rg)
+            for i in range(n):
+                owner[(rg[i], rg[(i + 1) % n])] = j
+    pairs = defaultdict(list)
+    for (a, b), j in owner.items():
+        f = owner.get((b, a))
+        if f is None or f == j or key[f] == key[j] or j > f:
+            continue
+        pairs[(j, f)].append((a, b))
+    out = []
+    for (j, f), es in pairs.items():
+        for a, b in _merge(es):
+            d = _dir(a, b)
+            w = (-d[1], d[0])                             # into face j, on the left of a -> b
+            if zx[a] == zx[b]:
+                kind = 'ridge' if plane.dot(nrm[j], nrm[f]) < 0 else 'break'
+            else:
+                gj = (pitch[j] * nrm[j][0] / length[j], pitch[j] * nrm[j][1] / length[j])
+                gf = (pitch[f] * nrm[f][0] / length[f], pitch[f] * nrm[f][1] / length[f])
+                kind = 'hip' if plane.dot(plane.sub(gf, gj), w) > 0 else 'valley'
+            p, q = sorted([rd(a), rd(b)])
+            out.append({'kind': kind, 'from': p, 'to': q})
+    out.sort(key=lambda x: (x['from'], x['to'], x['kind']))
     return out

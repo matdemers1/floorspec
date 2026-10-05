@@ -79,8 +79,9 @@ net clear opening of door and window types, the floors and ceilings of rooms, ro
 and Core 0.4 adds the treads of winder and spiral stairs (0.6). These are reserved for later drafts
 and a 0.4 document cannot contain them:
 
-- the surface of a roof with sloped edges at different pitches, or of one with two or more sloped
-  edges on an outline with an oblique edge (16.4.4), and a roof's footprint that follows its walls;
+- the surface of a roof with two or more sloped edges one of which is oblique and not along a
+  Pythagorean direction, or with a gable the wavefront would pass the end of, or with part of its
+  outline enclosed by gables alone (16.4.6); and a roof's footprint that follows its walls;
 - a door's or window's frame, glazing and hardware, and a casement's hand or a pivot's axis (8.4);
 - arc walls (core walls are straight);
 - 3D geometry beyond the bounding geometry of floors, ceilings and slabs (chapter 15) and the
@@ -136,12 +137,28 @@ What 0.4 adds, for stairs (chapter 17):
   spiral's steps;
 - the step from 0.3 to 0.4 of a migration (20.7), which only changes the version a document declares.
 
+And for roofs (chapter 16):
+
+- the **weighted straight skeleton** (16.4.3 to 16.4.5): the surface of every roof with two or more
+  sloped edges, each at its own pitch, derived exactly — saltboxes, hips and wings at mixed pitches,
+  gables beside one another, and oblique edges along Pythagorean directions — by a wavefront whose
+  events are rational and resolved together at each event elevation, the fastest edge continuing
+  where parallel edges meet on one line; a line where the roof changes pitch over one side, a
+  `"break"`; and lines with the same rounded ends ordered by their kind;
+- `FS-LINT-015` only for the roofs of 16.4.6, which are now exactly the ones whose surface 0.4 cannot
+  derive: a shed whose outline passes its edge's line, an oblique sloped edge that is not
+  Pythagorean, a gable the wavefront would pass the end of, and part of an outline enclosed by gables
+  alone.
+
 A 0.4 reader reads 0.1, 0.2 and 0.3 documents as well (1.2.8). Both members 0.4 adds are optional,
 and absent they mean what 0.3 meant: a stair that declares no headroom, and a winder stair with no
 newel. A 0.3 document read as 0.4 means exactly what it meant, and derives every value 0.3 derived
 for it; what is new is that its winder and spiral stairs derive their steps, walkline, goings and
 headroom too, and that each of them gets `FS-LINT-018`, when its treads meet at a point, in place of
 `FS-LINT-016`.
+Every roof 0.3 derived, 0.4 derives with the same values; a roof 0.3 left underived — at mixed
+pitches, with an oblique Pythagorean edge, with gables beside one another or one that is not at the
+end of a wing — is derived by 0.4 unless 16.4.6 excludes it, and has no `FS-LINT-015`.
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 
@@ -151,6 +168,8 @@ Statements whose meaning changed were given new IDs, and their old IDs are retir
 | `FS-CORE-1.2.6` | `FS-CORE-1.2.8` | a reader reads 0.3 documents as well as 0.1 and 0.2 ones |
 | `FS-CORE-17.7.1` | `FS-CORE-17.7.3` | a deriver derives the steps, run, walkline and headroom of winder and spiral stairs, which 0.3 forbade |
 | `FS-CORE-17.7.2` | — | `FS-LINT-016`, for a stair whose steps this draft does not derive, is no longer reported |
+| `FS-CORE-16.4.1` | `FS-CORE-16.4.2` | a deriver derives the surface of every skeleton roof 16.4.6 does not exclude, where 0.3 derived only equal pitches on a rectilinear outline |
+| `FS-CORE-16.5.1` | `FS-CORE-16.5.2` | a derived roof's lines include breaks, and lines with the same ends are ordered by kind |
 
 Every other statement of 0.3 keeps its ID and its meaning; where a table it refers to has grown —
 a stair's members (`FS-CORE-17.1.1`), a winder stair's form (`FS-CORE-17.2.1`), the order of
