@@ -116,7 +116,8 @@ A deriver MUST derive these values for every adjacency of a valid document. {#FS
 A `"required"` or `"preferred"` adjacency is met when `adjacent` is true; a `"forbidden"` one is
 met when it is false. Whether two rooms are connected is reported for rules and tools to use — a
 rule that a garage must not open into a sleeping room reads `connected` — but no adjacency kind is
-defined on it in this draft.
+defined on it in this draft. Circulation (chapter 14) is built on connected rooms: it links them
+into each building's door graph.
 
 ## 11.5 Lints
 

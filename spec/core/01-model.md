@@ -55,7 +55,8 @@ version string, no clearances, and extension data that core does not look inside
 document this way is exact: a document valid under 0.1, read by a validator configured with no
 known extensions (12.2), is valid under 0.2 with the same diagnostics, the same derived values
 (with nothing derived for a program, hosts or clearances), the same canonical form and the same
-content hash. In a 0.1 document, top-level extension data is opaque, as 0.1 says, even where it
+content hash — except for circulation (chapter 14), which needs no new member: it is derived for
+the document's rooms, and its lints are reported when the plan has doors but no way in. In a 0.1 document, top-level extension data is opaque, as 0.1 says, even where it
 has a member named `collections`. Core 0.1's schema rejects every member 0.2 adds, so a document
 that declares `"0.1"` and uses one is invalid (`FS-SCH-001`).
 

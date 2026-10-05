@@ -8,7 +8,7 @@ Floorspec Core defines a document that describes a building as code: its levels,
 junction graph, the rooms that walls enclose, the openings hosted on walls, the types and
 materials they use, the program the building is meant to satisfy, and the elements that extensions
 add — placed on their hosts, with the clearances they need. It defines what makes a document valid, the exact geometry a conformant tool
-derives from it, and the one byte sequence that every conformant writer produces for it.
+derives from it — including which rooms a person can walk to — and the one byte sequence that every conformant writer produces for it.
 
 ## 0.1 Normative language
 
@@ -36,7 +36,7 @@ Floorspec Core 0.2 places requirements on these kinds of thing:
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7, 11, 12 and 13 |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–14 |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 
 One program is usually several of these. The conformance suite tests each class separately; the
@@ -67,11 +67,13 @@ Informative: ISO 16739-1:2024 (IFC 4.3) and IFC4 ADD2 TC1, for the mapping in An
 
 ## 0.5 What this draft does not yet define
 
-Floorspec Core 0.2 adds the program, the extension mechanism in full, and hosting and clearance
-envelopes to the walls-and-rooms draft (0.6). These are reserved for later drafts and a 0.2
+Floorspec Core 0.2 adds the program, the extension mechanism in full, hosting and clearance
+envelopes, and circulation to the walls-and-rooms draft (0.6). These are reserved for later drafts and a 0.2
 document cannot contain them:
 
-- roofs and stairs (their collections, `roofs` and `stairs`, are reserved names);
+- roofs and stairs (their collections, `roofs` and `stairs`, are reserved names); until stairs
+  are defined, circulation joins the levels of a building through their rooms of function
+  `circulation` (14.1);
 - design options (`optionSets`, and option membership on elements);
 - arc walls (core walls are straight);
 - derivation of floors, ceilings and 3D geometry, which is not normative in any 0.x draft yet;
@@ -97,11 +99,15 @@ What 0.2 adds:
 - the **extension mechanism in full**: the declaration object, registry entries, dependencies,
   extension elements and their fallbacks (chapter 12);
 - **hosting** and **clearance envelopes** (chapter 13), with clearances on door and window types;
+- **circulation** — the door graph of each building, its entries, which rooms are reachable and
+  which sleeping rooms are reached only through another (chapter 14);
 - the diagnostics `FS-CFG-001`, `FS-INV-401` to `FS-INV-403`, `FS-INV-501` to `FS-INV-506`,
-  `FS-INV-601` to `FS-INV-605` and `FS-LINT-008` to `FS-LINT-011` (chapter 10).
+  `FS-INV-601` to `FS-INV-605` and `FS-LINT-008` to `FS-LINT-014` (chapter 10).
 
 A 0.2 reader reads 0.1 documents as well (1.2.4). Every member 0.2 adds is optional and has a
-default, so a 0.1 document read as 0.2 means exactly what it meant.
+default, so a 0.1 document read as 0.2 means exactly what it meant. Circulation adds no member: it
+is derived from walls, rooms and openings that 0.1 already has, so it is derived, and its lints
+reported, for a 0.1 document read as 0.2 too.
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 

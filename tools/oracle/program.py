@@ -29,8 +29,10 @@ def _connecting_walls(doc: Doc) -> set:
 
 
 def room_relations(doc: Doc):
-    """(adjacent pairs, connected pairs) of room IDs, each pair a frozenset, and twice-areas."""
-    adjacent, connected, area2 = set(), set(), {}
+    """(adjacent pairs, connected pairs) of room IDs, each pair a frozenset, twice-areas, and the
+    rooms connected to the outside - an edge between the room's face and the level's unbounded
+    face that is a separator or a wall hosting a door or an empty opening (14.2)."""
+    adjacent, connected, area2, outside = set(), set(), {}, set()
     doors = _connecting_walls(doc)
     for level in sorted(doc.levels):
         g = LevelGraph(doc, level)
@@ -50,13 +52,18 @@ def room_relations(doc: Doc):
         by_face = {i: rid for rid, i in room_face.items()}
         for e in g.edges.values():
             fa, fb = owner.get((e.id, e.start, e.end)), owner.get((e.id, e.end, e.start))
+            joins = e.kind == 'separator' or e.id in doors
+            if joins and (fa is None) != (fb is None):         # one side is the unbounded face
+                f = fa if fb is None else fb
+                if f in by_face:
+                    outside.add(by_face[f])
             if fa is None or fb is None or fa == fb or fa not in by_face or fb not in by_face:
                 continue
             pair = frozenset((by_face[fa], by_face[fb]))
             adjacent.add(pair)
-            if e.kind == 'separator' or e.id in doors:
+            if joins:
                 connected.add(pair)
-    return adjacent, connected, area2
+    return adjacent, connected, area2, outside
 
 
 def derive_program(doc: Doc):
@@ -64,7 +71,7 @@ def derive_program(doc: Doc):
     program = doc.d.get('program', {})
     items = program.get('items', {})
     adjacency = program.get('adjacency', [])
-    adjacent, connected, area2 = room_relations(doc)
+    adjacent, connected, area2, _ = room_relations(doc)
     rooms_of = {i: sorted(rid for rid, r in doc.rooms.items() if r.get('brief') == i) for i in items}
     out_items = {}
     for iid, item in items.items():
