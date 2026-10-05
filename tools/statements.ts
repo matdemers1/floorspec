@@ -17,7 +17,7 @@
  * - informative callouts (`> [!note]`, `> [!example]` …) use no capitalised keywords at all;
  * - IDs are unique and match their section.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 export const LEVELS = ['MUST NOT', 'MUST', 'SHOULD NOT', 'SHOULD', 'MAY'] as const;
@@ -177,14 +177,17 @@ export function parseFile(path: string, root: string, spec: string): { statement
 }
 
 /**
- * The IDs a later draft of Core retired (spec/core/00-conventions.md, 0.6): the first column of the
- * table under "Changes from", written as code spans. Retired IDs are never reused.
+ * The IDs a later draft retired (spec/core/00-conventions.md, 0.6; spec/ops/00-conventions.md,
+ * 0.4): the first column of the table under "Changes from", written as code spans. Retired IDs
+ * are never reused.
  */
-export function retired(root: string): Set<string> {
-  const text = readFileSync(join(root, 'spec', 'core', '00-conventions.md'), 'utf8');
+export function retired(root: string, spec: 'core' | 'ops' | 'rules' = 'core'): Set<string> {
+  const path = join(root, 'spec', spec, '00-conventions.md');
   const out = new Set<string>();
-  for (const line of text.split('\n')) {
-    const m = /^\|\s*`(FS-CORE-\d+\.\d+\.\d+)`\s*\|/.exec(line);
+  if (!existsSync(path)) return out;
+  const code = spec.toUpperCase();
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const m = new RegExp(`^\\|\\s*\`(FS-${code}-\\d+\\.\\d+\\.\\d+)\`\\s*\\|`).exec(line);
     if (m) out.add(m[1]!);
   }
   return out;
