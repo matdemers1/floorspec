@@ -6,3 +6,7 @@ Rule packs under rules/ are data licensed under CC BY 4.0 as well.
 
 Schemas (schema/), the conformance suite (conformance/), the registry tooling
 (registry/, tools/) and all other code are licensed under the Apache License 2.0 (LICENSE).
+
+The FS_furniture starter library (registry/FS_furniture/library/: its catalogue,
+models and plan symbols) is dedicated to the public domain under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/legalcode

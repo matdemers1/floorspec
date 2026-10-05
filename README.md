@@ -24,6 +24,6 @@ Published at **https://d3cloud.io/floorspec**. Reference implementation: [D3 Flo
 
 ## Licence
 
-Spec text and rule packs: CC BY 4.0 ([LICENSE-SPEC](LICENSE-SPEC)). Schemas, conformance suite and tooling: Apache-2.0 ([LICENSE](LICENSE)).
+Spec text and rule packs: CC BY 4.0 ([LICENSE-SPEC](LICENSE-SPEC)). Schemas, conformance suite and tooling: Apache-2.0 ([LICENSE](LICENSE)). The FS_furniture starter library (`registry/FS_furniture/library/`): CC0 1.0.
 
 Floorspec findings are advisory. They are not a plan review, and the authority having jurisdiction decides.
