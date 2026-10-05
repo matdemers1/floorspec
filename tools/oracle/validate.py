@@ -18,6 +18,7 @@ from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, r
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
+from . import floors
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -26,7 +27,7 @@ class Reader:
     def __init__(self, versions):
         self.versions = frozenset(versions)
         self.v02 = '0.2' in self.versions           # what 0.2 adds: program, extensions, hosting, circulation
-        self.v03 = '0.3' in self.versions           # what 0.3 adds: operation and clear openings
+        self.v03 = '0.3' in self.versions           # what 0.3 adds: operation, clear openings, floors, ceilings, slabs
         self.newest = max(self.versions)
 
 
@@ -35,6 +36,17 @@ READER_02 = Reader({'0.1', '0.2'})
 READER_03 = Reader({'0.1', '0.2', '0.3'})
 READERS = {'0.1': READER_01, '0.2': READER_02, '0.3': READER_03}
 IMPLEMENTED_VERSIONS = READER_01.versions
+
+
+def ext_reader(data: bytes) -> Reader:
+    """The Core reader an extension suite's test is read by (conformance/README.md): of the Core draft
+    the document declares - Core 0.3 for a document declaring "0.3", Core 0.2 for every other."""
+    import json
+    try:
+        value = json.loads(data)
+    except ValueError:
+        return READER_02
+    return READER_03 if isinstance(value, dict) and value.get('floorspec') == '0.3' else READER_02
 IMPLEMENTED_EXTENSIONS: set[str] = set()   # a core-only reader
 
 SEVERITY = {
@@ -691,6 +703,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         ds.extend(opening_tier(doc, no_top))
         if reader.v03:
             ds.extend(clear_opening_tier(doc))
+            ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
         if reader.v02:
             ds.extend(program_invariants(value, diag))
             ds.extend(extension_tier(value, known))
@@ -712,6 +725,8 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         ds.extend(program_lints(doc, diag))
         ds.extend(circulation_lints(doc, diag))
         derived.update(derive_02(doc))
+    if reader.v03:
+        derived.update(floors.derive(doc))
     if extensions is not None:
         from .ext import official as ext
         eds, derived['extensions'] = ext.finish(ext_ctxs)

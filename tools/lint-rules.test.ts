@@ -136,7 +136,7 @@ test('coverage: every rule within an entry; addressed entries have rules, not-ad
   rule(p, 'ROOM-SIZE').citation.section = '§9.1';
   assert.ok(checks(p).includes('coverage'));
   p = copy();
-  p.manifest.coverage[2]!.status = 'addressed';
+  p.manifest.coverage[1]!.status = 'addressed';
   assert.deepEqual(checks(p), ['coverage']);
   p = copy();
   p.manifest.coverage.push({ code: 'TEST-CODE', edition: '2024', section: '§1.2', status: 'notAddressed', domain: 'room-sizes' });

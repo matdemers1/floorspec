@@ -26,8 +26,13 @@ gates it against. It holds every Core 0.2 test re-targeted to 0.3 — same group
 declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
 it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
 0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
-0.3 adds: operations and clear openings. A 0.3 reader also reads 0.2 documents (1.2.6), and
-`model/070-read-0.2-document` shows that it reads one exactly as 0.2 does.
+0.3 adds: operations and clear openings, and floors, ceilings and slabs (the group `floors`, and
+hosting on them at the end of `hosting`). A 0.3 reader derives every room's floor and ceiling and
+every slab's bounding geometry, so every valid re-targeted test's `derived` has the three members
+`floors`, `ceilings` and `slabs` that its 0.2 counterpart lacks; every other value in it is the 0.2
+suite's, byte for byte. A 0.3 reader also reads 0.2 documents (1.2.6), and
+`model/070-read-0.2-document` and `hosting/045-read-0.2-surface-hosts` show that it derives for one
+everything 0.2 does, surface hosts included, and its floors, ceilings and slabs besides.
 
 **Core 0.2** (`core/0.2/`) and **Core 0.1** (`core/0.1/`) are the suites of the published 0.2 and
 0.1 texts, kept as they were so that an implementation of either can still be tested against it.
@@ -36,8 +41,8 @@ reader also reads 0.1 documents, and its `model/061-read-0.1-document` and the t
 that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`, and from 0.2 `program`, `extensions`, `hosting`,
-`clearances` and `circulation`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+`openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
+`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -163,6 +168,29 @@ document that has no program, extension elements, clearances or rooms):
 - `circulation` — every room: whether it is an entry, whether it is reachable, and, for a sleeping
   room only, whether it is reachable only through another sleeping room (14.3).
 
+Core 0.3 adds three members, derived for every valid document a 0.3 reader reads, whatever the
+draft it declares (with nothing in them for a document with no rooms or slabs):
+
+```json
+{
+  "floors": { "R1": { "top": -192000, "bottom": -512000,
+                      "box": { "min": [64000, 64000, -512000], "max": [5056000, 3776000, -192000] } } },
+  "ceilings": {
+    "R1": { "kind": "tray", "low": 3456000, "high": 3712000,
+            "tray": { "outer": [[448000, 448000], …], "holes": [] },
+            "box": { "min": [64000, 64000, 3456000], "max": [5056000, 3776000, 3712000] } }
+  },
+  "slabs": { "S1": { "outline": [[0, -3840000], …], "top": -192000, "bottom": -320000,
+                     "box": { "min": [0, -3840000, -320000], "max": [5120000, -128000, -192000] } } }
+}
+```
+
+- `floors` — every room's floor (15.1): its top, its bottom (equal to its top when no thickness is
+  declared) and its box, which spans its room polygon's outer ring in plan.
+- `ceilings` — every room's ceiling (15.5): its `kind`, its `low` and `high`, its box, and for a
+  tray its centre (`tray`, a polygon as a room's is).
+- `slabs` — every slab's outline (a ring), top, bottom and box (15.7).
+
 A deriver conforms when what it derives equals `derived` exactly.
 
 ## Writing a test
@@ -216,8 +244,9 @@ document. A test gives it a document A and an apply request, and says what it mu
 holds every Ops 0.2 test on the same documents (Ops 0.3 retires no statement), the five tests that
 pin what the text says as the oracle does - declared after 0.2 was published, and so first
 published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
-documents, whose operations and clear openings a batch edits with `setProperty` and
-`unsetProperty`. **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+documents, whose operations and clear openings, floors, ceilings and slabs a batch edits with
+`setProperty`, `unsetProperty` and `addElement`, and `moveRoom` moving a vaulted ceiling's ridge
+(`composites/068-move-room-moves-its-vault`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
 exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape: it has no request
 schema of its own, and its suite is checked against `schema/ops/0.2/`.
@@ -319,12 +348,15 @@ Each extension with a specification in `registry/<NAME>/spec.md` has its suite a
 `FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
-An extension suite is run by **an implementation of that one extension**: a Core 0.2 reader,
-validator and deriver that implements `<NAME>` at `<version>` and no other extension (it passes
-`FS-DOC-002` for `<NAME>` alone), configured with the test's `registry.json` as its known
+An extension suite is run by **an implementation of that one extension**: a reader, validator and
+deriver of the Core draft each test's document declares — Core 0.3 for a document that declares
+`"0.3"`, Core 0.2 for every other — that implements `<NAME>` at `<version>` and no other extension
+(it passes `FS-DOC-002` for `<NAME>` alone), configured with the test's `registry.json` as its known
 extensions — usually just `<NAME>`'s own registry entry — or with none when the test has none. In
 the D3 Floorspec engine that is `extensions: ['<NAME>']` with `knownExtensions` from
-`registry.json`.
+`registry.json`, and `core` the draft the document declares. Every official extension at 0.1.0 is
+evaluated for Core 0.2 and 0.3 documents (each specification's 1.1), and its `activation` group
+reads the demo house declaring `"0.3"` as well.
 
 Two kinds of test share the suite:
 
@@ -400,7 +432,10 @@ panel, a boiler, a smoke alarm and two receptacles - so that most values can be 
 The net clear measures (Rules §6.5) are tested on the rules house as a Core 0.3 document whose door
 and window types declare their operation and clear opening (`measures-openings/…-net-clear-openings`,
 `selection/…-net-clear-escape-opening` and the tests after it). The official extensions at 0.1.0
-are evaluated only for a document that declares `"0.2"`, so those tests read no extension.
+are evaluated for Core 0.3 documents as for 0.2 ones (each one's 1.2), and
+`typing/…-extension-rules-on-a-core-0.3-document` shows the rules that read them evaluated on one. `ceilingHeight` (Rules §5.7), reserved until Core 0.3 derived ceilings, is tested on the rules house as
+a Core 0.3 document with a cathedral ceiling, a sunken floor and a tray (`measures-rooms/…-ceiling-height`
+and the two tests after it).
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can

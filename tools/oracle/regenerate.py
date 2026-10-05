@@ -31,7 +31,7 @@ import sys
 from .ops.suite import verify_all as verify_ops
 from .ops.version import PROFILES as OPS_VERSIONS
 from .report import dumps
-from .validate import READER_01, READER_02, READERS, check
+from .validate import READER_01, READERS, check, ext_reader
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SUITES = {v: (os.path.join(ROOT, 'conformance', 'core', v), reader) for v, reader in READERS.items()}
@@ -72,7 +72,7 @@ def verify(path: str, write: bool, extensions=None) -> list[str]:
         data = f.read()
     reader, registry = reader_for(path)
     if extensions is not None:
-        reader = READER_02
+        reader = ext_reader(data)
     result, canonical, notes = check(data, reader, registry, extensions)
     exp_path = os.path.join(path, 'expected.json')
     try:

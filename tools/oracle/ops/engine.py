@@ -522,6 +522,11 @@ class Transaction:
             prims.append({'op': 'moveJunction', 'id': jid, 'to': [x + vx, y + vy]})
         ax, ay = self.wc['rooms'][rid]['anchor']
         prims.append({'op': 'setProperty', 'id': rid, 'path': '/anchor', 'value': [ax + vx, ay + vy]})
+        c = self.wc['rooms'][rid].get('ceiling')                     # Ops 0.3: a vault's ridge moves with its room
+        if isinstance(c, dict) and c.get('kind') == 'vaulted' and isinstance(c.get('ridge'), list) \
+                and len(c['ridge']) == 2 and all(is_point(p) for p in c['ridge']):
+            prims.append({'op': 'setProperty', 'id': rid, 'path': '/ceiling/ridge',
+                          'value': [[x + vx, y + vy] for x, y in c['ridge']]})
         for eid in self._on_surface_of(rid):                        # Ops 0.2: what stands in the room
             x, y = self.locate(eid)[1][eid]['host']['position']
             prims.append({'op': 'setProperty', 'id': eid, 'path': '/host/position', 'value': [x + vx, y + vy]})

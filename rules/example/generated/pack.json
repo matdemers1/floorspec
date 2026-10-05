@@ -10,14 +10,14 @@
     {
       "code": "TEST-CODE",
       "edition": "2024",
-      "note": "Ceiling heights: Core derives no ceilings yet.",
+      "note": "Ceiling heights are left to a later version of the pack; Core derives them since Core 0.3 (`ceilingHeight`).",
       "section": "§2",
       "status": "notAddressed"
     },
     {
       "code": "TEST-CODE",
       "edition": "2024",
-      "note": "Room widths are left to a later version of the pack.",
+      "note": "Room widths at every point of a room that is not convex: the measure is deferred.",
       "section": "§3",
       "status": "notAddressed"
     },
@@ -45,13 +45,13 @@
           "domain": "room-sizes"
         },
         {
-          "domain": "room-sizes",
-          "needs": [
-            "ceilingHeight"
-          ]
+          "domain": "room-sizes"
         },
         {
-          "domain": "room-sizes"
+          "domain": "room-sizes",
+          "needs": [
+            "roomNarrowestDimension"
+          ]
         },
         {
           "domain": "stairs"

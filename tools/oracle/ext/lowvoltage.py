@@ -6,6 +6,7 @@ from __future__ import annotations
 from .common import Context, load_schema
 
 NAME, VERSION, CODE = 'FS_lowvoltage', '0.1.0', 'LOWV'
+CORE = ('0.2', '0.3')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
 SCHEMA = load_schema(NAME, 'lowvoltage')
 SEVERITY = {'FS-LOWV-LINT-001': 'info', 'FS-LOWV-LINT-002': 'warning', 'FS-LOWV-LINT-003': 'warning'}
 RUN = ('outlets', 'doorbells', 'security', 'speakers')

@@ -473,7 +473,7 @@ TYPED = pack({
     'UNIT-ON-A-TERM': rule(PANELS, C('elementMember', '=', 'x', name='rating', type='term', unit='A'), title='A unit on a term'),
     'ZERO-LIMIT': rule(PANELS, C('clearDepthInFront', '>=', 1, limit=0), select={'from': 'envelopes', 'need': 'any'}, title='A limit of zero'),
     'PROVENANCE': rule(SLEEPING, C('roomNetArea', '>=', 1), title='Verified against another edition', provenance={**PROV, 'edition': '2021'}),
-    'DEFERRED-AND-BAD': rule(SLEEPING, {'all': [C('ceilingHeight', '>=', 1), C('roomVolume', '>=', 1)]}, title='Deferred and unknown'),
+    'DEFERRED-AND-BAD': rule(SLEEPING, {'all': [C('roomNarrowestDimension', '>=', 1), C('roomVolume', '>=', 1)]}, title='Deferred and unknown'),
 })
 R('typing', 'rules-that-are-not-well-typed',
   'One pack, one well-typed rule and seventeen that are not, each broken in one way: a measure the library does not '
@@ -487,17 +487,17 @@ R('typing', 'rules-that-are-not-well-typed',
   diags=[D('FS-RULES-007', pack='test-pack', rule=r) for r in TYPED['rules'] if r != 'GOOD'],
   check=lambda r: ensure([e['rule'] for e in r['evaluated']] == ['GOOD'] and all(e['reason'] == 'invalid' for e in r['notEvaluated']), 'invalid'))
 
-DEFERRED_NAMES = ['ceilingHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
+DEFERRED_NAMES = ['countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
                   'floorElevationDifference', 'roomNarrowestDimension', 'stairHandrailHeight', 'stairHeadroom', 'stairRiserHeight', 'stairTreadDepth',
                   'stairWidth', 'travelDistance']
 DEFERRED_PACK = pack({f'D-{n}': rule(SLEEPING, C(n, '>=', 1, anything=True), title=f'Uses {n}') for n in DEFERRED_NAMES})
 R('typing', 'every-deferred-measure',
-  'A rule for each of the eleven deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
+  'A rule for each of the ten deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
   'counts as taking any arguments, so each rule is well typed, and each is reported with FS-RULES-008 (an `info`) and '
   'listed as "deferred". None is evaluated.',
   ['FS-RULES-3.9.2', 'FS-RULES-4.8.1', 'FS-RULES-11.1.1'], house(), req(DEFERRED_PACK),
   diags=[D('FS-RULES-008', pack='test-pack', rule=f'D-{n}') for n in DEFERRED_NAMES],
-  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 11, 'all deferred'))
+  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 10, 'all deferred'))
 
 FURN_MEMBER = rule({'to': 'element', 'extension': 'EXT_furniture'}, C('elementMember', '=', 'oak', name='finish', type='term'),
                    title='A member of an extension nobody implements')
@@ -532,6 +532,16 @@ R('typing', 'the-same-rules-with-the-extensions-known',
   edit(lambda d: furniture(d, {'P1': {'fallback': {'level': 'L1', 'box': box(-300, -300, 0, 300, 300, 900)},
                                       'host': {'mode': 'free', 'level': 'L1', 'position': [18 * FT, 6 * FT]}, 'finish': 'oak'}})),
   req(EXT_PACK), diags=[D('FS-RULES-009', pack='test-pack', rule='FURNITURE')])
+R('typing', 'extension-rules-on-a-core-0.3-document',
+  'The same document and pack, declaring Core "0.3", for an evaluator that knows FS_electrical and FS_mechanical: the '
+  'official extensions at 0.1.0 are evaluated for Core 0.3 documents too (each one\'s 1.2), so every FS_electrical rule '
+  'is evaluated, exactly as for the "0.2" document; only the EXT_furniture rule is FS-RULES-009.',
+  ['FS-RULES-3.10.1', 'FS-RULES-1.2.1'],
+  edit(lambda d: (furniture(d, {'P1': {'fallback': {'level': 'L1', 'box': box(-300, -300, 0, 300, 300, 900)},
+                                       'host': {'mode': 'free', 'level': 'L1', 'position': [18 * FT, 6 * FT]},
+                                       'finish': 'oak'}}), d.update(floorspec='0.3'))),
+  req(EXT_PACK), diags=[D('FS-RULES-009', pack='test-pack', rule='FURNITURE')],
+  check=lambda r: ensure('CIRCUITS' in [e['rule'] for e in r['evaluated']], [e['rule'] for e in r['evaluated']]))
 
 
 # ============================================================================= subjects and selection (3.4 - 3.6)
@@ -709,7 +719,7 @@ R('findings', 'one-message-for-each-severity',
 
 ORDER_A = pack({'Z': rule({'to': 'room'}, C('roomFunction', '=', 'garage'), title='Z rule'),
                 'A': rule({'to': 'opening'}, C('openingWidth', '>', 4 * FT), title='A rule'),
-                'DEFERRED': rule(SLEEPING, C('ceilingHeight', '>=', 1), title='Deferred')}, name='b-pack')
+                'DEFERRED': rule(SLEEPING, C('roomNarrowestDimension', '>=', 1), title='Deferred')}, name='b-pack')
 ORDER_B = pack({'M': rule({'to': 'room', 'where': C('roomFunction', '!=', 'sleeping')}, C('roomNetArea', '<', 1), title='M rule'),
                 'BAD': rule(SLEEPING, C('roomVolume', '>', 1), title='Bad')}, name='a-pack',
                coverage=[{'code': 'TEST-CODE', 'edition': '2024', 'section': '§9', 'status': 'notAddressed'},
@@ -915,6 +925,40 @@ MT('measures-rooms', 'oblique-walls',
    'Both values are the oracle\'s; the check bounds the width by hand.',
    ['FS-RULES-5.3.1', 'FS-RULES-5.2.1', 'FS-RULES-4.3.1'], oblique(),
    [(room('R1'), 'roomLeastWidth', None), (room('R1'), 'roomNetArea', None)], [..., ...], registry=None, check=check_oblique)
+
+
+def ceilings(d):
+    """The rules house as a Core 0.3 document with floors and ceilings (Core 15): L1's ceilings at 8'; the bedroom R1
+    under a cathedral ceiling whose ridge runs east along its middle (y = 6') at 3200 mm, falling 6 in 12; the living
+    room R2 sunk 6" with a flat ceiling at the level's height; the utility room R3 under a tray with a 1' border."""
+    d['floorspec'] = '0.3'
+    d['levels']['L1']['ceilingHeight'] = 8 * FT
+    d['rooms']['R1']['ceiling'] = {'kind': 'vaulted', 'height': 3200 * MM, 'ridge': [[0, 6 * FT], [12 * FT, 6 * FT]],
+                                   'pitch': {'rise': 6, 'run': 12}}
+    d['rooms']['R2'].update(floor={'offset': -6 * IN}, ceiling={'kind': 'flat', 'height': H})
+    d['rooms']['R3']['ceiling'] = {'kind': 'tray', 'border': FT, 'depth': 6 * IN}
+
+
+HALF_DEPTH = 6 * FT - 64000                 # R1's walls' inner faces from its ridge line
+MT('measures-rooms', 'ceiling-height',
+   'The rules house with ceilings: the bedroom\'s cathedral ceiling comes down to 3200 mm less half of 6\' less 50 mm '
+   'at its walls; the sunken living room\'s is the level\'s 2700 mm plus the 6" its floor is sunk; the utility '
+   'room\'s is its tray\'s border at the level\'s 8\', not its raised centre. Each is Core\'s derived ceiling low minus '
+   'its floor top.', ['FS-RULES-5.7.1', 'FS-RULES-4.3.1', 'FS-RULES-4.7.1'], edit(ceilings),
+   [(room('R1'), 'ceilingHeight', None), (room('R2'), 'ceilingHeight', None), (room('R3'), 'ceilingHeight', None)],
+   [3200 * MM - HALF_DEPTH // 2, H + 6 * IN, 8 * FT])
+MT('measures-rooms', 'ceiling-height-in-a-0.2-document',
+   'The rules house as it is, a Core 0.2 document: a reader of Core 0.3 derives every room a flat ceiling at the '
+   'level\'s height over a floor at its elevation, so each room\'s ceiling height is 2700 mm.', ['FS-RULES-5.7.1'],
+   house(), [(room('R1'), 'ceilingHeight', None), (room('R3'), 'ceilingHeight', None)], [H, H])
+CEILING = rule(SLEEPING, C('ceilingHeight', '>=', 7 * FT), section='§2.1', title='Sleeping rooms are 7\' high')
+R('measures-rooms', 'ceiling-height-rule',
+  'A synthetic rule that a sleeping room\'s ceiling is at least 7\' high, on the rules house whose bedroom has a flat '
+  'ceiling at 6\' 10": the bedroom may not meet it, and its finding shows 6\' 10" against 7\' 0". Under the cathedral '
+  'ceiling - about 7\' 7" at its walls - it would meet it.', ['FS-RULES-5.7.1', 'FS-RULES-3.8.1', 'FS-RULES-9.6.1'],
+  edit(lambda d: (d.update(floorspec='0.3'), d['rooms']['R1'].update(ceiling={'kind': 'flat', 'height': 82 * IN}))),
+  req(pack({'CEILING': CEILING})), found=[('CEILING', 'R1')],
+  check=lambda r: ensure(r['findings'][0]['measures'][0]['display'] == '6\' 10"', r['findings'][0]['measures']))
 
 
 # ============================================================================= measures of openings (6)

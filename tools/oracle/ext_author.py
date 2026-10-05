@@ -4,8 +4,9 @@ FS_lowvoltage 0.1.0 - as the script that writes them.
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
 
-Each suite is conformance/ext/<NAME>/0.1.0/, run by an implementation of that one extension (a Core
-0.2 reader that implements <NAME> 0.1.0 and no other extension), configured with the test's
+Each suite is conformance/ext/<NAME>/0.1.0/, run by an implementation of that one extension (a reader
+of the Core draft each document declares - 0.2, or 0.3 for a document declaring "0.3" - that implements
+<NAME> 0.1.0 and no other extension), configured with the test's
 registry.json as its known extensions, or with none when the test has no registry.json. Most tests
 are validator and deriver tests, laid out as Core's (input.json, registry.json, expected.json,
 canonical.json; expected.json's `derived` has an `extensions` member); the tests in `ops` are Ops
@@ -32,7 +33,7 @@ from tools.oracle.ops.engine import apply
 from tools.oracle.ops.suite import dumps as ops_dumps, expected_view, properties
 from tools.oracle.ops.version import OPS_02
 from tools.oracle.report import dumps
-from tools.oracle.validate import READER_02, SEVERITY, check
+from tools.oracle.validate import SEVERITY, check, ext_reader
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 MM, FT = 1280, 390144
@@ -249,10 +250,21 @@ def derived_of(name):
 
 def placements(d, name):
     """What an implementation of `name` that knows it derives as placements, for a check."""
-    result, _, _ = check(json.dumps(d).encode('utf-8'), READER_02, json.dumps([entry(name)]).encode('utf-8'),
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(name)]).encode('utf-8'),
                          official.implemented(name))
     assert result['valid'], result['diagnostics']
     return result['derived']['placements']
+
+
+def same_as_02(name):
+    """A check: what the run derives for the extension is what it derives for the demo house declaring "0.2"."""
+    def check_(r):
+        data = json.dumps(demo()).encode('utf-8')
+        r02, _, _ = check(data, ext_reader(data), json.dumps([entry(name)]).encode('utf-8'), official.implemented(name))
+        ensure(r['derived']['extensions'] == r02['derived']['extensions'] and list(r['derived']['extensions']) == [name],
+               r['derived']['extensions'])
+    return check_
 
 
 def moved(a, b, name, eid):
@@ -301,6 +313,13 @@ def shared(name):
       f'opaque (Core 1.2.4): {name} is not evaluated, even though it is known.', ['1.2.1'],
       {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {name: '0.1.0'},
        'extensions': {name: {'colour': 'red'}}})
+    T('activation', 'core-0.3-document', f'The demo house declaring Core "0.3", a draft {name} 0.1.0 lists (1.1): {name} is '
+      'evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2". The suite reads a '
+      'document declaring "0.3" as a Core 0.3 reader.', ['1.2.1', '1.2.3', '1.2.4', DERIVE[name]],
+      edit(lambda d: d.update(floorspec='0.3')), check=same_as_02(name))
+    T('activation', 'core-0.3-invariants', f'The same "0.3" house with {name}\'s data breaking one of its invariants: '
+      f'{name} is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3'],
+      edit(lambda d: (d.update(floorspec='0.3'), BREAK[name](d))), BREAK_DIAG[name])
     T('order', 'core-error-first', 'A Core invariant breaks - an element 13\' along the 12\' wall W2, FS-INV-501 - '
       f'and so does {name}\'s schema: Core\'s error is reported, and {name} is not evaluated.', ['1.2.2'],
       edit(lambda d: (ext(d, name).update(colour='red'), WALL_ELEMENT[name](d)['host'].update(wall='W2', offset=13 * FT))),
@@ -752,7 +771,7 @@ def write_all(prune=False):
         hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
         problems = []
         if tc['kind'] == 'core':
-            result, canonical, notes = check(data, READER_02, registry, implemented)
+            result, canonical, notes = check(data, ext_reader(data), registry, implemented)
             valid = not any(x['severity'] == 'error' for x in hand)
             if hand != result['diagnostics'] or valid != result['valid']:
                 problems.append(f'hand   {json.dumps(hand)}\n  oracle {json.dumps(result["diagnostics"])}'

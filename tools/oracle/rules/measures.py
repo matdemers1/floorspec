@@ -22,7 +22,7 @@ PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
 ELEC = 'FS_electrical'
 
 # 4.8: reserved, not evaluated
-DEFERRED = {'ceilingHeight', 'roomNarrowestDimension', 'stairRiserHeight', 'stairTreadDepth', 'stairWidth',
+DEFERRED = {'roomNarrowestDimension', 'stairRiserHeight', 'stairTreadDepth', 'stairWidth',
             'stairHeadroom', 'stairHandrailHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
             'travelDistance', 'floorElevationDifference'}
 
@@ -129,6 +129,12 @@ def room_is_reachable(ctx, t, a):
 @measure('roomThroughSleeping', ['room'], 'boolean')
 def room_through_sleeping(ctx, t, a):
     return ctx.derived['circulation'][t['id']].get('throughSleeping', False), None
+
+
+# 5.7: Core's derived ceiling low minus its derived floor top (Core 0.3, 15.1, 15.5)
+@measure('ceilingHeight', ['room'], 'length')
+def ceiling_height(ctx, t, a):
+    return ctx.derived['ceilings'][t['id']]['low'] - ctx.derived['floors'][t['id']]['top'], None
 
 
 def _relations(ctx):

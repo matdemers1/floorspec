@@ -123,8 +123,9 @@ for (const v of OPS_VERSIONS) {
 
 // 5. Every extension in registry/ (registry/<NAME>/): its entry matches the registry entry schema,
 // its schema compiles and is the one the entry names, and its suite (conformance/ext/<NAME>/<v>/)
-// agrees with it - documents with Core 0.2's schema, registry.json with the entry schema, the
-// extension's data with its own schema, Ops requests with Ops 0.2's.
+// agrees with it - documents with the schema of the Core draft each declares (0.2, or 0.3 for a
+// document declaring "0.3": the drafts every official extension lists), registry.json with the entry
+// schema, the extension's data with its own schema, Ops requests with Ops 0.2's.
 const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, x.code]));
 for (const x of extensionSchemas(root)) {
   if (!registry(x.entry)) problems.push(`registry/${x.name}/extension.json does not match the registry entry schema:\n    ${formatErrors(registry.errors ?? []).join('\n    ')}`);
@@ -136,7 +137,7 @@ for (const x of extensionSchemas(root)) {
   const ajv = compile(`registry/${x.name}`, x.files);
   const validateData = ajv.getSchema(own.id)!;
   const suiteDir = join(root, 'conformance', 'ext', x.name, x.version);
-  const docs = checkSuite(suiteDir, versionedValidator(cores, '0.2'), root, registry);
+  const docs = checkSuite(suiteDir, versionedValidator(cores, '0.3'), root, registry);
   problems.push(...docs.problems);
   const code = CODES[x.name];
   if (!code) {

@@ -8,8 +8,10 @@ Floorspec Core defines a document that describes a building as code: its levels,
 junction graph, the rooms that walls enclose, the openings hosted on walls, the types and
 materials they use — including how a door or window operates and the net clear opening its maker
 declares — the program the building is meant to satisfy, and the elements that extensions
-add — placed on their hosts, with the clearances they need. It defines what makes a document valid, the exact geometry a conformant tool
-derives from it — including which rooms a person can walk to — and the one byte sequence that every conformant writer produces for it.
+add — placed on their hosts, with the clearances they need. It defines what makes a document
+valid, the exact geometry a conformant tool derives from it — including which rooms a person can
+walk to, and every room's floor and ceiling — and the one byte sequence that every conformant
+writer produces for it.
 
 ## 0.1 Normative language
 
@@ -32,12 +34,12 @@ Floorspec Core 0.3 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
-| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13) |
+| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15) |
 | **Reader** | software that loads documents | apply defaults and the version and extension rules (1.2, 1.5, 1.6, 12.1) |
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–14 |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–15 |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 
 One program is usually several of these. The conformance suite tests each class separately; the
@@ -70,8 +72,8 @@ Informative: ISO 16739-1:2024 (IFC 4.3) and IFC4 ADD2 TC1, for the mapping in An
 
 Floorspec Core 0.2 added the program, the extension mechanism in full, hosting and clearance
 envelopes, and circulation to the walls-and-rooms draft (0.7), and Core 0.3 adds the operation and
-net clear opening of door and window types (0.6). These are reserved for later drafts and a 0.3
-document cannot contain them:
+net clear opening of door and window types and the floors and ceilings of rooms (0.6). These are
+reserved for later drafts and a 0.3 document cannot contain them:
 
 - roofs and stairs (their collections, `roofs` and `stairs`, are reserved names); until stairs
   are defined, circulation joins the levels of a building through their rooms of function
@@ -79,7 +81,11 @@ document cannot contain them:
 - design options (`optionSets`, and option membership on elements);
 - a door's or window's frame, glazing and hardware, and a casement's hand or a pivot's axis (8.4);
 - arc walls (core walls are straight);
-- derivation of floors, ceilings and 3D geometry, which is not normative in any 0.x draft yet;
+- 3D geometry beyond the bounding geometry of floors, ceilings and slabs (chapter 15): meshes of
+  walls with their openings cut, of floors, ceilings, roofs and stairs are not normative in any 0.x
+  draft yet, and neither is the structure between a ceiling and the floor of the level above;
+- ceilings of any form but flat, tray and vaulted, a vault's ridge that follows the room's walls,
+  and layers of a floor's thickness;
 - finish overrides on a wall face or a region of one;
 - the packaged `.floorspec` form (a ZIP of `model.json` and `assets/`);
 - edit operations, which are a separate specification, Floorspec Ops;
@@ -102,12 +108,21 @@ What 0.3 adds:
 - the **net clear opening** — width, height and, for a window, area — that a door or window type
   declares as its maker states it, and that an opening may override (7.1, 7.2, 8.4); a deriver
   reports it as declared, and never computes one (7.4);
-- the diagnostics `FS-INV-305` to `FS-INV-308` (chapter 10);
-- the mapping of operations and clear openings to IFC4 (Annex A).
+- **floors and ceilings** (chapter 15): every room's floor, at its level's elevation or sunk below or
+  raised above it, with a thickness from the room or its level (`floor`, a level's
+  `floorThickness`); its ceiling, flat, tray or vaulted, at a height from the room or its level
+  (`ceiling`, a level's `ceilingHeight`); their exact bounding geometry; and `surface` hosts that
+  sit on them (15.6);
+- a slab's **purpose** (6.7), and the bounding geometry of every slab (15.7);
+- the diagnostics `FS-INV-305` to `FS-INV-308` and `FS-INV-701` to `FS-INV-703` (chapter 10);
+- the mapping of operations, clear openings, floors, ceilings and slab purposes to IFC4 (Annex A).
 
 A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
-its absence means that nothing is declared: a 0.2 document read as 0.3 means exactly what it
-meant.
+its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read
+as 0.3 means exactly what it meant. Its floors, ceilings and slabs are derived from the defaults —
+a floor at the level's elevation and a flat ceiling at the level's height, the elevations 0.2 gave
+a `surface` host — so every value 0.2 derived for it is unchanged, and what is new is only that
+its floors, ceilings and slabs are derived too.
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 
@@ -117,7 +132,9 @@ Statements whose meaning changed were given new IDs, and their old IDs are retir
 | `FS-CORE-1.2.4` | `FS-CORE-1.2.6` | a reader reads 0.2 documents as well as 0.1 ones |
 
 Every other statement of 0.2 keeps its ID and its meaning; where a table it refers to has grown,
-the statement applies to the new rows too.
+the statement applies to the new rows too. The frame of a `surface` host (13.1, `FS-CORE-13.1.1`)
+is now at its room's derived floor or ceiling (`FS-CORE-15.6.1`); for every document 0.2 could
+express, that is the elevation 0.2 gave it.
 
 ## 0.7 Changes from 0.1 to 0.2
 

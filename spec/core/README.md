@@ -1,6 +1,6 @@
 # Floorspec Core
 
-The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings**.
+The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings, and floors, ceilings and slabs**.
 
 | Chapter | |
 |---|---|
@@ -10,7 +10,7 @@ The normative specification of the Floorspec document — **Draft 0.3: walls and
 | [3. Identity and references](03-identity.md) | IDs, references, level consistency |
 | [4. Taxonomies](04-taxonomy.md) | room functions, extension terms, layer functions |
 | [5. Walls](05-walls.md) | junctions, walls, separators, planarity, face lines, wedges, outlines, joins, heights |
-| [6. Rooms](06-rooms.md) | faces, room polygons, anchors and identity, net area, slabs |
+| [6. Rooms](06-rooms.md) | faces, room polygons, anchors and identity, net area, a room's floor and ceiling members, slabs |
 | [7. Openings](07-openings.md) | hosted openings, typed dimensions and clear openings, placement |
 | [8. Types, materials and assets](08-types.md) | types and overrides, layers, door and window types, their operation and clear opening, materials, assets |
 | [9. Serialization](09-serialization.md) | encoding, canonical form, content hash |
@@ -19,6 +19,7 @@ The normative specification of the Floorspec document — **Draft 0.3: walls and
 | [12. Extensions](12-extensions.md) | declarations, the registry and known extensions, dependencies, extension elements, fallbacks |
 | [13. Hosting and clearances](13-hosting.md) | local frames, boxes, hosts and placement, clearance envelopes, the overlap measure |
 | [14. Circulation](14-circulation.md) | the door graph, entries, reachable rooms, sleeping rooms reached through another |
+| [15. Floors, ceilings and slabs](15-floors-ceilings-slabs.md) | floors, sunken and raised; flat, tray and vaulted ceilings; hosting on them; slabs |
 | [A. IFC4 mapping](annex-ifc.md) | every core kind and its IFC4 entity |
 
 Every normative statement ends with a tag such as `{#FS-CORE-5.3.1 MUST}`. `pnpm statements`

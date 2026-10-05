@@ -154,10 +154,9 @@ def host_frame(doc, host) -> Frame:
         return Frame(x, y, doc.base_elevation(wid) + host['height'], f)
     f = facing_vector(host.get('rotation', 0))
     x, y = host['position']
-    if mode == 'surface':
-        lvl = doc.levels[doc.rooms[host['room']]['level']]
-        z = lvl['elevation'] + (lvl['height'] if host['surface'] == 'ceiling' else 0)
-        return Frame(x, y, z, f)
+    if mode == 'surface':                       # Core 0.3, 15.6: on the room's floor or its ceiling
+        from .floors import surface_elevation
+        return Frame(x, y, surface_elevation(doc, host), f)
     return Frame(x, y, doc.levels[host['level']]['elevation'], f)
 
 

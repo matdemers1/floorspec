@@ -48,8 +48,8 @@ the unit vectors along it and to its left, and `a` and `b` its face offsets (5.4
 | a level `L` | `(0, 0)` | `L.elevation` | `(1, 0)` |
 | a `wallFace` host (13.3) on wall `W`, side `"left"` | `S + offset·t + a·m` | `W`'s base elevation + `height` | `n` |
 | a `wallFace` host on wall `W`, side `"right"` | `S + offset·t − b·m` | `W`'s base elevation + `height` | `−n` |
-| a `surface` host on room `R` of level `L`, `"floor"` | `position` | `L.elevation` | `F(rotation)` |
-| a `surface` host on room `R` of level `L`, `"ceiling"` | `position` | `L.elevation + L.height` | `F(rotation)` |
+| a `surface` host on room `R`, `"floor"` | `position` | the top of `R`'s floor (15.6) | `F(rotation)` |
+| a `surface` host on room `R`, `"ceiling"` | `position` | the elevation of `R`'s ceiling at `position`, rounded once (15.6) | `F(rotation)` |
 | a `free` host on level `L` | `position` | `L.elevation` | `F(rotation)` |
 | an opening `O1` on wall `W` | `S + (offset + width / 2)·t` | `O1`'s sill elevation (7.4) | `n` when `O1`'s `swing` is `"left"`, `−n` when it is `"right"` |
 
@@ -95,9 +95,11 @@ A `host` is one of three forms:
 | `{ "mode": "free", "level": L, "position": point, "rotation"?: angle }` | standing free on level `L` at `position`, turned by `rotation` |
 
 `rotation` defaults to `0`, which faces +X; it is counter-clockwise positive, and it lies in
-(−180,000,000, 180,000,000]. The ceiling of a room is taken, in this draft, at its level's
-elevation plus the level's `height`: ceilings are not yet derived (0.5), and a later draft that
-derives them will say how a ceiling host follows them.
+(−180,000,000, 180,000,000]. A room's floor and ceiling are derived (chapter 15), and a `surface`
+host sits on them (15.6): on a sunken floor, under a tray's raised centre, or at the height a vault
+reaches above its position. In a room with no `floor` or `ceiling` member, on a level with no
+`ceilingHeight`, that is the level's elevation, or its elevation plus its `height` — the elevations
+Core 0.2 gave every `surface` host, before ceilings were derived.
 
 A `host` MUST have exactly the members of one of the three forms, each of the type its table gives: `offset` and `height` MUST NOT be negative, and `rotation` MUST lie in (−180,000,000, 180,000,000]. {#FS-CORE-13.3.1 MUST}
 
@@ -115,7 +117,8 @@ every position of a hosted element is relative to its host — a distance along 
 above its base, an elevation above a level — so that when an edit moves the wall, changes its
 thickness or justification, or raises the level, the derived placement moves with it and the
 document does not change. A `surface` or `free` host's `position` is a plan point, so it follows
-its level's elevation but not the room's walls; the room is what it is checked against (13.3.4).
+its level's elevation — and a `surface` host its room's floor or ceiling (15.6) — but not the
+room's walls; the room is what it is checked against (13.3.4).
 
 ## 13.4 Placement
 

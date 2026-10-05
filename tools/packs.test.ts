@@ -137,8 +137,10 @@ test('sections: containment and natural order', () => {
 
 test('the deferred measures are read from spec/rules 4.8', () => {
   const d = deferredMeasures();
-  for (const m of ['ceilingHeight', 'stairRiserHeight', 'travelDistance', 'countertopReceptacleReach']) assert.ok(d.has(m), m);
+  for (const m of ['roomNarrowestDimension', 'stairRiserHeight', 'travelDistance', 'countertopReceptacleReach']) assert.ok(d.has(m), m);
   assert.ok(!d.has('roomNetArea'));
+  // defined since Core 0.3 derives ceilings (spec/rules 5.7)
+  assert.ok(!d.has('ceilingHeight'));
 });
 
 test('a rule\'s measures are found in where, select, requirement and exceptions', () => {

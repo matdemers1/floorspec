@@ -1,11 +1,12 @@
 """Canonical form (9.2) and content hash (9.3).
 
 Step 1 omits constant defaults, innermost first. The table of constant defaults below is
-transcribed from the member tables of chapters 1, 5, 6, 7, 8 and 11; typed properties (8.2) and
+transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11 and 15; typed properties (8.2) and
 members whose default is derived are never omitted, and the content of extension data - including
 Core 0.2's extension elements - and extras is never touched. Core 0.2 also writes a declaration
 object without `schema` as its version string (12.1). None of the 0.2 rules can apply to a 0.1
-document, so one canonicalizer serves both drafts.
+document, nor the 0.3 rules (a room's `floor` and `ceiling`) to a 0.1 or 0.2 one, so one
+canonicalizer serves every draft.
 
 Step 2 writes ``JSON.stringify(sorted, null, 2)`` plus a line feed. The content hash is SHA-256
 over the RFC 8785 (JCS) serialization of the step-1 document.
@@ -76,6 +77,20 @@ def omit_defaults(doc: dict) -> dict:
         _drop_common(e)
         if e.get('function') == 'unspecified':
             del e['function']
+        floor = e.get('floor')                          # 15.1 (Core 0.3)
+        if isinstance(floor, dict):
+            if _is_int(floor.get('offset'), 0):         # floor.offset: constant 0
+                del floor['offset']
+            # floor.thickness defaults to its level's floorThickness: derived, never omitted
+            if not floor:                               # floor: constant {}
+                del e['floor']
+        ceiling = e.get('ceiling')                      # 15.2 (Core 0.3)
+        if isinstance(ceiling, dict):
+            if ceiling.get('kind') == 'vaulted' and ceiling.get('slopes') == 'both':
+                del ceiling['slopes']                   # slopes: constant "both"
+            # height defaults to its level's ceilingHeight or height: derived, never omitted
+            if ceiling == {'kind': 'flat'}:             # ceiling: constant { "kind": "flat" }
+                del e['ceiling']
     for e in d.get('slabs', {}).values():
         _drop_common(e)
         if _is_int(e.get('offset'), 0):

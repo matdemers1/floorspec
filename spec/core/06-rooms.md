@@ -91,6 +91,8 @@ members of the document.
 | `floorFinish` | reference to a material | absent | the floor finish |
 | `ceilingFinish` | reference to a material | absent | the ceiling finish |
 | `brief` | reference to a program item | absent: the room fulfils no item | the program item this room fulfils (11.3) |
+| `floor` | floor (15.1) | `{}` | its floor's offset from the level and its thickness |
+| `ceiling` | ceiling (15.2) | `{ "kind": "flat" }` | its ceiling's form and height |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 ## 6.6 Lints
@@ -106,7 +108,8 @@ A validator SHOULD report these with the codes of chapter 10. {#FS-CORE-6.6.1 SH
 ## 6.7 Slabs
 
 A **slab** is an authored floor or deck that is not derived from a room: a patio, a porch deck, a
-landing. Floors and ceilings derived from rooms are defined in a later draft (see 0.5).
+landing. A room's own floor and ceiling are derived from its room polygon (chapter 15), which also
+derives every slab's bounding geometry (15.7).
 
 | Member | Type | Default | Meaning |
 |---|---|---|---|
@@ -115,8 +118,28 @@ landing. Floors and ceilings derived from rooms are defined in a later draft (se
 | `thickness` | length | — (always present) | its thickness |
 | `offset` | length | `0` | the height of its top above the level's elevation |
 | `material` | reference to a material | absent | its top surface |
+| `purpose` | a slab purpose (below) | absent: not stated | what the slab is for |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A slab's `thickness` MUST be greater than zero. {#FS-CORE-6.7.1 MUST}
+
+| Slab purpose | The slab is |
+|---|---|
+| `"patio"` | a paved outdoor floor on the ground |
+| `"deck"` | a raised outdoor floor of boards or panels |
+| `"porch"` | a covered floor at an entrance |
+| `"stoop"` | a small platform, with or without steps, at a door |
+| `"landing"` | a platform at the top, bottom or turn of a stair |
+| `"balcony"` | a floor projecting from an upper level |
+| `"garage"` | the floor of a garage that is not a room's |
+| `"walkway"` | a path |
+| `"driveway"` | a drive |
+| `"equipmentPad"` | a pad that equipment stands on: a condenser, a generator |
+| `"other"` | anything else |
+
+A slab's `purpose`, when present, MUST be a slab purpose of this table. {#FS-CORE-6.7.2 MUST}
+
+A purpose changes nothing that is derived: it says what the slab is, for a reader, a rule or an
+exporter (Annex A).
 
 Slabs do not take part in room derivation.
