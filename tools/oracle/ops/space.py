@@ -1,13 +1,13 @@
 """The document's one space of IDs, as Floorspec Ops 0.2 addresses it (Ops 0.2, Core 3.1.3).
 
-In Ops 0.2 an **element** is an element of one of Core's eleven collections, a program item
+In Ops 0.2 an **element** is an element of one of Core's thirteen collections, a program item
 (Core 11.1) or an extension element (Core 12.5). Program items and extension elements exist only
 in a document that declares "0.2": in one that declares "0.1" the program is not a member and
-top-level extension data is opaque (Core 1.2.4). Under Ops 0.1 only the eleven collections exist.
+top-level extension data is opaque (Core 1.2.4). Under Ops 0.1 only the thirteen collections exist.
 
 A place is where an element lives:
 
-- ``(c,)`` for one of the eleven collections;
+- ``(c,)`` for one of the thirteen collections;
 - ``('items',)`` for the program's items;
 - ``('ext', extension, collection)`` for an extension's collection.
 

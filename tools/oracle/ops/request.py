@@ -109,7 +109,7 @@ OPERATIONS_01 = {
 # Ops 0.2: the 0.1 table, with these operations added or changed.
 OPERATIONS_02 = {
     **OPERATIONS_01,
-    # 2.1: into the eleven collections, the program's items, or (with `extension`) an extension's collection
+    # 2.1: into the thirteen collections, the program's items, or (with `extension`) an extension's collection
     'addElement': ({'collection': STRING, 'element': OBJECT}, {'id': STRING, 'extension': STRING}),
     # 2.6
     'setAdjacency': ({'a': STRING, 'b': STRING, 'kind': _enum(*KINDS)}, {'weight': ANY}),
