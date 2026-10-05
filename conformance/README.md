@@ -13,6 +13,7 @@ conformance/
     test.json        what the test is and which statements it covers
     input.json       the document under test, byte for byte (it may be malformed on purpose)
     registry.json    optional: the validator's known extensions (Core 12.2) - an array of registry entries
+    design.json      optional, from Core 0.3: the design to derive (Core 19.6) - an object of option set → option
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
@@ -28,7 +29,8 @@ it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1
 0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
 0.3 adds: operations and clear openings, floors, ceilings and slabs (the group `floors`, and
 hosting on them at the end of `hosting`), roofs (the group `roofs`), and stairs (the group
-`stairs`, and circulation through them at the end of `circulation`). A 0.3 reader derives every
+`stairs`, and circulation through them at the end of `circulation`), and design options (the group
+`options`, and `examples/002-kitchen-options`, the Phase 8 demo's kitchen A and B). A 0.3 reader derives every
 room's floor and ceiling, every slab's bounding geometry, and every roof and stair, so every valid
 re-targeted test's `derived` has the five members `floors`, `ceilings`, `slabs`, `roofs` and
 `stairs` that its 0.2 counterpart lacks — the last two empty; every other value in it is the 0.2
@@ -45,7 +47,7 @@ that it reads them exactly as 0.1 does.
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
 `openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
 `clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs), `roofs`
-(chapter 16) and `stairs` (chapter 17). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+(chapter 16), `stairs` (chapter 17) and `options` (chapter 19). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -76,11 +78,15 @@ statement is usually covered by several tests.
 - `valid` — whether the document is valid (10.1).
 - `diagnostics` — every diagnostic, sorted by code and then by `elements` (10.2). A validator
   conforms when it reports exactly this list, compared on `code`, `severity` and `elements`
-  (messages, locations and fixes are not compared). When the list contains `FS-SCH-001`, it
+  (messages, locations and fixes are not compared), and on `design` - present, from Core 0.3, on a
+  diagnostic found in an option design and not in the primary design (19.5). When the list contains `FS-SCH-001`, it
   contains only that one entry, and a validator conforms when it reports one or more `FS-SCH-001`
   and nothing else.
 - `hash` — present when the document is valid: its content hash (9.3).
-- `derived` — present when the document is valid: everything a deriver derives from it, below.
+- `derived` — present when the document is valid: everything a deriver derives from it, below — for
+  the design design.json names, or the primary design when the test has none (Core 19.6). It is
+  absent when design.json names a design Core derives nothing for (19.6.2), though the document is
+  valid.
 
 ## derived
 
@@ -229,6 +235,22 @@ And a fifth, for stairs (chapter 17), empty for a document with none — so ever
 - `roofs` — every roof's kind, eave outline and eave (16.2, 16.3), and its surface (16.5): its high,
   box, faces, gable ends, and ridges, hips and valleys; `null` for a roof whose surface this draft
   does not derive (16.4.4), which the validator reports with `FS-LINT-015`.
+- `options` — present only for a document with an option set (Core 19.6.3): for every set, `chosen`,
+  the option the derived design chooses, and for every option of it its `members`, the `rooms` of its
+  own design with their net areas, and `affected`, what differs between that design and the primary
+  design. Every other member of `derived` is the derived design's.
+
+```json
+{
+  "options": {
+    "KS": { "chosen": "KA",
+            "options": { "KA": { "rooms": { "DIN": "31309824000000", "KIT": "18530304000000" }, "members": ["OA", "WA"], "affected": [] },
+                         "KB": { "rooms": { "DIN": "25239552000000", "KIT": "25239552000000" }, "members": ["OB", "SB"],
+                                 "affected": ["DIN", "KIT", "W3", "W4", "W6", "W7"] } } }
+  }
+}
+```
+
 - `stairs` — every stair: its riser count and riser height, rounded; its rise, bottom and top; its
   foot and head, and the rooms they are in when there are any; its box (17.4). For a straight,
   L-shaped or U-shaped stair also its `steps` — every tread and landing in walking order, a landing

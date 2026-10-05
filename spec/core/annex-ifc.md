@@ -52,6 +52,7 @@ back can be reconciled element by element (FLR-ADR-012).
 | Winder or spiral stair's steps | — | not derived in this draft (17.7): the `IfcStair` carries no flights, and its body is its box |
 | Handrail (17.1) | `IfcRailing` (`PredefinedType` `HANDRAIL`) | aggregated by the `IfcStair`, one for each side; `Pset_RailingCommon` `Height` = `height` |
 | Headroom, rise (derived) | `IfcQuantityLength` in the property set `Floorspec_Stair` (`Headroom`, `Rise`) | converted to millimetres; no headroom when none is derived |
+| Option set, option (19.1) | — | not mapped: IFC4 has no entity for alternatives of a design. An export is of one design (19.7) — its view, in which nothing is in an option — and the `IfcProject` records which in the property set `Floorspec_Design`, one `IfcLabel` property for each option set, named by the set's ID, whose value is the ID of the option the design chooses |
 
 **Door operations.** The left or right of an IFC4 operation type is the hand IFC4 defines for it;
 an exporter takes it from the opening's `hinge` and `swing` (7.1), and writes the door's own

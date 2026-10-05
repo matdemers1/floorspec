@@ -18,7 +18,7 @@ from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, r
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
-from . import floors, roofs, stairs
+from . import floors, options, roofs, stairs
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -56,6 +56,7 @@ SEVERITY = {
     'FS-LINT-012': 'warning', 'FS-LINT-013': 'warning', 'FS-LINT-014': 'warning',
     'FS-LINT-015': 'info',                                            # roofs (Core 0.3, 16.4)
     'FS-LINT-016': 'info',                                            # stairs (Core 0.3, 17.7)
+    'FS-LINT-018': 'info',                                            # design options (Core 0.3, 19.8)
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -68,7 +69,8 @@ def diag(code, elements=()):
 
 
 def sort_diags(ds):
-    return sorted(ds, key=lambda d: (d['code'], d['elements']))
+    """By code, then elements, then design - a diagnostic without one first (10.2, 19.5.2)."""
+    return sorted(ds, key=lambda d: (d['code'], d['elements'], 'design' in d, d.get('design', '')))
 
 
 # ------------------------------------------------------------------------------ reference tier
@@ -99,6 +101,10 @@ REF_TABLE = [
     ('materials', ('texture', 'asset'), 'assets', None),
     ('stairs', ('level',), 'levels', None),                     # Core 0.3, 17.1
     ('stairs', ('to',), 'levels', None),
+    # Core 0.3, chapter 19: design options
+    ('options', ('set',), 'optionSets', None),
+    ('optionSets', ('primary',), 'options', None),
+    *((c, ('option',), 'options', None) for c in options.OPTIONAL),
 ]
 
 
@@ -145,6 +151,8 @@ def references(d: dict):
                     out.append(('ext', eid, host[member], target, None))
         fb = el['fallback']
         out.append(('ext', eid, fb['level'], 'levels', None))
+        if 'option' in el:                                      # Core 0.3, 19.2
+            out.append(('ext', eid, el['option'], 'options', None))
         for member in ('asset', 'symbol'):
             if member in fb:
                 out.append(('ext', eid, fb[member], 'assets', None))
@@ -578,6 +586,12 @@ def derive_02(doc: Doc) -> dict:
 # ------------------------------------------------------------------------------ lints
 
 def lints(doc: Doc):
+    """Every Core 0.1 lint of a document without design options."""
+    return design_lints(doc) + document_lints(doc)
+
+
+def design_lints(doc: Doc):
+    """FS-LINT-001 to FS-LINT-005: of each checked design (19.5)."""
     ds = []
     for level in doc.levels:
         g = LevelGraph(doc, level)
@@ -612,6 +626,13 @@ def lints(doc: Doc):
     for oid, o in doc.openings.items():
         if opening_in_join(doc, oid):
             ds.append(diag('FS-LINT-005', [oid]))
+    return ds
+
+
+def document_lints(doc: Doc):
+    """FS-LINT-006 and FS-LINT-007: of the document as a whole, whatever its design (19.5) - a type
+    an element of any option refers to is used."""
+    ds = []
     referred = set()
     for _, _, target_id, target, _ in references(doc.d):
         if target in ('types', 'materials', 'assets'):
@@ -653,14 +674,73 @@ def opening_in_join(doc: Doc, oid) -> bool:
 
 # ------------------------------------------------------------------------------ the pipeline
 
-def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None):
+def design_invariants(value: dict, reader: Reader, known):
+    """Tier 4 after the reference invariants, of one document - a document without design options,
+    or the view of one checked design (19.5) - in the order of 10.3."""
+    ds = []
+    doc = Doc(value)
+    gds, bad_levels, no_top = graph_tier(doc)
+    ds.extend(gds)
+    bad_rooms = set()
+    for level in sorted(doc.levels):
+        if level not in bad_levels:
+            rds = join_and_room_tier(doc, level)
+            ds.extend(rds)
+            bad_rooms.update(e for x in rds if x['code'].startswith('FS-INV-2') for e in x['elements'])
+    ds.extend(opening_tier(doc, no_top))
+    if reader.v03:
+        ds.extend(clear_opening_tier(doc))
+        ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
+        ds.extend(roofs.invariants(doc, diag))
+        ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
+    if reader.v02:
+        ds.extend(program_invariants(value, diag))
+        ds.extend(extension_tier(value, known))
+        ds.extend(hosting_tier(doc, no_top))
+        ds.extend(surface_tier(doc, bad_levels, bad_rooms))
+    return ds
+
+
+def design_values(value: dict, reader: Reader, ext_ctxs, extensions):
+    """(lints, derived values) of one valid document - one without design options, or the view of
+    a design (19.5, 19.6). FS-LINT-006, FS-LINT-007 and FS-LINT-018 are the document's, not a design's."""
+    doc = Doc(value)
+    ds = design_lints(doc)
+    derived = derive_all(doc)
+    if reader.v02:
+        ds.extend(program_lints(doc, diag))
+        ds.extend(circulation_lints(doc, diag))
+        derived.update(derive_02(doc))
+    if reader.v03:
+        derived.update(floors.derive(doc))
+        derived.update(roofs.derive(doc))
+        ds.extend(roofs.lints(doc, diag))
+        derived.update(stairs.derive(doc))
+        ds.extend(stairs.lints(doc, diag))
+    if extensions is not None:
+        from .ext import official as ext
+        eds, derived['extensions'] = ext.finish(ext_ctxs)
+        ds.extend(eds)
+    return ds, derived
+
+
+def _extension_errors(value: dict, known, implemented):
+    from .ext import official as ext
+    return ext.evaluate(Doc(value), known, implemented)
+
+
+def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None, design=None):
     """Returns (result, canonical bytes or None, notes).
 
     ``extensions`` is the official extensions this run implements (tools/oracle/ext: name ->
     module), or None for a core-only reader - every Core suite. When it is given, the run is a
     reader of those extensions: they pass FS-DOC-002, each is evaluated after the Core invariants
     as its specification's 1.2 says, and the derived values gain `extensions`, the derived values of
-    each extension evaluated (empty when none is)."""
+    each extension evaluated (empty when none is).
+
+    ``design`` is the design to derive (Core 0.3, 19.6): an object mapping option sets to options,
+    or None for the primary design. Validity never depends on it; `derived` is absent from a valid
+    document's result when the design is not one of the document's, or its view is not valid."""
     implemented = {} if extensions is None else extensions
     notes = []
     known = None
@@ -697,55 +777,63 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
     if problems:
         notes.extend(problems)
         return {'valid': False, 'diagnostics': [diag('FS-SCH-001')]}, None, notes
-    # tier 4: invariants
+    # tier 4: invariants - the reference and option invariants of the document, then the rest of
+    # tier 4 for each checked design (19.5); a document without design options is its own only one
     ds = reference_tier(value)
+    optioned = reader.v03 and options.present(value)
+    if not ds and optioned:
+        ds.extend(options.invariants(value, references(value), diag))
+    designs = []
     if not ds:
-        doc = Doc(value)
-        gds, bad_levels, no_top = graph_tier(doc)
-        ds.extend(gds)
-        bad_rooms = set()
-        for level in sorted(doc.levels):
-            if level not in bad_levels:
-                rds = join_and_room_tier(doc, level)
-                ds.extend(rds)
-                bad_rooms.update(e for x in rds if x['code'].startswith('FS-INV-2') for e in x['elements'])
-        ds.extend(opening_tier(doc, no_top))
-        if reader.v03:
-            ds.extend(clear_opening_tier(doc))
-            ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
-            ds.extend(roofs.invariants(doc, diag))
-            ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
-        if reader.v02:
-            ds.extend(program_invariants(value, diag))
-            ds.extend(extension_tier(value, known))
-            ds.extend(hosting_tier(doc, no_top))
-            ds.extend(surface_tier(doc, bad_levels, bad_rooms))
+        designs = ([(tag, options.view(value, des)) for tag, des in options.checked_designs(value)]
+                   if optioned else [(None, value)])
+        ds.extend(options.merge([(tag, design_invariants(v, reader, known)) for tag, v in designs]))
     if any(x['severity'] == 'error' for x in ds):
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
-    doc = Doc(value)
-    ext_ctxs = []
+    ctxs = {}
     if extensions is not None:                                  # each extension's spec, 1.2
-        from .ext import official as ext
-        eds, ext_ctxs = ext.evaluate(doc, known, implemented)
+        per = []
+        for tag, v in designs:
+            eds, ctxs[tag] = _extension_errors(v, known, implemented)
+            per.append((tag, eds))
+        eds = options.merge(per)
         if any(x['severity'] == 'error' for x in eds):
             return {'valid': False, 'diagnostics': sort_diags(eds)}, None, notes
         ds.extend(eds)
-    ds.extend(lints(doc))
-    derived = derive_all(doc)
-    if reader.v02:
-        ds.extend(program_lints(doc, diag))
-        ds.extend(circulation_lints(doc, diag))
-        derived.update(derive_02(doc))
-    if reader.v03:
-        derived.update(floors.derive(doc))
-        derived.update(roofs.derive(doc))
-        ds.extend(roofs.lints(doc, diag))
-        derived.update(stairs.derive(doc))
-        ds.extend(stairs.lints(doc, diag))
-    if extensions is not None:
-        from .ext import official as ext
-        eds, derived['extensions'] = ext.finish(ext_ctxs)
-        ds.extend(eds)
-    result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value),
-              'derived': derived}
+    per, derived_by = [], {}
+    for tag, v in designs:
+        lds, derived_by[tag] = design_values(v, reader, ctxs.get(tag), extensions)
+        per.append((tag, lds))
+    ds.extend(options.merge(per))
+    ds.extend(document_lints(Doc(value)))
+    if optioned:
+        ds.extend(options.lints(value, diag))
+    result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value)}
+    derived = derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions)
+    if derived is not None:
+        result['derived'] = derived
     return result, canon.canonical_bytes(value), notes
+
+
+def derived_of(value, design, optioned, derived_by, reader, known, implemented, extensions):
+    """19.6: the derived values of the design asked for - the primary design when none is - or None
+    when it is not a design of the document, or its view is not valid (19.6.2)."""
+    if not optioned:
+        return derived_by[None] if design is None or design == {} else None
+    chosen = options.primary_design(value) if design is None else options.resolve(value, design)
+    if chosen is None:
+        return None
+    tag = options.tag_of(value, chosen)
+    if tag is not False:
+        derived = derived_by[tag]
+    else:                                                       # a design that is not checked
+        v = options.view(value, chosen)
+        if any(x['severity'] == 'error' for x in design_invariants(v, reader, known)):
+            return None
+        ctxs = None
+        if extensions is not None:
+            eds, ctxs = _extension_errors(v, known, implemented)
+            if any(x['severity'] == 'error' for x in eds):
+                return None
+        _, derived = design_values(v, reader, ctxs, extensions)
+    return {**derived, 'options': options.derived(value, chosen, derived_by)}

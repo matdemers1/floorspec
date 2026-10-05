@@ -10,7 +10,8 @@ from 1) within 2^53 - 1.
 And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
 `clearOpening` (8.4.2, 8.4.3); a level's `floorThickness` and `ceilingHeight` (1.8.4), a room's
 `floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2); and the `roofs` collection
-(16.1.1) and the `stairs` collection (17.1.1, 17.2.1).
+(16.1.1) and the `stairs` collection (17.1.1, 17.2.1); and design options: the `optionSets` and
+`options` collections and the `option` member of the elements that may be in one (19.1.1, 19.2.1).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -139,6 +140,10 @@ class _Checker:
     def common(self):
         return {'name': self.name, 'extensions': self.ext_data, 'extras': self.any_obj}
 
+    def optional(self):
+        """19.2 (0.3): the members of an element that may be in an option - `common()` and `option`."""
+        return {**self.common(), **({'option': self.ref} if self.v03 else {})}
+
     # ---- kinds
     def project(self, v, path):
         if self.obj(v, path):
@@ -211,7 +216,7 @@ class _Checker:
     def junction(self, v, path):
         if self.obj(v, path):
             self.members(v, path, {'level': self.ref, 'position': self.point, 'join': self.join,
-                                   **self.common()}, ('level', 'position'))
+                                   **self.optional()}, ('level', 'position'))
 
     def layers(self, v, path):
         if not isinstance(v, list) or len(v) < 1:
@@ -245,12 +250,12 @@ class _Checker:
         self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref,
                                'type': self.ref, 'layers': self.layers,
                                'justification': self.enum('center', 'exteriorFace', 'interiorFace', 'coreFace'),
-                               'base': base, 'top': top, **self.common()},
+                               'base': base, 'top': top, **self.optional()},
                      ('level', 'start', 'end'))
 
     def separator(self, v, path):
         if self.obj(v, path):
-            self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref, **self.common()},
+            self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref, **self.optional()},
                          ('level', 'start', 'end'))
 
     def opening(self, v, path):
@@ -258,7 +263,7 @@ class _Checker:
             allowed = {'wall': self.ref, 'offset': self.nonneg, 'width': self.positive,
                        'height': self.positive, 'sill': self.nonneg, 'fill': self.ref,
                        'hinge': self.enum('start', 'end'), 'swing': self.enum('left', 'right'),
-                       **self.common()}
+                       **self.optional()}
             if self.v03:
                 allowed['clearOpening'] = self.clear_opening(True)
             self.members(v, path, allowed, ('wall', 'offset'))
@@ -282,7 +287,7 @@ class _Checker:
             return
         allowed = {'level': self.ref, 'anchor': self.point, 'function': self.function,
                    'wallFinish': self.ref, 'floorFinish': self.ref, 'ceilingFinish': self.ref,
-                   **self.common()}
+                   **self.optional()}
         if self.v02:
             allowed['brief'] = self.ref
         if self.v03:
@@ -383,7 +388,8 @@ class _Checker:
         if 'fallback' not in v:
             self.bad(path, 'an extension element has no fallback')
         core = {'fallback': self.fallback, 'host': self.host, 'clearances': self.clearances,
-                'name': self.name, 'extras': self.any_obj}
+                'name': self.name, 'extras': self.any_obj,
+                **({'option': self.ref} if self.v03 else {})}
         for k, x in v.items():
             if k in core:
                 core[k](x, f'{path}/{k}')
@@ -444,7 +450,7 @@ class _Checker:
     def slab(self, v, path):
         if self.obj(v, path):
             allowed = {'level': self.ref, 'boundary': self.polygon, 'thickness': self.positive,
-                       'offset': self.length, 'material': self.ref, **self.common()}
+                       'offset': self.length, 'material': self.ref, **self.optional()}
             if self.v03:
                 allowed['purpose'] = self.enum(*SLAB_PURPOSES)
             self.members(v, path, allowed, ('level', 'boundary', 'thickness'))
@@ -468,7 +474,7 @@ class _Checker:
                     self.bad(q, 'a gable has no pitch')
         self.members(v, path, {'level': self.ref, 'footprint': self.polygon, 'height': self.length,
                                'pitch': self.pitch, 'overhang': self.nonneg, 'edges': edges,
-                               'thickness': self.positive, 'material': self.ref, **self.common()},
+                               'thickness': self.positive, 'material': self.ref, **self.optional()},
                      ('level', 'footprint'))
 
     def boolean(self, v, path):
@@ -483,7 +489,7 @@ class _Checker:
         self.members(v, path, {'level': self.ref, 'to': self.ref, 'position': self.point, 'rotation': self.rotation,
                                'width': self.positive, 'tread': self.positive, 'risers': count,
                                'maxRiser': self.positive, 'form': self.stair_form, 'handrail': self.handrail,
-                               **self.common()}, ('level', 'to', 'position', 'width', 'tread'))
+                               **self.optional()}, ('level', 'to', 'position', 'width', 'tread'))
         if ('risers' in v) == ('maxRiser' in v):
             self.bad(path, 'a stair has exactly one of risers and maxRiser')
 
@@ -512,6 +518,15 @@ class _Checker:
                                    'sweep': self.integer(1, MAX_LEN)}, ('kind', 'turn', 'diameter', 'sweep'))
         else:
             self.bad(path, 'bad stair form')
+
+    # ---- Core 0.3: chapter 19
+    def option_set(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'primary': self.ref, **self.common()}, ('primary',))
+
+    def option(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'set': self.ref, **self.common()}, ('set',))
 
     def handrail(self, v, path):
         if self.obj(v, path):
@@ -640,6 +655,8 @@ class _Checker:
             **({'program': self.program} if self.v02 else {}),
             **({'roofs': self.collection(self.roof)} if self.v03 else {}),
             **({'stairs': self.collection(self.stair)} if self.v03 else {}),
+            **({'optionSets': self.collection(self.option_set),
+                'options': self.collection(self.option)} if self.v03 else {}),
         }, ('floorspec', 'project'))
 
 

@@ -34,12 +34,12 @@ Floorspec Core 0.3 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
-| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–17) |
+| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–17, 19) |
 | **Reader** | software that loads documents | apply defaults and the version and extension rules (1.2, 1.5, 1.6, 12.1) |
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–17 |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–17, for the design asked for (19.6) |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 
 One program is usually several of these. The conformance suite tests each class separately; the
@@ -77,7 +77,6 @@ reserved for later drafts and a 0.3 document cannot contain them:
 
 - the surface of a roof with sloped edges at different pitches, or of one with two or more sloped
   edges on an outline with an oblique edge (16.4.4), and a roof's footprint that follows its walls;
-- design options (`optionSets`, and option membership on elements);
 - a door's or window's frame, glazing and hardware, and a casement's hand or a pivot's axis (8.4);
 - arc walls (core walls are straight);
 - 3D geometry beyond the bounding geometry of floors, ceilings and slabs (chapter 15) and the
@@ -144,6 +143,20 @@ And for stairs (chapter 17):
 - the diagnostics `FS-INV-901` to `FS-INV-904` and `FS-LINT-016` (chapter 10), and the mapping of
   stairs to IFC4 (Annex A).
 
+And design options (chapter 19):
+
+- **option sets** and **options**, the collections `optionSets` and `options`: every set has
+  options and exactly one primary (19.1), and a junction, wall, separator, opening, room, slab,
+  roof, stair or extension element is in at most one option, by its `option` member (19.2);
+- **designs**, each choosing one option of every set, and the **view** of a design — the document
+  as seen in it (19.3); a reference may not cross from one option into another (19.4);
+- validity of the primary design and of every option against the primary of every other set, the
+  **checked designs** (19.5), with a diagnostic's `design` naming the option design it was found in
+  (10.2); the values a deriver derives for a design it is asked for, and `options`, which compares
+  every option of a set with the primary design (19.6); exports of one design (19.7);
+- the diagnostics `FS-INV-1101`, `FS-INV-1102` and `FS-LINT-018` (chapter 10), and Annex A's
+  `Floorspec_Design`.
+
 A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
 its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read
 as 0.3 means exactly what it meant. Its floors, ceilings and slabs are derived from the defaults —
@@ -151,7 +164,8 @@ a floor at the level's elevation and a flat ceiling at the level's height, the e
 a `surface` host — so every value 0.2 derived for it is unchanged, and what is new is only that
 its floors, ceilings and slabs are derived too. It has no stair, so its door graph joins its levels
 through rooms of function `circulation` exactly as 0.2's did (14.1), and its derived `stairs`, like
-its `roofs`, are empty.
+its `roofs`, are empty. It has no option set, so its one design is its primary design, whose view
+is the document itself, and nothing is derived for `options` (19.3, 19.6).
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 

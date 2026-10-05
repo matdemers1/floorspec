@@ -303,3 +303,65 @@ test('core 0.3, chapter 17: stairs are a 0.3 collection, with the constant defau
   assert.equal(found.get('stair.schema.json#/$defs/handrail/properties/sides'), '"both"');
   for (const [where] of found) if (where.startsWith('stair.schema.json')) assert.ok(!/risers|maxRiser|width|tread|level|position|winders|sweep|diameter/.test(where), where);
 });
+
+// Chapter 19: design options
+function optioned(): Record<string, any> {
+  return {
+    floorspec: '0.3',
+    project: { name: 'Options' },
+    buildings: { B1: {} },
+    levels: { L1: { building: 'B1', elevation: 0, height: 3456000 }, L2: { building: 'B1', elevation: 3456000, height: 3456000 } },
+    optionSets: { KS: { name: 'Kitchen', primary: 'KA', extras: {} } },
+    options: { KA: { set: 'KS', name: 'A' }, KB: { set: 'KS', name: 'B', extras: { colour: 'blue' } } },
+    junctions: { J1: { level: 'L1', position: [0, 0], option: 'KA' }, J2: { level: 'L1', position: [1, 0] } },
+    walls: { W1: { level: 'L1', start: 'J1', end: 'J2', option: 'KA' } },
+    separators: { S1: { level: 'L1', start: 'J1', end: 'J2', option: 'KB' } },
+    openings: { O1: { wall: 'W1', offset: 0, width: 1, height: 1, option: 'KA' } },
+    rooms: { R1: { level: 'L1', anchor: [0, 0], option: 'KB' } },
+    slabs: { SL1: { level: 'L1', boundary: [[0, 0], [1, 0], [1, 1]], thickness: 1, option: 'KB' } },
+    roofs: { RF1: { level: 'L1', footprint: [[0, 0], [1, 0], [1, 1]], option: 'KB' } },
+    stairs: { ST1: { level: 'L1', to: 'L2', position: [0, 0], width: 1, tread: 1, risers: 2, option: 'KB' } },
+    extensionsUsed: { FS_furniture: '0.1' },
+    extensions: { FS_furniture: { collections: { pieces: { F1: { fallback: { level: 'L1', box: { min: [0, 0, 0], max: [1, 1, 1] } }, option: 'KB' } } } } },
+  };
+}
+const o = (mut: (d: Record<string, any>) => void) => {
+  const d = optioned();
+  mut(d);
+  return d;
+};
+
+test('core 0.3, 19.1.1 and 19.2: option sets, options, and every kind that may be in an option', () => accepts(optioned()));
+
+test('core 0.3, 19.1.1: an option set has a primary, an option a set, and nothing else', () => {
+  rejects(o((d) => delete d.optionSets.KS.primary));
+  rejects(o((d) => delete d.options.KA.set));
+  rejects(o((d) => (d.optionSets.KS.options = ['KA', 'KB'])));
+  rejects(o((d) => (d.options.KA.order = 1)));
+  rejects(o((d) => (d.optionSets.KS.primary = 1)));
+  rejects(o((d) => (d.options.KA.set = 'not an id!')));
+  // that the primary is one of the set's own options is an invariant (FS-INV-1101)
+  accepts(o((d) => (d.optionSets.KS.primary = 'KZ')));
+});
+
+test('core 0.3, 19.2.1: only the kinds that may be in an option have an option member', () => {
+  rejects(o((d) => (d.levels.L1.option = 'KA')));
+  rejects(o((d) => (d.buildings.B1.option = 'KA')));
+  rejects(o((d) => (d.options.KB.option = 'KA')));
+  rejects(o((d) => (d.optionSets.KS.option = 'KA')));
+  rejects(o((d) => (d.types = { T: { kind: 'doorType', option: 'KA' } })));
+  rejects(o((d) => (d.program = { items: { P1: { function: 'kitchen', option: 'KA' } } })));
+  rejects(o((d) => (d.walls.W1.option = 7)));
+  rejects(o((d) => (d.extensions.FS_furniture.collections.pieces.F1.option = 7)));
+});
+
+test('core 0.3, chapter 19: option sets and options are 0.3 collections, and only their common members have defaults', () => {
+  rejects({ floorspec: '0.2', project: { name: 'x' }, optionSets: {} }, reader);
+  rejects({ floorspec: '0.2', project: { name: 'x' }, options: {} }, reader);
+  accepts({ floorspec: '0.3', project: { name: 'x' }, optionSets: {}, options: {} });
+  const found = new Map([...defaults(files)].map(([where, d]) => [where, JSON.stringify(d.value)]));
+  assert.equal(found.get('floorspec.schema.json#/properties/optionSets'), '{}');
+  assert.equal(found.get('floorspec.schema.json#/properties/options'), '{}');
+  for (const [where] of found) if (where.startsWith('option.schema.json')) assert.ok(/\/properties\/(extensions|extras)$/.test(where), where);
+  for (const [where] of found) assert.ok(!/\/properties\/option$/.test(where), where);
+});

@@ -160,7 +160,7 @@ member names are IDs and whose member values are **extension elements**. The res
 extension's top-level data, `style` above, is the extension's own. An extension element's ID
 shares the document's single space of IDs (3.1.3).
 
-An extension element is an object. Core defines five of its members; the extension defines the
+An extension element is an object. Core defines six of its members; the extension defines the
 rest, and core neither restricts nor reads them:
 
 | Member | Type | Default | Meaning |
@@ -168,6 +168,7 @@ rest, and core neither restricts nor reads them:
 | `fallback` | fallback (12.6) | — (always present) | what to show when the extension is not implemented |
 | `host` | host (13.3) | absent: the element is placed only by its fallback | what the element is placed on |
 | `clearances` | object: envelope name → clearance envelope (13.5) | `{}` | the space it needs kept clear |
+| `option` | reference to an option | absent: in no option | the option it is in (19.2); new in 0.3 |
 | `name` | string, 1–200 characters | absent | a human-readable label |
 | `extras` | object | `{}` | 1.7 |
 

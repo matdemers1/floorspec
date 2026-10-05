@@ -22,7 +22,7 @@ import sys
 
 import tools.oracle.author02 as v02                    # declares the 0.2 suite: v02.BASE + v02.NEW
 from tools.oracle.author import room_doc as room_doc_01
-from tools.oracle.author02 import element, surface, with_elements
+from tools.oracle.author02 import element, free, surface, wall_face, with_elements
 from tools.oracle.author_lib import IN, MM, REPO, TESTS, J, R, W, box, level_doc, t, write_all
 from tools.oracle.validate import READER_03
 
@@ -1093,6 +1093,289 @@ n('circulation', 'stair-head-in-no-room', 'A stair from the hall whose head, at 
   'the landing and the bedroom - in neither room: it joins nothing, and the building has a stair, so the two '
   'circulation rooms are not joined either. Both rooms on L2 are unreachable.', ['14.1.1', '17.4.3'],
   d, [('FS-LINT-012', ['BED']), ('FS-LINT-012', ['LAND'])])
+
+
+# =================================================================================== options (0.3): chapter 19
+# "optionSets" is a collection of 0.3: the reserved-member test names a near miss instead.
+for tc in BASE:
+    if tc['slug'] == 'reserved-top-level-member':
+        tc['slug'] = 'near-miss-top-level-member'
+        tc['inp'] = {('designOptions' if k == 'optionSets' else k): v for k, v in tc['inp'].items()}
+        tc['description'] = ('A top-level member the table does not list - here "designOptions", which is not what '
+                             'Core calls its option sets (19.1) - makes the document invalid.')
+
+# The kitchen house: one level, 8 m x 4 m inside 100 mm walls drawn clockwise, its north and south walls
+# split at x = 4 m and x = 5 m. Dining (DIN) is to the west, the kitchen (KIT) to the east, both common;
+# a front door O1 in the west wall. Option set KS ("Kitchen"): option KA ("A: closed", primary) adds the
+# wall WA at x = 5 m with the door OA in it; option KB ("B: open") instead adds the separator SB at
+# x = 4 m and a window OB in the common north wall, over the sink.
+KX, KY = 8000 * MM, 4000 * MM
+DOOR19 = {'kind': 'doorType', 'width': 900 * MM, 'height': 2100 * MM}
+WIN19 = {'kind': 'windowType', 'width': 1200 * MM, 'height': 1200 * MM, 'sill': 900 * MM}
+
+
+def kitchen(primary='KA'):
+    js = {'J1': J(0, 0), 'J2': J(0, KY), 'J3': J(KX, KY), 'J4': J(KX, 0),
+          'S4': J(4000 * MM, 0), 'S5': J(5000 * MM, 0), 'N4': J(4000 * MM, KY), 'N5': J(5000 * MM, KY)}
+    ws = {'W1': W('J1', 'J2'), 'W2': W('J2', 'N4'), 'W3': W('N4', 'N5'), 'W4': W('N5', 'J3'),
+          'W5': W('J3', 'J4'), 'W6': W('J4', 'S5'), 'W7': W('S5', 'S4'), 'W8': W('S4', 'J1'),
+          'WA': W('S5', 'N5', option='KA')}
+    d = v3(level_doc(junctions=js, walls=ws))
+    d['separators'] = {'SB': {'level': 'L1', 'start': 'S4', 'end': 'N4', 'option': 'KB'}}
+    d['types'].update(D=copy.deepcopy(DOOR19), G=copy.deepcopy(WIN19))
+    d['openings'] = {'O1': {'wall': 'W1', 'offset': 1500 * MM, 'fill': 'D'},
+                     'OA': {'wall': 'WA', 'offset': 1500 * MM, 'fill': 'D', 'option': 'KA'},
+                     'OB': {'wall': 'W4', 'offset': 500 * MM, 'fill': 'G', 'option': 'KB'}}
+    d['rooms'] = {'DIN': R(2000 * MM, 2000 * MM, function='dining', name='Dining'),
+                  'KIT': R(6500 * MM, 2000 * MM, function='kitchen', name='Kitchen')}
+    d['optionSets'] = {'KS': {'name': 'Kitchen', 'primary': primary}}
+    d['options'] = {'KA': {'set': 'KS', 'name': 'A: closed'}, 'KB': {'set': 'KS', 'name': 'B: open'}}
+    return d
+
+
+def deck(d, primary='DA'):
+    """A second set, DS ("Deck"): DA (primary) has a deck slab south of the house; DB has none."""
+    d['optionSets']['DS'] = {'name': 'Deck', 'primary': primary}
+    d['options'].update(DA={'set': 'DS', 'name': 'Deck'}, DB={'set': 'DS', 'name': 'No deck'})
+    d['slabs'] = {'SL1': {'level': 'L1', 'boundary': [[0, -3000 * MM], [4000 * MM, -3000 * MM], [4000 * MM, -100 * MM],
+                                                      [0, -100 * MM]], 'thickness': 150 * MM, 'purpose': 'deck',
+                          'option': 'DA'}}
+    return d
+
+
+def pantry_wall(d, primary='PA'):
+    """A third set, PS ("Pantry"): PA (primary) is empty; PB adds a freestanding wall PW in the dining room
+    from x = 3 m to x = 4.5 m at y = 2 m - which crosses KB's separator, so no design has both."""
+    d['optionSets']['PS'] = {'name': 'Pantry', 'primary': primary}
+    d['options'].update(PA={'set': 'PS', 'name': 'None'}, PB={'set': 'PS', 'name': 'Pantry wall'})
+    d['junctions'].update(PJ1=J(3000 * MM, 2000 * MM, option='PB'), PJ2=J(4500 * MM, 2000 * MM, option='PB'))
+    d['walls']['PW'] = W('PJ1', 'PJ2', option='PB')
+    return d
+
+
+def island(d, option, x0, y0, side, p):
+    """A closed square of separators, side x side, in an option (or common, option None): an unanchored face."""
+    pts = [(x0, y0), (x0, y0 + side), (x0 + side, y0 + side), (x0 + side, y0)]
+    for i, (x, y) in enumerate(pts, 1):
+        d['junctions'][f'{p}J{i}'] = J(x, y, **({'option': option} if option else {}))
+    for i in range(4):
+        e = {'level': 'L1', 'start': f'{p}J{i + 1}', 'end': f'{p}J{(i + 1) % 4 + 1}'}
+        if option:
+            e['option'] = option
+        d['separators'][f'{p}S{i + 1}'] = e
+    return d
+
+
+n('options', 'kitchen-a-and-b', 'The kitchen house with two kitchen options: A, primary, closes the kitchen off with a '
+  'wall and a door at x = 5 m; B opens it to the dining room with a separator at x = 4 m and adds a window over the '
+  'sink. Valid: the primary design, A, and B\'s option design are both valid. What is derived is the primary '
+  'design - WA, OA and the rooms either side of WA, and no SB or OB - and `options` gives, for each option, its '
+  'members, the rooms of its design with their areas, and what in the primary design differs in it: the two rooms, '
+  'their floors and ceilings, and the walls WA met. The window type G is used only by B\'s window, and is used: '
+  'FS-LINT-006 is of the document, not of a design.',
+  ['19.1.1', '19.1.2', '19.2.1', '19.3.1', '19.4.1', '19.5.1', '19.6.1', '19.6.3', '9.2.1'], kitchen())
+n('options', 'derive-design-b', 'The kitchen house, deriving the design {"KS": "KB"} (design.json): the separator SB '
+  'and the window OB, the open kitchen 3950 mm wide and the dining room as wide - and no WA, OA or junction fill at '
+  'S5. Validity and the diagnostics do not depend on the design; `options` is the same, but for `chosen`.',
+  ['19.6.1', '19.3.1', '19.6.3'], kitchen(), design={'KS': 'KB'})
+n('options', 'derive-design-a-by-name', 'The kitchen house, deriving {"KS": "KA"}: the primary design, named.',
+  ['19.6.1'], kitchen(), design={'KS': 'KA'})
+n('options', 'derive-empty-design', 'The kitchen house with the design input {}: a set the input does not name takes '
+  'its primary, so this is the primary design.', ['19.6.1'], kitchen(), design={})
+n('options', 'primary-switched', 'The kitchen house with B as the primary option: B\'s design is what is derived, '
+  'A\'s is the option design checked beside it, and `options` compares A with B - so A\'s `affected` names the rooms '
+  'and walls, and B\'s is empty.', ['19.1.2', '19.6.1', '19.6.3', '19.5.1'], kitchen('KB'))
+d = kitchen()
+d['optionSets']['KS']['extras'] = {}
+d['options']['KB']['extras'] = {}
+d['options']['KA']['extras'] = {'colour': 'blue'}
+n('options', 'defaults-omitted', 'An option set and an option with empty extras, which the canonical form omits; '
+  'an option\'s own extras are kept, and every element\'s option is kept: it has no default.', ['9.2.1', '19.1.1'], d)
+n('options', 'two-option-sets', 'The kitchen house with a second set, Deck: DA (primary) has a deck slab, DB has '
+  'none - an empty option is an alternative too. The checked designs are the primary design (KA, DA), KB\'s (KB, DA) '
+  'and DB\'s (KA, DB); the slab is derived in the primary design, and DB\'s `rooms` are the primary design\'s.',
+  ['19.5.1', '19.6.3', '19.3.1'], deck(kitchen()))
+n('options', 'unchecked-design', 'The kitchen house with the Deck set, deriving {"KS": "KB", "DS": "DB"}: a design '
+  'that chooses non-primary options of two sets is not one of the checked designs, but its view is valid, so it is '
+  'derived - the open kitchen, and no deck.', ['19.6.1', '19.6.2', '19.5.1'], deck(kitchen()),
+  design={'KS': 'KB', 'DS': 'DB'})
+n('options', 'unchecked-design-not-valid', 'The kitchen house with the Pantry set, whose option PB adds a wall in the '
+  'dining room that would cross KB\'s separator. The document is valid - PB is checked against KA, the primary, and '
+  'KB against PA - but the design {"KS": "KB", "PS": "PB"} has the two crossing: its view is not valid, and nothing '
+  'is derived for it.', ['19.6.2', '19.5.1'], pantry_wall(kitchen()), design={'KS': 'KB', 'PS': 'PB'})
+n('options', 'design-names-no-set', 'The kitchen house with the design input {"Kitchen": "KB"}: no option set has '
+  'the ID "Kitchen" (it is KS\'s name), so nothing is derived.', ['19.6.2'], kitchen(), design={'Kitchen': 'KB'})
+n('options', 'design-option-of-another-set', 'The kitchen and deck house with the design input {"KS": "DB"}: DB is '
+  'an option of the Deck set, not of the Kitchen set, so nothing is derived.', ['19.6.2'], deck(kitchen()),
+  design={'KS': 'DB'})
+n('options', 'design-without-options', 'A document with no option set and the design input {}: its one design, the '
+  'document itself, is derived exactly as it is with no design input.', ['19.6.1', '19.3.1'], room_doc(), design={})
+n('options', 'design-for-a-document-without-options', 'A document with no option set and a design input that names '
+  'a set: nothing is derived.', ['19.6.2'], room_doc(), design={'KS': 'KB'})
+
+# ---- invalid: option invariants and references
+d = deck(kitchen())
+d['optionSets']['KS']['primary'] = 'DA'
+n('options', 'primary-of-another-set', 'The Kitchen set\'s primary is DA, an option of the Deck set: FS-INV-1101 '
+  'names the set and the option, and no design is evaluated.', ['19.1.2', '10.2.1', '10.3.1'], d,
+  [('FS-INV-1101', ['KS', 'DA'])])
+d = kitchen()
+d['optionSets']['KS']['primary'] = 'KC'
+n('options', 'primary-unresolved', 'A set whose primary names no option: FS-INV-002.', ['3.2.1', '19.1.2'], d,
+  [('FS-INV-002', ['KS'])])
+d = kitchen()
+d['options']['KC'] = {'set': 'NOPE'}
+n('options', 'option-set-unresolved', 'An option whose set names no option set: FS-INV-002.', ['3.2.1'], d,
+  [('FS-INV-002', ['KC'])])
+d = kitchen()
+d['walls']['WA']['option'] = 'KZ'
+n('options', 'option-unresolved', 'A wall whose option names no option: FS-INV-002.', ['3.2.1', '19.2.1'], d,
+  [('FS-INV-002', ['WA'])])
+d = kitchen()
+d['options']['W1'] = d['options'].pop('KB')
+for c in ('separators', 'openings'):
+    for e in d[c].values():
+        if e.get('option') == 'KB':
+            e['option'] = 'W1'
+n('options', 'option-id-of-a-wall', 'An option whose ID, W1, is a wall\'s too: IDs are unique across collections, '
+  'option sets and options included. FS-INV-001.', ['3.1.2'], d, [('FS-INV-001', ['W1'])])
+d = kitchen()
+del d['openings']['OA']['option']
+n('options', 'common-opening-in-an-option-wall', 'The door OA is common, but the wall it is in, WA, is only in option '
+  'A: B\'s design would have a door in no wall. FS-INV-1102 names both.', ['19.4.1', '10.2.1'], d,
+  [('FS-INV-1102', ['OA', 'WA'])])
+d = kitchen()
+d['openings']['OB']['wall'] = 'WA'
+d['openings']['OB']['offset'] = 300 * MM
+n('options', 'option-b-opening-in-an-option-a-wall', 'B\'s window in A\'s wall: no design has both. FS-INV-1102.',
+  ['19.4.1'], d, [('FS-INV-1102', ['OB', 'WA'])])
+d = kitchen()
+d['junctions']['S4']['option'] = 'KB'
+n('options', 'common-walls-at-an-option-junction', 'The junction S4 is in option B, and the common walls W7 and W8 end '
+  'at it: FS-INV-1102 once for each, and for SB, which is in B too, nothing.', ['19.4.1'], d,
+  [('FS-INV-1102', ['W7', 'S4']), ('FS-INV-1102', ['W8', 'S4'])])
+d = pantry_wall(kitchen())
+d['openings']['OX'] = {'wall': 'PW', 'offset': 200 * MM, 'width': 800 * MM, 'height': 2000 * MM, 'option': 'KB'}
+n('options', 'reference-into-another-set', 'An opening of kitchen option B in the pantry wall of option PB of another '
+  'set: a design may choose B without PB, so FS-INV-1102.', ['19.4.1'], d, [('FS-INV-1102', ['OX', 'PW'])])
+d = with_elements(kitchen(), {'F1': element(host=wall_face('WA', 'right', 500 * MM, 0), **PIECE)})
+n('options', 'common-element-hosted-on-an-option-wall', 'A common extension element hosted on the face of A\'s wall '
+  'WA: its host reference crosses into an option. FS-INV-1102.', ['19.4.1', '19.2.1'], d,
+  [('FS-INV-1102', ['F1', 'WA'])])
+d = kitchen()
+del d['openings']['OA']['option']
+d['openings']['O1']['fill'] = 'NOPE'
+n('options', 'reference-invariants-first', 'An opening filled by a type that does not exist, and a common door in '
+  'A\'s wall: reference invariants are evaluated first, so only FS-INV-002.', ['10.3.1'], d, [('FS-INV-002', ['O1'])])
+d = kitchen()
+del d['openings']['OA']['option']
+d['rooms']['PANTRY'] = R(4500 * MM, 2000 * MM, option='KB')
+n('options', 'option-invariants-before-designs', 'A common door in A\'s wall, and a pantry room in B that shares B\'s '
+  'kitchen face with KIT: once an option invariant is reported no design is evaluated, so only FS-INV-1102.',
+  ['10.3.1'], d, [('FS-INV-1102', ['OA', 'WA'])])
+
+# ---- invalid: designs
+d = kitchen()
+d['rooms']['PANTRY'] = R(4500 * MM, 2000 * MM, option='KB', name='Pantry')
+n('options', 'error-in-an-option-design', 'A pantry room in option B anchored at x = 4.5 m. B\'s design has the open '
+  'kitchen\'s face from x = 4 m to 8 m, where KIT\'s anchor is too: FS-INV-202, found in B\'s design only, and '
+  'reported with "design": "KB".',
+  ['19.5.1', '19.5.2', '10.2.1'], d, [('FS-INV-202', ['KIT', 'PANTRY'], 'KB')])
+d = kitchen()
+d['rooms']['PANTRY'] = R(4500 * MM, 2000 * MM, option='KB', name='Pantry')
+d['openings']['O1']['offset'] = 3500 * MM
+n('options', 'error-in-every-design', 'The pantry of the last test, and the front door moved to 3500 mm along its '
+  '4 m wall, so it runs past the wall\'s end in every design: FS-INV-302 is reported once, without design, and '
+  'FS-INV-202 with "design": "KB".', ['19.5.2', '10.2.1'], d,
+  [('FS-INV-202', ['KIT', 'PANTRY'], 'KB'), ('FS-INV-302', ['O1'])])
+d = kitchen()
+d['openings']['OA']['offset'] = 3500 * MM
+n('options', 'error-in-the-primary-design', 'A\'s door runs past the end of A\'s wall: found in the primary design '
+  'only, and reported as it is, without design.', ['19.5.1', '19.5.2'], d, [('FS-INV-302', ['OA'])])
+d = kitchen('KB')
+d['openings']['OA']['offset'] = 3500 * MM
+n('options', 'error-in-a-non-primary-option', 'The same door, with B primary: A is checked against it, and the error '
+  'is A\'s design\'s, so it carries "design": "KA" and the document is invalid.', ['19.5.1', '19.5.2'], d,
+  [('FS-INV-302', ['OA'], 'KA')])
+
+# ---- lints
+d = island(kitchen(), 'KB', 6800 * MM, 500 * MM, 800 * MM, 'I')
+n('options', 'lint-in-an-option-design', 'Option B also draws an island of separators in the kitchen: in B\'s design '
+  'the island is an unanchored face, FS-LINT-003, reported with "design": "KB"; the kitchen\'s polygon has a hole '
+  'there in B\'s design only.', ['19.5.2', '6.6.1'], d, [('FS-LINT-003', [], 'KB')])
+d = island(island(kitchen(), 'KB', 6800 * MM, 500 * MM, 800 * MM, 'I'), None, 1000 * MM, 1000 * MM, 500 * MM, 'C')
+n('options', 'lints-counted-against-the-primary', 'B\'s island, and a common square of separators in the dining room: '
+  'the primary design has one unanchored face and B\'s design two. The primary design\'s is reported without design, '
+  'and B\'s design reports one more, with "design": "KB".', ['19.5.2'], d,
+  [('FS-LINT-003', []), ('FS-LINT-003', [], 'KB')])
+d = kitchen()
+d['types']['G2'] = copy.deepcopy(WIN19)
+n('options', 'unused-type-once', 'A window type nothing uses: FS-LINT-006 is of the document, so it is reported once, '
+  'without design.', ['19.5.2'], d, unused('G2'))
+d = kitchen()
+d['optionSets']['DS'] = {'name': 'Deck', 'primary': 'DA'}
+d['options']['DA'] = {'set': 'DS', 'name': 'Deck'}
+n('options', 'option-set-with-one-option', 'A Deck set whose only option is DA, primary: valid, with FS-LINT-018 - '
+  'there is nothing to choose between.', ['19.8.1'], d, [('FS-LINT-018', ['DS'])])
+
+# ---- extension elements in options
+# A fridge 900 mm wide and 750 mm deep, its frame's origin at the middle of its front, its body behind it (-y)
+# and the space its door needs, 900 mm deep, in front of it (+y).
+FRIDGE = dict(size=(900 * MM, 750 * MM, 1800 * MM), origin=(-450 * MM, -750 * MM, 0),
+              clearances={'door': {'purpose': 'access', 'shape': 'box', 'min': [-450 * MM, 0, 0],
+                                   'max': [450 * MM, 900 * MM, 1800 * MM]}})
+d = with_elements(kitchen(), {
+    'FA': element(host=free(7200 * MM, 2500 * MM, 90_000_000), option='KA', **FRIDGE),
+    'FB': element(host=free(7450 * MM, 3200 * MM, 180_000_000), option='KB', **FRIDGE)})
+n('options', 'fridge-in-each-option', 'A fridge in each kitchen option, each with the clearance its door needs: A\'s '
+  'stands against the east wall, B\'s against the north wall. Only A\'s is derived - its fallback, placement and '
+  'clearance - and each option\'s members name its fridge.', ['19.2.1', '19.3.1', '19.6.3', '12.6.2', '13.5.2'], d)
+n('options', 'fridge-in-design-b', 'The fridges, deriving B\'s design: B\'s fridge, and not A\'s.',
+  ['19.3.1', '19.6.1', '12.6.2'], d, design={'KS': 'KB'})
+
+# ---- schema
+def osch(slug, description, covers, mut, inp=None):
+    d = copy.deepcopy(inp) if inp is not None else kitchen()
+    mut(d)
+    n('options', slug, description, covers, d, SCH)
+
+
+osch('option-on-a-level', 'A level in an option: levels are not.', ['19.2.1'],
+     lambda d: d['levels']['L1'].update(option='KA'))
+osch('option-on-a-type', 'A type in an option: types are a library, not an alternative.', ['19.2.1'],
+     lambda d: d['types']['D'].update(option='KA'))
+osch('option-on-a-building', 'A building in an option.', ['19.2.1'], lambda d: d['buildings']['B1'].update(option='KA'))
+osch('option-on-a-program-item', 'A program item in an option: the program is every design\'s brief.', ['19.2.1'],
+     lambda d: d.update(program={'items': {'P1': {'function': 'kitchen', 'option': 'KA'}}}))
+osch('option-on-an-option', 'An option in an option: options are not nested.', ['19.2.1'],
+     lambda d: d['options']['KB'].update(option='KA'))
+osch('option-on-an-option-set', 'An option set in an option.', ['19.2.1'],
+     lambda d: d['optionSets']['KS'].update(option='KA'))
+osch('option-not-an-id', 'An element\'s option that is a number, not a reference.', ['3.2.3', '19.2.1'],
+     lambda d: d['walls']['WA'].update(option=1))
+osch('option-set-without-primary', 'An option set with no primary.', ['19.1.1'],
+     lambda d: d['optionSets']['KS'].pop('primary'))
+osch('option-without-set', 'An option of no set.', ['19.1.1'], lambda d: d['options']['KB'].pop('set'))
+osch('option-unknown-member', 'An option with an "order" member, which its table does not have.', ['19.1.1', '1.4.1'],
+     lambda d: d['options']['KB'].update(order=2))
+osch('option-set-options-member', 'An option set that lists its options: a set\'s options are the options that name '
+     'it, and a set has no "options" member.', ['19.1.1', '1.4.1'],
+     lambda d: d['optionSets']['KS'].update(options=['KA', 'KB']))
+d = copy.deepcopy(as_02('version-0.2-with-everything'))
+d['optionSets'] = {'KS': {'primary': 'KA'}}
+d['options'] = {'KA': {'set': 'KS'}}
+n('options', '0.2-document-with-option-sets', 'A document that declares "0.2" with option sets and options, which 0.3 '
+  'adds: Core 0.2\'s schema has neither.', ['1.2.6', '1.1.2'], d, SCH)
+
+# ---- examples
+d = with_elements(kitchen(), {
+    'FA': element(host=free(7200 * MM, 2500 * MM, 90_000_000), option='KA', **FRIDGE),
+    'FB': element(host=free(7450 * MM, 3200 * MM, 180_000_000), option='KB', **FRIDGE)})
+d = deck(d)
+n('examples', 'kitchen-options', 'The Phase 8 exit demo\'s house: kitchen option A, closed off with a door, and B, '
+  'open to the dining room with a window over the sink, each with its fridge and the clearance its door needs; and a '
+  'deck, or none. The primary design is derived; `options` sets A and B side by side - each one\'s rooms and their '
+  'areas, and what in the common plan changes between them.', ['19.6.1', '19.6.3', '19.5.1'], d)
 
 NEW = list(TESTS)
 del TESTS[:]

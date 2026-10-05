@@ -12,11 +12,13 @@ recomputed (and rewritten with --write), and every committed result is checked f
 For every test directory under conformance/core/<v> - read as a Core <v> reader reads it: 0.1
 alone; 0.2, which also reads 0.1 documents; 0.3, which also reads 0.1 and 0.2 documents (1.2.6) -
 configured with the test's registry.json as its known extensions when the test has one (12.2),
-it recomputes, from input.json (and registry.json) alone:
+and deriving the design its design.json names when it has one (Core 0.3, 19.6), it recomputes, from
+input.json (and registry.json and design.json) alone:
 
 - `valid` and `diagnostics` - these are written by hand and only ever cross-checked here; --write
   never changes them, so a disagreement is always reported for a person to resolve;
-- `hash`, `derived` and canonical.json - present exactly when the document is valid;
+- `hash` and canonical.json - present exactly when the document is valid - and `derived`, present
+  when it is valid and the design is one Core derives (19.6.2);
 
 and, for every valid document, that its canonical form is itself valid, canonicalizes to the same
 bytes, has the same hash and derives exactly the same values (9.2.2).
@@ -56,6 +58,15 @@ def reader_for(path: str):
     return reader, registry
 
 
+def design_for(path: str):
+    """The design a test derives (Core 0.3, 19.6): its design.json, or None for the primary design."""
+    dp = os.path.join(path, 'design.json')
+    if not os.path.exists(dp):
+        return None
+    with open(dp, encoding='utf-8') as f:
+        return json.load(f)
+
+
 def verify(path: str, write: bool, extensions=None) -> list[str]:
     """One Core-format test. ``extensions``: the official extensions the reader implements (an
     extension suite's tests), or None for a core-only reader (the Core suites)."""
@@ -73,7 +84,8 @@ def verify(path: str, write: bool, extensions=None) -> list[str]:
     reader, registry = reader_for(path)
     if extensions is not None:
         reader = ext_reader(data)
-    result, canonical, notes = check(data, reader, registry, extensions)
+    design = design_for(path)
+    result, canonical, notes = check(data, reader, registry, extensions, design)
     exp_path = os.path.join(path, 'expected.json')
     try:
         with open(exp_path, encoding='utf-8') as f:
@@ -113,7 +125,7 @@ def verify(path: str, write: bool, extensions=None) -> list[str]:
             errors.append('canonical.json differs from the oracle' if canonical is not None and on_disk is not None
                           else 'canonical.json must exist exactly when the document is valid')
     if canonical is not None:
-        again, canonical2, _ = check(canonical, reader, registry, extensions)
+        again, canonical2, _ = check(canonical, reader, registry, extensions, design)
         if not again['valid'] or canonical2 != canonical:
             errors.append('the canonical form does not canonicalize to itself')
         elif again.get('hash') != result.get('hash') or again.get('derived') != result.get('derived'):

@@ -54,6 +54,9 @@ reference is its referring element:
 | Extension element | `fallback.level` | a level (12.6) |
 | Extension element | `fallback.asset`, `fallback.symbol` | an asset |
 | Stair | `level`, `to` | a level (17.1) |
+| Option | `set` | an option set (19.1) |
+| Option set | `primary` | an option (19.1) |
+| Junction, Wall, Separator, Opening, Room, Slab, Roof, Stair, Extension element | `option` | an option (19.2) |
 
 A reference MUST be a string that matches the ID pattern of 3.1. {#FS-CORE-3.2.3 MUST}
 
