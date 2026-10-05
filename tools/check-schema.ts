@@ -1,6 +1,6 @@
 /**
  * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5) and 0.2, Floorspec Ops 0.1
- * (FLR-T-2.1) and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
+ * (FLR-T-2.1) and 0.2, and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
  *
  *   1. every schema file compiles under ajv's strict mode, and every `required` name is declared;
  *   2. every `default` validates against the subschema it sits in;
@@ -9,9 +9,10 @@
  *      input when the expected diagnostics are exactly [FS-SCH-001], and accepts it otherwise. The
  *      0.2 suite is checked as a 0.2 reader checks it - a document declaring "0.1" against 0.1's
  *      schema (FS-CORE-1.2.4) - and its registry.json files against the registry entry schema;
- *   4. the Ops request schema agrees with the Ops suite: it rejects a test's request exactly when
- *      the expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
- *      matches the Core schema.
+ *   4. each Ops request schema agrees with its suite: it rejects a test's request exactly when the
+ *      expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
+ *      matches the Core schema of the draft that Ops draft operates on - Ops 0.1's documents
+ *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's).
  *
  *   pnpm schema:check
  */
@@ -29,7 +30,9 @@ import {
   defaults,
   formatErrors,
   loadSchemaFiles,
-  opsSchemaDir,
+  OPS_CORE,
+  OPS_VERSIONS,
+  opsSchemaDirOf,
   requestValidator,
   rootValidator,
   undefinedRequired,
@@ -77,7 +80,7 @@ function compile(label: string, files: SchemaFile[]) {
 const cores = Object.fromEntries(
   CORE_VERSIONS.map((v) => [v, rootValidator(compile(`core/${v}`, loadSchemaFiles(coreSchemaDir(v))), coreRootId(v))]),
 ) as Record<(typeof CORE_VERSIONS)[number], ReturnType<typeof rootValidator>>;
-const opsAjv = compile('ops', loadSchemaFiles(opsSchemaDir));
+const opsAjv = Object.fromEntries(OPS_VERSIONS.map((v) => [v, compile(`ops/${v}`, loadSchemaFiles(opsSchemaDirOf(v)))]));
 const registry = rootValidator(compile('registry/0.1', loadSchemaFiles(registrySchemaDir)), REGISTRY_ID);
 
 // 3. The Core suites: 0.1 as a 0.1 reader checks it, 0.2 as a 0.2 reader does.
@@ -91,10 +94,14 @@ for (const v of CORE_VERSIONS) {
   );
 }
 
-// 4. The Ops suite: requests against the request schema, documents A against the Core 0.1 schema.
-const ops = checkOpsSuite(join(root, 'conformance', 'ops', '0.1'), requestValidator(opsAjv), cores['0.1'], root);
-problems.push(...ops.problems);
-console.log(`schema: ops: ${ops.checked} conformance request${ops.checked === 1 ? '' : 's'} checked against the request schema`);
+// 4. The Ops suites: requests against their draft's request schema, documents A against the Core
+// schema of the draft it operates on.
+for (const v of OPS_VERSIONS) {
+  const core = OPS_CORE[v] === '0.1' ? cores['0.1'] : versionedValidator(cores);
+  const ops = checkOpsSuite(join(root, 'conformance', 'ops', v), requestValidator(opsAjv[v], v), core, root);
+  problems.push(...ops.problems);
+  console.log(`schema: ops/${v}: ${ops.checked} conformance request${ops.checked === 1 ? '' : 's'} checked against the request schema`);
+}
 
 if (problems.length) fail();
 console.log('schema check passed');

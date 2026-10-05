@@ -1,8 +1,9 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
  * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1 and
- * 0.2), Floorspec Ops 0.1's apply-request schema, whose rejections are FS-OPS-001, and the
- * registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its tests.
+ * 0.2), Floorspec Ops's apply-request schemas for each draft (0.1 and 0.2), whose rejections are
+ * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
+ * tests.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -25,9 +26,21 @@ export const schemaDir = coreSchemaDir('0.1');
 export const REGISTRY_ID = 'https://d3cloud.io/floorspec/schema/registry/0.1/extension.schema.json';
 export const registrySchemaDir = join(import.meta.dirname, '..', 'schema', 'registry', '0.1');
 
-export const OPS_SCHEMA_BASE = 'https://d3cloud.io/floorspec/schema/ops/0.1/';
-export const OPS_ROOT_ID = `${OPS_SCHEMA_BASE}request.schema.json`;
-export const opsSchemaDir = join(import.meta.dirname, '..', 'schema', 'ops', '0.1');
+/** The Ops drafts this repository publishes, oldest first. */
+export const OPS_VERSIONS = ['0.1', '0.2'] as const;
+export type OpsVersion = (typeof OPS_VERSIONS)[number];
+/** The draft the spec text in spec/ops/ is. */
+export const CURRENT_OPS: OpsVersion = '0.2';
+/** The Core draft each Ops draft operates on: its document A is valid under that draft's reader. */
+export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2' };
+
+export const opsSchemaBase = (v: OpsVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
+export const opsRootId = (v: OpsVersion) => `${opsSchemaBase(v)}request.schema.json`;
+export const opsSchemaDirOf = (v: OpsVersion) => join(import.meta.dirname, '..', 'schema', 'ops', v);
+
+export const OPS_SCHEMA_BASE = opsSchemaBase('0.1');
+export const OPS_ROOT_ID = opsRootId('0.1');
+export const opsSchemaDir = opsSchemaDirOf('0.1');
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -101,10 +114,11 @@ export function versionedValidator(validators: Record<CoreVersion, ValidateFunct
   return f;
 }
 
-/** The validator of a Floorspec Ops 0.1 apply request. */
-export function requestValidator(ajv = createAjv(loadSchemaFiles(opsSchemaDir))): ValidateFunction {
-  const validate = ajv.getSchema(OPS_ROOT_ID);
-  if (!validate) throw new Error(`schema ${OPS_ROOT_ID} is not loaded`);
+/** The validator of a Floorspec Ops apply request, of one draft (0.1 by default). */
+export function requestValidator(ajv?: Ajv2020, v: OpsVersion = '0.1'): ValidateFunction {
+  const id = opsRootId(v);
+  const validate = (ajv ?? createAjv(loadSchemaFiles(opsSchemaDirOf(v)))).getSchema(id);
+  if (!validate) throw new Error(`schema ${id} is not loaded`);
   return validate;
 }
 
@@ -267,7 +281,7 @@ export function checkSuite(suite: string, validate = rootValidator(), base = sui
 }
 
 /**
- * Checks the Ops request schema against the Ops conformance suite (conformance/ops/0.1). For every
+ * Checks an Ops request schema against its Ops conformance suite (conformance/ops/<v>). For every
  * test, the schema must reject request.json - which may not even be JSON - exactly when the
  * expected diagnostics are [FS-OPS-001], and accept it otherwise. And document A, input.json, must
  * match the Core schema in every test that does not expect FS-OPS-002 (A is valid there).
