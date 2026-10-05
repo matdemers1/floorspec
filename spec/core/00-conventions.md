@@ -42,6 +42,7 @@ Floorspec Core 0.3 places requirements on these kinds of thing:
 | **Package validator** | a validator that is also given the files of the document's package (18.4) | check every packaged asset against its file, as well (18.4) |
 | **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–18, for the design asked for (19.6) |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
+| **Migrator** | software that migrates a document to a later draft (chapter 20) | write exactly the migration chapter 20 defines, and refuse what it refuses |
 
 One program is usually several of these. The conformance suite tests each class separately; the
 reference implementation, D3 Floorspec, claims all of them.
@@ -182,6 +183,16 @@ And design options (chapter 19):
   every option of a set with the primary design (19.6); exports of one design (19.7);
 - the diagnostics `FS-INV-1101`, `FS-INV-1102` and `FS-LINT-017` (chapter 10), and Annex A's
   `Floorspec_Design`.
+
+And migration (chapter 20):
+
+- the **migration** of a 0.1 or 0.2 document to a later draft: a deterministic function of the
+  document and the target, made of one step per draft, that rewrites only the version declaration
+  and moves, into a record in `extras`, the members whose meaning the later draft changed — so that a
+  reader of the target reads the migration exactly as it reads the document (20.6); a **migrator**
+  conformance class (0.2) and its diagnostics `FS-MIG-001` and `FS-MIG-002` (20.8);
+- the policy that every major version ships a normative migration from the one before it and a
+  reference migrator, and that a reader of a major reads the one before it (20.7).
 
 A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
 its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read

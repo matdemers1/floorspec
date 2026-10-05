@@ -152,7 +152,7 @@ def references(d: dict):
                     out.append(('ext', eid, host[member], target, None))
         fb = el['fallback']
         out.append(('ext', eid, fb['level'], 'levels', None))
-        if 'option' in el:                                      # Core 0.3, 19.2
+        if 'option' in el and d.get('floorspec') == '0.3':      # Core 0.3, 19.2 - in 0.2, the extension's own (1.2.6)
             out.append(('ext', eid, el['option'], 'options', None))
         for member in ('asset', 'symbol'):
             if member in fb:

@@ -61,7 +61,8 @@ for (const spec of ['core', 'ops', 'rules'] as const) {
   };
   const draft = drafts[spec];
   const suiteDir = draft ? join(root, 'conformance', spec, draft.current) : join(root, 'conformance', spec);
-  const cases = tests(suiteDir);
+  // Core's migration (chapter 20) has a suite of its own, gated with the current draft's.
+  const cases = [...tests(suiteDir), ...(spec === 'core' && draft ? tests(join(root, 'conformance', 'migration', draft.current)) : [])];
   if (draft) {
     const name = { core: 'Core', ops: 'Ops', rules: 'Rules' }[spec];
     const gone = retired(root, spec);
