@@ -12,11 +12,12 @@ transaction. An **apply request** is the JSON object
 
 where `context` is optional: `locks` are the locks in force (chapter 6), and `retired` lists IDs
 that once existed in this document's history and therefore are never minted again (1.5). The
-JSON Schema `schema/ops/0.2/request.schema.json` gives the shape of an apply request: every
+JSON Schema `schema/ops/0.3/request.schema.json` gives the shape of an apply request: every
 operation, every member each has, and the JSON type of each member. Ops 0.3 adds no operation and
-no member, so the schema of Ops 0.2 is its own (0.4).
+no member; its schema is Ops 0.2's, except that `addElement` may also add to Core 0.3's `roofs`
+(0.4).
 
-An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.2 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.2 MUST}
+An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.3 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.3 MUST}
 Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`
 and `by` (4.5), `addLevel`'s `elevation`, `above` and `below` (4.8), a wall-face host's `side`
 and `toward` (4.10) — an operation with none of them, or with more than one, does not have
@@ -107,7 +108,7 @@ mints one: the element's **prefix** followed by a decimal integer.
 | `walls` | `W` | `separators` | `S` |
 | `types` | `T` | `materials` | `M` |
 | `assets` | `A` | the program's `items` | `P` |
-| every extension collection | `X` | | |
+| every extension collection | `X` | `roofs` | `RF` |
 
 The integer is one more than the largest *n* among the IDs that match `^<prefix>[0-9]+$` — the IDs
 of every element in A (0.3), of every element in the working copy as it stands, every ID named or
@@ -140,7 +141,7 @@ primitives in this order:
    value differs or that A has and B lacks, and `unsetProperty` for each that B has and A lacks,
    by member name;
 2. `removeElement` (without `cascade`) for every element in B and not in A, in the order
-   extension elements, openings, rooms, slabs, separators, walls, junctions, program items,
+   extension elements, openings, rooms, slabs, roofs, separators, walls, junctions, program items,
    levels, buildings, types, materials, assets — the extension collections ordered by extension
    name and then collection name — and by ID within a collection;
 3. `addElement` for every element in A and not in B, in the reverse of that collection order, and
@@ -155,7 +156,7 @@ primitives in this order:
    A, in canonical form, is compared not with B but with the document that applying steps 1 to 3
    to B leaves, as it is.
 
-Two elements are in the same collection when both are in one of the eleven collections, both are
+Two elements are in the same collection when both are in one of the twelve collections, both are
 program items, or both are in the same collection of the same extension; an element that moved
 between collections in the batch is removed from where it is in B and added where it is in A.
 Step 4's comparison is what restores what is not an element: the program's adjacencies, an

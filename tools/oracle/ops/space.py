@@ -17,7 +17,7 @@ Only well-formed containers are read: a collection that is not an object holds n
 from __future__ import annotations
 
 from .faces import coll
-from .request import COLLECTIONS
+from .request import collections
 from .version import Profile
 
 ITEMS = 'items'
@@ -67,7 +67,7 @@ def ext_elements(doc: dict, profile: Profile):
 def places(doc: dict, profile: Profile):
     """(place, container) for every place an element can be, in a fixed order: the eleven
     collections, the program's items, then the extension collections."""
-    out = [((c,), coll(doc, c)) for c in COLLECTIONS]
+    out = [((c,), coll(doc, c)) for c in collections(profile)]
     if profile.v02 and declares_02(doc, profile):
         out.append(((ITEMS,), items(doc, profile)))
         out.extend(((EXT, x, c), coll_) for x, c, coll_ in ext_collections(doc, profile))

@@ -1,6 +1,6 @@
 /**
  * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5), 0.2 and 0.3, Floorspec Ops 0.1
- * (FLR-T-2.1) and 0.2, and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
+ * (FLR-T-2.1), 0.2 and 0.3, and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
  *
  *   1. every schema file compiles under ajv's strict mode, and every `required` name is declared;
  *   2. every `default` validates against the subschema it sits in;
@@ -14,7 +14,7 @@
  *      expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
  *      matches the Core schema of the draft that Ops draft operates on - Ops 0.1's documents
  *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's),
- *      Ops 0.3's - against the 0.2 request schema, which is its own - as a Core 0.3 reader does.
+ *      Ops 0.3's - against its own request schema, 0.2's with Core 0.3's `roofs` - as a Core 0.3 reader does.
  *
  *   5. every extension in registry/ - its entry, its schema, and its suite (conformance/ext/), as
  *      checkExtensionSuite says;

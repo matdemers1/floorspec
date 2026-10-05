@@ -1,0 +1,2096 @@
+[
+  {
+    "name": "every primitive",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "rooms",
+          "element": {}
+        },
+        {
+          "op": "addElement",
+          "collection": "assets",
+          "id": "A1",
+          "element": {
+            "x": 1
+          }
+        },
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            "1'"
+          ]
+        },
+        {
+          "op": "addJunction",
+          "id": "J9",
+          "level": "L1",
+          "position": "J1",
+          "join": {
+            "kind": "mitre"
+          }
+        },
+        {
+          "op": "addWall",
+          "level": "L1",
+          "start": "J1",
+          "end": "J2",
+          "type": "WT",
+          "layers": [],
+          "justification": "center",
+          "base": {},
+          "top": {},
+          "name": "n",
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "addSeparator",
+          "id": "S1",
+          "level": "L1",
+          "start": "J1",
+          "end": "J2"
+        },
+        {
+          "op": "removeElement",
+          "id": "W1"
+        },
+        {
+          "op": "removeElement",
+          "id": "W1",
+          "cascade": false
+        },
+        {
+          "op": "setProperty",
+          "id": "$site",
+          "path": "",
+          "value": null
+        },
+        {
+          "op": "unsetProperty",
+          "id": "R1",
+          "path": "/name"
+        },
+        {
+          "op": "moveJunction",
+          "id": "start of W1",
+          "to": "2' east of J1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "every composite",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "drawWall",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": "J2",
+          "id": "W9",
+          "type": "WT",
+          "layers": [],
+          "justification": "x",
+          "base": 1,
+          "top": 2,
+          "name": 3
+        },
+        {
+          "op": "drawSeparator",
+          "level": "L1",
+          "from": "J1",
+          "to": [
+            1,
+            2
+          ],
+          "id": "S9"
+        },
+        {
+          "op": "moveWall",
+          "wall": "W1",
+          "by": 5
+        },
+        {
+          "op": "moveWall",
+          "wall": "W1",
+          "by": "2'",
+          "toward": "Kitchen"
+        },
+        {
+          "op": "moveRoom",
+          "room": "R1",
+          "by": "1' north"
+        },
+        {
+          "op": "moveRoom",
+          "room": "R1",
+          "by": [
+            1,
+            "2\""
+          ]
+        },
+        {
+          "op": "resizeRoom",
+          "room": "R1",
+          "side": "west",
+          "by": "-2'"
+        },
+        {
+          "op": "addOpening",
+          "wall": "W1",
+          "at": "centered",
+          "id": "O9",
+          "fill": "D",
+          "width": 1,
+          "height": "2\"",
+          "sill": 0,
+          "hinge": "start",
+          "swing": "left",
+          "name": "Door"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": 0
+        },
+        {
+          "op": "addRoom",
+          "level": "L1",
+          "at": [
+            0,
+            0
+          ],
+          "id": "R9",
+          "name": "n",
+          "function": "kitchen",
+          "wallFinish": "M",
+          "floorFinish": "M",
+          "ceilingFinish": "M"
+        },
+        {
+          "op": "setRoomFinish",
+          "room": "R1",
+          "surface": "ceiling",
+          "material": "M1"
+        },
+        {
+          "op": "removeWall",
+          "wall": "W1"
+        },
+        {
+          "op": "removeWall",
+          "wall": "W1",
+          "keep": "R1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "every context member",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "element": "R1"
+          },
+          {
+            "length": "W1"
+          },
+          {
+            "distance": [
+              "W1",
+              "W2"
+            ]
+          }
+        ],
+        "retired": [
+          "W7"
+        ]
+      }
+    }
+  },
+  {
+    "name": "empty context",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {}
+    }
+  },
+  {
+    "name": "content may be any JSON",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "setProperty",
+          "id": "W1",
+          "path": "/extras/x",
+          "value": [
+            1.5,
+            {
+              "a": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "not an object",
+    "malformed": true,
+    "request": [
+      {
+        "op": "removeElement",
+        "id": "W1"
+      }
+    ]
+  },
+  {
+    "name": "no batch",
+    "malformed": true,
+    "request": {
+      "context": {}
+    }
+  },
+  {
+    "name": "empty batch",
+    "malformed": true,
+    "request": {
+      "batch": []
+    }
+  },
+  {
+    "name": "batch is an object",
+    "malformed": true,
+    "request": {
+      "batch": {
+        "op": "removeElement",
+        "id": "W1"
+      }
+    }
+  },
+  {
+    "name": "unknown request member",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "x": 1
+    }
+  },
+  {
+    "name": "operation not an object",
+    "malformed": true,
+    "request": {
+      "batch": [
+        "removeElement"
+      ]
+    }
+  },
+  {
+    "name": "no op",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "id": "W1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown op",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "splitWall",
+          "wall": "W1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "op not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing member",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown member",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1",
+          "why": "x"
+        }
+      ]
+    }
+  },
+  {
+    "name": "shorthand with name",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            0
+          ],
+          "name": "Post"
+        }
+      ]
+    }
+  },
+  {
+    "name": "separator with type",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addSeparator",
+          "level": "L1",
+          "start": "J1",
+          "end": "J2",
+          "type": "WT"
+        }
+      ]
+    }
+  },
+  {
+    "name": "drawWall with extras",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "drawWall",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ],
+          "extras": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown collection",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "optionSets",
+          "element": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "addElement into roofs (Core 0.3)",
+    "malformed": false,
+    "new03": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "roofs",
+          "id": "RF1",
+          "element": {
+            "level": "L1",
+            "footprint": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "element not an object",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "rooms",
+          "element": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "id not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": 7
+        }
+      ]
+    }
+  },
+  {
+    "name": "cascade not a boolean",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1",
+          "cascade": "true"
+        }
+      ]
+    }
+  },
+  {
+    "name": "length is a float",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveWall",
+          "wall": "W1",
+          "by": 2.5
+        }
+      ]
+    }
+  },
+  {
+    "name": "length is null",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveWall",
+          "wall": "W1",
+          "by": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "point of three",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveJunction",
+          "id": "J1",
+          "to": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "point of one",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveJunction",
+          "id": "J1",
+          "to": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "point coordinate a float",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveJunction",
+          "id": "J1",
+          "to": [
+            0,
+            0.5
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "point an object",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveJunction",
+          "id": "J1",
+          "to": {
+            "x": 0,
+            "y": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "vector a number",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveRoom",
+          "room": "R1",
+          "by": 5
+        }
+      ]
+    }
+  },
+  {
+    "name": "position a float",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": 1.5
+        }
+      ]
+    }
+  },
+  {
+    "name": "side not a side",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "resizeRoom",
+          "room": "R1",
+          "side": "North",
+          "by": 1
+        }
+      ]
+    }
+  },
+  {
+    "name": "surface not a surface",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setRoomFinish",
+          "room": "R1",
+          "surface": "floors",
+          "material": "M1"
+        }
+      ]
+    }
+  },
+  {
+    "name": "material not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setRoomFinish",
+          "room": "R1",
+          "surface": "floor",
+          "material": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "fill not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addOpening",
+          "wall": "W1",
+          "at": 0,
+          "fill": 3
+        }
+      ]
+    }
+  },
+  {
+    "name": "path not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "unsetProperty",
+          "id": "R1",
+          "path": [
+            "name"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "context not an object",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": []
+    }
+  },
+  {
+    "name": "unknown context member",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "user": "x"
+      }
+    }
+  },
+  {
+    "name": "locks not an array",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": {
+          "element": "W1"
+        }
+      }
+    }
+  },
+  {
+    "name": "lock of two kinds",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "element": "W1",
+            "length": "W1"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "lock of no kind",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {}
+        ]
+      }
+    }
+  },
+  {
+    "name": "lock of unknown kind",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "angle": "W1"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "distance of one wall",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "distance": [
+              "W1"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "distance of three walls",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "distance": [
+              "W1",
+              "W2",
+              "W3"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "element lock not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "locks": [
+          {
+            "element": 1
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "retired not strings",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "retired": [
+          1
+        ]
+      }
+    }
+  },
+  {
+    "name": "retired not an array",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeElement",
+          "id": "W1"
+        }
+      ],
+      "context": {
+        "retired": "W1"
+      }
+    }
+  },
+  {
+    "name": "junction with type",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addJunction",
+          "level": "L1",
+          "position": [
+            0,
+            0
+          ],
+          "type": "WT"
+        }
+      ]
+    }
+  },
+  {
+    "name": "drawSeparator with layers",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "drawSeparator",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ],
+          "layers": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "moveOpening with name",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": 0,
+          "name": "x"
+        }
+      ]
+    }
+  },
+  {
+    "name": "room and opening with common members",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "addRoom",
+          "level": "L1",
+          "at": [
+            0,
+            0
+          ],
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "addOpening",
+          "wall": "W1",
+          "at": 0,
+          "width": 1,
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "drawSeparator",
+          "level": "L1",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            1
+          ],
+          "name": "n",
+          "extras": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "moveOpening by and toward",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": -5,
+          "toward": "start"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "2'",
+          "toward": "end"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "north"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "south"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "east"
+        },
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "west"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening with at and by",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": 0,
+          "by": 0
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening with neither at nor by",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening toward without by",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "at": "centered",
+          "toward": "east"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening toward not a direction",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "up"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening toward a side in capitals",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": "1'",
+          "toward": "East"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "moveOpening by a float",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveOpening",
+          "opening": "O1",
+          "by": 1.5
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel every form",
+    "malformed": false,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "elevation": 0
+        },
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "elevation": "-8'",
+          "id": "L0",
+          "name": "Basement",
+          "extensions": {},
+          "extras": {}
+        },
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "above": "L1"
+        },
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "below": "Basement"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel with elevation and above",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "elevation": 0,
+          "above": "L1"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel with above and below",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "above": "L1",
+          "below": "L1"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel with no elevation",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel without height",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "elevation": 0
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel without building",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "height": 1,
+          "elevation": 0
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel above not a string",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "above": 1
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel height a float",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": 2.5,
+          "elevation": 0
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addLevel with an unknown member",
+    "malformed": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addLevel",
+          "building": "B1",
+          "height": "8'",
+          "elevation": 0,
+          "function": "attic"
+        }
+      ]
+    },
+    "new": true
+  },
+  {
+    "name": "addElement into items",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "items",
+          "id": "KIT",
+          "element": {
+            "function": "kitchen"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "addElement into an extension collection",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "addElement into an unknown collection without extension",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "collection": "devices",
+          "element": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "addElement extension not a string",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addElement",
+          "extension": 1,
+          "collection": "devices",
+          "element": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "setAdjacency every member",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setAdjacency",
+          "a": "Kitchen",
+          "b": "item Dining",
+          "kind": "required",
+          "weight": 8
+        }
+      ]
+    }
+  },
+  {
+    "name": "setAdjacency weight any JSON",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setAdjacency",
+          "a": "P1",
+          "b": "P2",
+          "kind": "preferred",
+          "weight": "high"
+        }
+      ]
+    }
+  },
+  {
+    "name": "setAdjacency without kind",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setAdjacency",
+          "a": "P1",
+          "b": "P2"
+        }
+      ]
+    }
+  },
+  {
+    "name": "setAdjacency kind not a kind",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setAdjacency",
+          "a": "P1",
+          "b": "P2",
+          "kind": "maybe"
+        }
+      ]
+    }
+  },
+  {
+    "name": "removeAdjacency",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeAdjacency",
+          "a": "P1",
+          "b": "P2",
+          "kind": "forbidden"
+        }
+      ]
+    }
+  },
+  {
+    "name": "removeAdjacency with weight",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "removeAdjacency",
+          "a": "P1",
+          "b": "P2",
+          "kind": "forbidden",
+          "weight": 5
+        }
+      ]
+    }
+  },
+  {
+    "name": "addRoom with brief",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addRoom",
+          "level": "L1",
+          "at": [
+            0,
+            0
+          ],
+          "brief": "Kitchen"
+        }
+      ]
+    }
+  },
+  {
+    "name": "addRoom brief not a string",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addRoom",
+          "level": "L1",
+          "at": [
+            0,
+            0
+          ],
+          "brief": [
+            "P1"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "setRoomBrief",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setRoomBrief",
+          "room": "Den",
+          "item": "Study"
+        }
+      ]
+    }
+  },
+  {
+    "name": "setRoomBrief without item",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "setRoomBrief",
+          "room": "Den"
+        }
+      ]
+    }
+  },
+  {
+    "name": "addProgramItem every member",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addProgramItem",
+          "id": "BED",
+          "function": "bedroom",
+          "name": "Bedroom",
+          "count": 3,
+          "targetArea": 20000000000000,
+          "minArea": "11 m2",
+          "level": "L1",
+          "extensions": {},
+          "extras": {}
+        }
+      ]
+    }
+  },
+  {
+    "name": "addProgramItem without function",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addProgramItem",
+          "name": "Bedroom"
+        }
+      ]
+    }
+  },
+  {
+    "name": "addProgramItem area a float",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addProgramItem",
+          "function": "bedroom",
+          "minArea": 1.5
+        }
+      ]
+    }
+  },
+  {
+    "name": "addProgramItem with an unknown member",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "addProgramItem",
+          "function": "bedroom",
+          "maxArea": "20 m2"
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement on a wall face by side",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "left",
+            "at": "2' from start",
+            "height": "12\""
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement on a wall face toward a room",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "id": "OUT1",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "W1",
+            "toward": "Kitchen",
+            "at": "centered",
+            "height": 400000
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement wall face with side and toward",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "left",
+            "at": "2' from start",
+            "height": "12\"",
+            "toward": "Kitchen"
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement wall face with neither side nor toward",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "at": "2' from start",
+            "height": "12\""
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement wall face side not a side",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "north",
+            "at": "2' from start",
+            "height": "12\""
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement wall face height a float",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_electrical",
+          "collection": "devices",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "left",
+            "at": "2' from start",
+            "height": 0.5
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement on a floor, turned",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "surface",
+            "room": "Bath",
+            "surface": "floor",
+            "at": [
+              "3'",
+              "2'"
+            ],
+            "rotation": 90000000
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement on a surface that is not floor or ceiling",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "surface",
+            "room": "Bath",
+            "surface": "wall",
+            "at": [
+              0,
+              0
+            ]
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement free",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "free",
+            "level": "L1",
+            "at": "3' east of J1"
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement free with a room",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "free",
+            "level": "L1",
+            "room": "Bath",
+            "at": [
+              0,
+              0
+            ]
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement unknown host mode",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "ceilingHung",
+            "room": "Bath",
+            "at": [
+              0,
+              0
+            ]
+          },
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement host not an object",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": "W1",
+          "element": {
+            "fallback": {
+              "box": {
+                "min": [
+                  0,
+                  -1,
+                  0
+                ],
+                "max": [
+                  1,
+                  1,
+                  1
+                ]
+              }
+            },
+            "device": "receptacle"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "placeElement without element",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "placeElement",
+          "extension": "FS_furniture",
+          "collection": "pieces",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "left",
+            "at": "2' from start",
+            "height": "12\""
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "moveElement",
+    "malformed": false,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveElement",
+          "element": "Sofa",
+          "host": {
+            "mode": "free",
+            "level": "L1",
+            "at": [
+              0,
+              0
+            ],
+            "rotation": -90000000
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "moveElement with extension",
+    "malformed": true,
+    "new": true,
+    "request": {
+      "batch": [
+        {
+          "op": "moveElement",
+          "element": "X1",
+          "extension": "FS_furniture",
+          "host": {
+            "mode": "wallFace",
+            "wall": "north wall of Kitchen",
+            "side": "left",
+            "at": "2' from start",
+            "height": "12\""
+          }
+        }
+      ]
+    }
+  }
+]

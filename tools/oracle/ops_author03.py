@@ -5,13 +5,16 @@
 
 The suite is the Ops 0.2 suite, carried forward to 0.3 - every 0.2 test, in the same group under
 the same number, on the same documents A: Ops 0.3 applies to Core 0.2 and 0.1 documents exactly as
-Ops 0.2 did (0.4). It retires no statement, so every test covers what it covered. After them come
+Ops 0.2 did (0.4). It retires one statement, FS-OPS-1.1.2 - a request now has the shape schema/ops/0.3
+gives it, which may add a roof - so a test that covered it covers FS-OPS-1.1.3; every other test
+covers what it covered. After them come
 the five tests that pin what the Ops text says as the oracle does (1.5, 3.3, 4.2, 4.10), declared
 after Ops 0.2 was published and so first published with 0.3 (ops_author02.py, PUBLISHED); then, in
 each group, the tests of what 0.3 adds: Core 0.3 documents, whose door and window types declare an
 operation and a clear opening and whose openings may override it, and whose rooms have floors and
 flat, tray or vaulted ceilings and whose slabs a purpose, edited with the primitives Ops already
-has; and moveRoom moving a vaulted ceiling's ridge with its room (4.3.2). Every expected status and diagnostic is written by hand and cross-checked against the
+has; moveRoom moving a vaulted ceiling's ridge with its room (4.3.2); and roofs, Core 0.3's twelfth
+collection (Core chapter 16), added, edited and removed with the primitives. Every expected status and diagnostic is written by hand and cross-checked against the
 oracle, applied as Ops 0.3 (version.OPS_03); the values that matter are asserted by hand in each
 test's check. Afterwards, `python3.13 -m tools.oracle.regenerate` re-verifies the suite from the
 files alone. Add new tests at the end of their group's section.
@@ -34,14 +37,19 @@ RETARGET = {
     'document-other-version': (doc(floorspec='0.4'), 'Document A declares Floorspec 0.4, which a Core 0.3 reader does not implement '
                                '(FS-DOC-001): FS-OPS-002.'),
 }
+RETIRED = {'FS-OPS-1.1.2': 'FS-OPS-1.1.3'}
 DESCRIPTIONS = {
-    'unknown-collection': [('not a collection of 0.2', 'not a collection of 0.3')],
     'extension-data-in-a-0.1-document': [('(Core 1.2.4)', '(Core 1.2.6)')],
 }
 
 
 def carry(tc):
     tc = copy.deepcopy(tc)
+    tc['covers'] = [RETIRED.get(c, c) for c in tc['covers']]
+    if tc['slug'] == 'unknown-collection':                 # "roofs" is a collection of 0.3; "optionSets" is not
+        tc['request'] = req({'op': 'addElement', 'collection': 'optionSets', 'element': {}})
+        tc['description'] = ('addElement\'s collection is one of the collections of Core 1.1 or the program\'s '
+                             'items; "optionSets" is reserved, not a collection of 0.3.')
     for old, new in DESCRIPTIONS.get(tc['slug'], []):
         assert old in tc['description'], (tc['slug'], old)
         tc['description'] = tc['description'].replace(old, new)
@@ -263,6 +271,98 @@ T('inverse', 'ceiling-and-floor-set-and-undone', 'Giving R1 a vaulted ceiling an
       {'op': 'setProperty', 'id': 'R1', 'path': '/floor', 'value': {'offset': -6 * IN, 'thickness': 300 * MM}}),
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'unsetProperty', 'id': 'R1', 'path': '/ceiling'},
                                              {'op': 'unsetProperty', 'id': 'R1', 'path': '/floor'}], r['inverse']))
+
+# ============================================================================= roofs (0.3): Core chapter 16
+# The box under a roof: its footprint the walls' outer faces, 50 mm (64000 base units) outside the walls' centre
+# lines, its eaves at the level's 2700 mm.
+HALF = 64000                                                    # half of a 100 mm wall
+ROOF_FP = [[-HALF, -HALF], [12 * FT + HALF, -HALF], [12 * FT + HALF, 10 * FT + HALF], [-HALF, 10 * FT + HALF]]
+SIX = {'rise': 6, 'run': 12}
+HIP = {'level': 'L1', 'footprint': ROOF_FP, 'pitch': SIX, 'overhang': FT}
+
+
+def roofed(*roofs, **members):
+    """The box as a Core 0.3 document, with these roofs - RF1, RF2, ... - and these other members."""
+    d = room_box()
+    d['roofs'] = {f'RF{i}': copy.deepcopy(r) for i, r in enumerate(roofs, 1)}
+    for k, v in members.items():
+        d[k] = {**d.get(k, {}), **copy.deepcopy(v)} if isinstance(v, dict) and isinstance(d.get(k), dict) else v
+    return d
+
+
+def roof_of(B, rid='RF1'):
+    return derived(B)['roofs'][rid]
+
+
+T('primitives', 'add-a-roof', 'addElement adds a hip roof over the box, at 6 in 12 with a 1\' overhang, and names no '
+  'ID: the applier mints RF1 - the prefix of roofs is RF (1.5) - and the result derives a hip roof whose ridge is '
+  'half of 12\' and 100 mm above its eaves: 3\' and 25 mm.', ['2.1.1', '1.5.1'], room_box(),
+  req({'op': 'addElement', 'collection': 'roofs', 'element': HIP}),
+  check=lambda r, B: ensure(r['created'] == ['RF1'] and roof_of(B)['kind'] == 'hip'
+                            and roof_of(B)['surface']['high'] == 2700 * MM + (12 * FT + 2 * HALF) // 4, roof_of(B)))
+T('primitives', 'mint-a-roof-past-the-largest', 'A has roofs RF1 and RF7; a roof added without an ID is RF8, one '
+  'more than the largest (1.5).', ['1.5.1'], roofed(HIP, roofs={'RF7': HIP}),
+  req({'op': 'setProperty', 'id': 'RF7', 'path': '/name', 'value': 'Porch'},
+      {'op': 'addElement', 'collection': 'roofs', 'element': {**HIP, 'pitch': {'rise': 4, 'run': 12}}}),
+  check=lambda r, B: ensure(r['created'] == ['RF8'], r))
+T('primitives', 'gable-two-edges', 'setProperty of /edges/1/gable and /edges/3/gable on the hip roof - creating its '
+  '"edges" and each edge on the way - makes the box\'s short ends gables: the roof derives as a gable roof.',
+  ['2.3.1'], roofed(HIP),
+  req({'op': 'setProperty', 'id': 'RF1', 'path': '/edges/1/gable', 'value': True},
+      {'op': 'setProperty', 'id': 'RF1', 'path': '/edges/3/gable', 'value': True}),
+  check=lambda r, B: ensure(B['roofs']['RF1']['edges'] == {'1': {'gable': True}, '3': {'gable': True}}
+                            and roof_of(B)['kind'] == 'gable' and len(roof_of(B)['surface']['gables']) == 2, roof_of(B)))
+T('primitives', 'steepen-a-roof', 'setProperty of the roof\'s /pitch to 12 in 12 and /overhang to 2\': the ridge '
+  'rises with it.', ['2.3.1'], roofed(HIP),
+  req({'op': 'setProperty', 'id': 'RF1', 'path': '/pitch', 'value': {'rise': 12, 'run': 12}},
+      {'op': 'setProperty', 'id': 'RF1', 'path': '/overhang', 'value': 2 * FT}),
+  check=lambda r, B: ensure(roof_of(B)['surface']['high'] == 2700 * MM + 7 * FT + HALF, roof_of(B)))
+T('primitives', 'gable-every-edge', 'setProperty makes every edge of the roof a gable: no edge slopes (Core 16.2.2), '
+  'so the result is invalid: FS-INV-803.', ['1.2.3', '2.3.1'], roofed(HIP),
+  req(*({'op': 'setProperty', 'id': 'RF1', 'path': f'/edges/{i}/gable', 'value': True} for i in range(4))),
+  'rejected', [('FS-INV-803', ['RF1'])])
+T('primitives', 'pitch-one-edge-differently', 'setProperty pitches the south edge 12 in 12 under a 6-in-12 roof: '
+  'Core 0.3 does not derive a roof of mixed pitches, but the document is valid - the batch commits, and the roof '
+  'has no surface (Core 16.4.4).', ['1.2.2', '2.3.1'], roofed(HIP),
+  req({'op': 'setProperty', 'id': 'RF1', 'path': '/edges/0/pitch', 'value': {'rise': 12, 'run': 12}}),
+  check=lambda r, B: ensure(roof_of(B)['surface'] is None, roof_of(B)))
+T('primitives', 'unset-a-roof-overhang', 'unsetProperty of the roof\'s /overhang: it overhangs nothing again, and '
+  'the inverse sets the 1\' back.', ['2.3.1', '1.6.1'], roofed(HIP),
+  req({'op': 'unsetProperty', 'id': 'RF1', 'path': '/overhang'}),
+  check=lambda r, B: ensure('overhang' not in B['roofs']['RF1'] and r['inverse'] == [
+      {'op': 'setProperty', 'id': 'RF1', 'path': '/overhang', 'value': FT}], r))
+T('primitives', 'remove-a-roof', 'removeElement removes the roof; nothing depends on a roof, and the inverse adds it '
+  'back, exactly as it is in A.', ['2.2.1', '2.2.2', '1.6.1'], roofed(HIP), req({'op': 'removeElement', 'id': 'RF1'}),
+  check=lambda r, B: ensure(r['removed'] == ['RF1'] and 'roofs' not in B and r['inverse'] == [
+      {'op': 'addElement', 'collection': 'roofs', 'id': 'RF1', 'element': HIP}], r))
+ATTIC = {'L2': {'building': 'B1', 'elevation': 2700 * MM, 'height': 2400 * MM}}
+T('primitives', 'remove-a-level-under-a-roof', 'A roof stands on level L2, which has nothing else: removing L2 '
+  'without cascade is blocked by the roof (2.2).', ['2.2.1'], roofed({**HIP, 'level': 'L2', 'height': 0}, levels=ATTIC),
+  req({'op': 'removeElement', 'id': 'L2'}), 'rejected', [('FS-OPS-006', ['L2', 'RF1'])])
+T('primitives', 'remove-a-level-takes-its-roof', 'The same removal with cascade takes the roof with the level.',
+  ['2.2.2'], roofed({**HIP, 'level': 'L2', 'height': 0}, levels=ATTIC),
+  req({'op': 'removeElement', 'id': 'L2', 'cascade': True}),
+  check=lambda r, B: ensure(r['removed'] == ['L2', 'RF1'], r))
+T('primitives', 'remove-a-roof-material', 'Removing a material is blocked by the roof whose top surface it is.',
+  ['2.2.1'], roofed({**HIP, 'material': 'SHINGLE'}, materials={'SHINGLE': {'color': '#4a4a4a'}}),
+  req({'op': 'removeElement', 'id': 'SHINGLE'}), 'rejected', [('FS-OPS-006', ['RF1', 'SHINGLE'])])
+
+T('transactions', 'roof-in-a-0.2-document', 'A roof added to a Core 0.2 document that does not declare "0.3": the '
+  'request is well formed under Ops 0.3, but Core 0.2\'s schema has no "roofs" (Core 1.2.6), so the result is '
+  'invalid: FS-SCH-001.', ['1.2.3', '1.1.3'], v02.v2(box()),
+  req({'op': 'addElement', 'collection': 'roofs', 'element': HIP}), 'rejected', [('FS-SCH-001', [])])
+
+T('composites', 'move-room-leaves-the-roof', 'moveRoom moves R1 3\' east: its walls go with it, but the roof\'s '
+  'footprint is plan points, which no composite moves (0.5), so the roof stays where it was.', ['4.3.1'],
+  roofed(HIP), req({'op': 'moveRoom', 'room': 'R1', 'by': "3' east"}),
+  check=lambda r, B: ensure(B['roofs']['RF1'] == HIP and not any(p.get('id') == 'RF1' for p in r['resolved']),
+                            r['resolved']))
+
+T('inverse', 'roof-added-and-undone', 'Adding a roof and gabling one of its edges in the same batch: the inverse '
+  'removes the roof, and applying it gives back A exactly (1.6.1).', ['1.6.1'], room_box(),
+  req({'op': 'addElement', 'collection': 'roofs', 'id': 'RF1', 'element': HIP},
+      {'op': 'setProperty', 'id': 'RF1', 'path': '/edges/1/gable', 'value': True}),
+  check=lambda r, B: ensure(r['inverse'] == [{'op': 'removeElement', 'id': 'RF1'}], r['inverse']))
 
 NEW = list(TESTS)
 del TESTS[:]

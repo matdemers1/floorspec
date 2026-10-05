@@ -40,11 +40,18 @@ class RequestTest(unittest.TestCase):
             with self.subTest(c['name']):
                 self.assertEqual(malformed(c['request'], OPS_02), c['malformed'])
 
-    def test_fixture_02_holds_for_03(self):
-        """Ops 0.3 adds no operation and no member: its requests have Ops 0.2's shape (Ops 0.4)."""
-        for c in load('ops-requests-0.2.json'):
+    def test_fixture_03(self):
+        """Ops 0.3 adds no operation and no member: its requests have Ops 0.2's shape, and addElement may name
+        Core 0.3's `roofs` (Ops 0.4)."""
+        for c in load('ops-requests-0.3.json'):
             with self.subTest(c['name']):
                 self.assertEqual(malformed(c['request'], OPS_03), c['malformed'])
+
+    def test_03_forms_are_malformed_in_02(self):
+        for c in load('ops-requests-0.3.json'):
+            if c.get('new03'):
+                with self.subTest(c['name']):
+                    self.assertTrue(malformed(c['request'], OPS_02))
 
     def test_02_forms_are_malformed_in_01(self):
         for c in load('ops-requests-0.2.json'):
