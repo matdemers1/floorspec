@@ -19,6 +19,7 @@ interoperably.
 - **Conformance** — every mandatory statement has at least one test under [`conformance/`](conformance/)
 - **Extensions** — `FS_` official, `EXT_` multi-implementer, vendor prefixes; see [`registry/`](registry/)
 - **Rule packs** — CC BY 4.0 data with citations, never code text; see [`rules/`](rules/)
+- **Starter templates** — a ranch, a two-storey house and a cabin, valid Core 0.3 documents that are also conformance samples; see [`templates/`](templates/)
 - **Type library** — a non-normative starter library of common US wall, door and window types, versioned and published by URI; see [`library/us-starter/`](library/us-starter/)
 
 Published at **https://d3cloud.io/floorspec**. Reference implementation: [D3 Floorspec](https://github.com/matdemers1/d3-floorspec).

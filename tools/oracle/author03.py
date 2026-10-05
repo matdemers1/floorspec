@@ -1477,6 +1477,50 @@ n('examples', 'three-room-house-from-the-library', 'The three-room house of exam
   'window has none. The room finishes stay the project\'s own materials.',
   ['8.1.3', '8.2.1', '7.4.2', '13.5.2', '9.2.1', '9.3.1'], house)
 
+# The starter templates (templates/, FLR-REQ-078): each test's input is the template file byte for byte, so the
+# file a project starts from is the file the suite checks. Every type and material a template takes from the US
+# starter library is embedded exactly as the library publishes it, under its item's ID.
+TEMPLATES = os.path.join(REPO, 'templates')
+
+
+def template(name):
+    with open(os.path.join(TEMPLATES, f'{name}.floorspec.json'), 'rb') as f:
+        raw = f.read()
+    doc = json.loads(raw)
+    for coll in ('types', 'materials'):
+        for eid, el in doc.get(coll, {}).items():
+            if 'source' in el:
+                assert eid == el['source']['item'] and el == us_library.element(eid), f'{name}: {eid} is not the library\'s'
+    return doc, raw
+
+
+doc, raw = template('ranch')
+n('examples', 'ranch-template', 'The ranch starter template (templates/ranch.floorspec.json): one storey of 2x6 '
+  'exterior walls justified on their exterior face - three bedrooms, two baths, a great room of living, dining and '
+  'kitchen divided by separators, a den, a laundry and an attached two-car garage - under one hip roof of 5 in 12 '
+  'whose L-shaped footprint the straight skeleton derives with a valley; a stoop, a patio and a driveway as slabs; '
+  'a brief whose every item is met and whose rooms name their items; plumbing fixtures and a panel of FS_electrical '
+  'and FS_plumbing, which a Core reader keeps and places. Valid, with nothing to report.',
+  ['8.1.3', '11.3.1', '11.4.1', '14.1.1', '15.7.1', '16.4.1', '16.5.1', '13.4.1', '9.2.1', '9.3.1'], doc, raw=raw)
+doc, raw = template('two-storey')
+n('examples', 'two-storey-template', 'The two-storey starter template (templates/two-storey.floorspec.json): a '
+  'side-hall main floor of 9 ft ceilings, and an L-shaped stair - three risers, a landing and thirteen more, its '
+  'riser count derived from its maxRiser - rising through a well drawn with railing separators to an upper floor '
+  'with a 12 in floor and three bedrooms, the primary bedroom under a 4 in 12 vaulted ceiling whose walls rise to its '
+  'ridge. A gable roof of 8 in 12 with 6 in rakes. The well is a bounded face with no room, so FS-LINT-003 is '
+  'reported for it, as it is for every stair well.',
+  ['8.1.3', '15.1.2', '15.3.2', '15.5.1', '16.4.1', '16.5.1', '17.4.3', '17.5.1', '17.6.1', '14.1.1'], doc,
+  [('FS-LINT-003', [])], raw=raw)
+doc, raw = template('cabin')
+n('examples', 'cabin-template', 'The cabin starter template (templates/cabin.floorspec.json): a double-height living '
+  'room under a one-sided vault that follows the shed roof above it, a bedroom, a bath and a kitchen under a sleeping '
+  'loft, and a straight stair along the east wall whose head lands on the loft\'s railing; a deck slab. The roof is a '
+  'shed of 3 in 12 rising from its south eave, its three other edges gables. The open part of the loft level is a '
+  'bounded face with no room - the stair\'s well, and the living room\'s void - so FS-LINT-003 is reported for it; the '
+  'stair has nothing above it, so it has no headroom.',
+  ['8.1.3', '6.7.1', '15.3.2', '15.7.1', '16.4.1', '16.5.1', '17.4.3', '17.5.1', '17.6.1'], doc,
+  [('FS-LINT-003', [])], raw=raw)
+
 NEW = list(TESTS)
 del TESTS[:]
 
