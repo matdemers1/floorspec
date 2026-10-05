@@ -18,8 +18,28 @@ A type MUST have a `kind` from this table. {#FS-CORE-8.1.1 MUST}
 Every type MAY also carry `name`, `extensions` and `extras` (1.4). {#FS-CORE-8.1.2 MAY}
 
 Common types — a 2×4 interior partition, a 2×6 exterior wall, a 36-inch door — are published as a
-non-normative starter library. A document embeds every type it uses; it never refers to a library
-by URL, so it is always complete on its own.
+non-normative starter library, `https://d3cloud.io/floorspec/library/us-starter`, one immutable
+version at a time. A document embeds every type it uses, and the materials its layers use; it never
+refers to a library by URL, so it is always complete on its own.
+
+**Source.** A type or a material (8.5) copied into a document from a library may say where it came
+from, in its `source` member:
+
+| Member | Type | Default | Meaning |
+|---|---|---|---|
+| `library` | an absolute URI whose scheme is `https` and which has an authority, as an asset's `uri` (8.6) | — (always present) | the library, by a URI that names it across all its versions |
+| `version` | a version string, as in `extensionsUsed` (1.6.7) | — (always present) | the version of the library it was copied from |
+| `item` | a string matching the pattern of an ID (3.1.1) | — (always present) | the item's identifier in that version of the library |
+
+A type's or a material's `source` MUST have exactly the members of this table, each always present: a `library` that is an absolute `https` URI with an authority, a `version` that matches the pattern of 1.6.7, and an `item` that matches the pattern of 3.1.1. {#FS-CORE-8.1.3 MUST}
+
+`source` is provenance, a label as `name` is: no derivation reads it, and it never makes the
+document depend on the library, which a reader need not fetch and need not be able to reach. It
+records what the type or material was copied from, not that it still matches: a writer that
+edits an embedded type may keep its `source` or remove it, and a reader that compares the two
+learns only whether it has been changed since. `item` is not a reference (3.2) and names nothing in
+the document; the element's own ID is chosen by whoever embeds it. Moving an embedded type to a
+newer version of its library is an edit like any other, made explicitly, never by a reader.
 
 ## 8.2 Resolving typed properties
 
@@ -41,6 +61,7 @@ states a clear width and height but no `area` has no declared area, whatever its
 |---|---|---|---|
 | `kind` | `"wallType"` | — | 8.1 |
 | `layers` | array of at least one layer | — (always present) | the assembly, from the wall's left (exterior) face to its right (interior) face |
+| `source` | source (8.1) | absent: not recorded | the library item it was copied from |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A **layer**:
@@ -67,6 +88,7 @@ entirely.
 | `operation` | a door operation or a window operation (below) | absent: not declared | how its leaves or sashes move |
 | `clearOpening` | clear opening (below) | absent | the net clear opening of every opening it fills, as its maker declares it, unless the opening overrides it |
 | `clearances` | object: envelope name → clearance envelope (13.5) | `{}` | the space every opening it fills needs kept clear — a door's swing, the space in front of a window |
+| `source` | source (8.1) | absent: not recorded | the library item it was copied from |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A door or window type's `width` and `height`, when present, MUST be greater than zero, and its `sill` MUST NOT be negative. {#FS-CORE-8.4.1 MUST}
@@ -145,6 +167,7 @@ of the type that fills it.
 | `metallic` | integer, in thousandths, 0 to 1000 | absent: 0, or its map's (18.1) | how metallic the surface is |
 | `roughness` | integer, in thousandths, 0 to 1000 | absent: 1000, or its map's (18.1) | how rough it is |
 | `texture` | texture (18.2): its maps, the real-world `size` [w, h] of one tile, its `offset` and `rotation` | absent | images tiled across the surface; one tile covers `w` by `h` base units |
+| `source` | source (8.1) | absent: not recorded | the library item it was copied from |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A material's `color` MUST match `^#[0-9a-f]{6}$`. {#FS-CORE-8.5.1 MUST}
@@ -155,7 +178,8 @@ A material is physically based, in the metallic-roughness model of glTF 2.0, and
 real-world size is what makes a dropped-in photo of a tile the right scale on every wall: chapter
 18 defines both, and how a texture is laid on a surface. `metallic`, `roughness`, and a texture's
 maps other than `asset`, its `offset` and its `rotation` are new in 0.3; a texture of 0.1 or 0.2 is
-its base colour map (`asset`) and its `size`.
+its base colour map (`asset`) and its `size`. A material's `source` (8.1) is new in 0.3 too, as is a
+type's.
 
 ## 8.6 Assets
 

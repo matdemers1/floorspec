@@ -17,6 +17,8 @@
     "coverage:matrix": "tsx tools/coverage-matrix.ts",
     "library": "tsx tools/furniture-library.ts",
     "library:check": "tsx tools/furniture-library.ts --check",
+    "library:us": "tsx tools/us-library.ts",
+    "library:us:check": "tsx tools/us-library.ts --check",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tools/*.test.ts",
     "check": "pnpm statements && pnpm schema:check && pnpm coverage"

@@ -51,7 +51,9 @@ long as it has one map), `asset.schema.json` gains `byteLength`, `finish.schema.
 `wall.schema.json` gains `finishes`; for design options (chapter 19),
 `option.schema.json` is new, `floorspec.schema.json` gains the `optionSets` and `options`
 collections, and the junction, wall, separator, opening, room, slab, roof and stair schemas and an
-extension element in `extension.schema.json` gain `option` (19.2), which has no default.
+extension element in `extension.schema.json` gain `option` (19.2), which has no default. For the starter
+library (8.1), `defs.schema.json` gains `source`, and the wall, door and window types in
+`type.schema.json` and a material in `material.schema.json` gain `source`, which has no default.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at

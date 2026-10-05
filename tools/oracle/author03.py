@@ -22,6 +22,7 @@ import sys
 
 import tools.oracle.author02 as v02                    # declares the 0.2 suite: v02.BASE + v02.NEW
 import tools.oracle.author03_materials as materials    # chapter 18: the group `materials`
+import tools.oracle.us_library as us_library              # the US starter library (8.1): library/us-starter/
 from tools.oracle.author import room_doc as room_doc_01
 from tools.oracle.author02 import element, free, surface, wall_face, with_elements
 from tools.oracle.author_lib import IN, MM, REPO, TESTS, J, R, W, box, level_doc, t, write_all
@@ -245,6 +246,71 @@ n('types', 'pair-of-doors', 'A pair of doors, 1800 mm wide: its clear opening is
   odoc({'O1': {**D1, 'swing': 'left', 'hinge': 'start'}},
        {'D': {'kind': 'doorType', 'width': 1800 * MM, 'height': 2100 * MM, 'operation': 'doubleSwing',
               'clearOpening': co(1650 * MM, 2032 * MM)}}))
+
+# ---- a type's or a material's source (8.1): the starter library (library/us-starter/)
+LIB = 'https://d3cloud.io/floorspec/library/us-starter'
+
+
+def lib_room(**opening_members):
+    """The 4 m x 3 m room built from the US starter library: its four walls 2x4 partitions, a 30-inch
+    interior door O1 on the south wall and a 36 x 48 inch double-hung window O2 on the west wall, each type
+    and each material embedded exactly as the library publishes it, with its source."""
+    d = odoc({'O1': {**D1, 'fill': 'door-interior-swing-30x80'}, 'O2': {**G1, 'fill': 'window-double-hung-36x48'}}, {})
+    del d['types']['WT']
+    for w in d['walls'].values():
+        w['type'] = 'wall-2x4-interior'
+    return us_library.embed(d, 'wall-2x4-interior', 'door-interior-swing-30x80', 'window-double-hung-36x48')
+
+
+n('types', 'library-types-with-source', 'A room built from the US starter library: a 2x4 partition wall type, a door '
+  'type and a window type, and the two materials the wall\'s layers use, each embedded with its "source" - the '
+  'library\'s URI, its version and the item. Valid: a source is provenance, not a reference, and nothing derives '
+  'from it - the door\'s and the window\'s clear openings are their types\' declared values, and the walls\' '
+  'thickness their layers\'. The canonical form keeps every source.', ['8.1.3', '8.1.2', '7.4.2', '9.2.1'], lib_room())
+d = lib_room()
+d['types']['wall-2x4-interior']['layers'][1]['thickness'] = 5 * IN + IN // 2
+d['types']['wall-2x4-interior']['name'] = '2x6 partition, edited after embedding'
+n('types', 'source-of-an-edited-type', 'The library\'s 2x4 partition, edited after it was embedded into a 2x6 one '
+  '(its stud layer 5 1/2 in): it keeps its source, which records where it came from, not that it still matches; '
+  'valid.', ['8.1.3'], d)
+
+
+def src_sch(slug, description, covers, mut):
+    d = lib_room()
+    mut(d)
+    n('types', slug, description, covers, d, SCH)
+
+
+src_sch('source-without-item', 'A wall type\'s source without "item": all three members are always present.',
+        ['8.1.3'], lambda d: d['types']['wall-2x4-interior']['source'].pop('item'))
+src_sch('source-without-version', 'A door type\'s source without "version".',
+        ['8.1.3'], lambda d: d['types']['door-interior-swing-30x80']['source'].pop('version'))
+src_sch('source-without-library', 'A material\'s source without "library".',
+        ['8.1.3'], lambda d: d['materials']['gypsum-board']['source'].pop('library'))
+src_sch('source-library-not-https', 'A source whose library is an http: URI: it must be https.',
+        ['8.1.3'], lambda d: d['types']['window-double-hung-36x48']['source'].update(library='http://d3cloud.io/floorspec/library/us-starter'))
+src_sch('source-library-relative', 'A source whose library is a relative reference, not an absolute URI.',
+        ['8.1.3'], lambda d: d['materials']['wood-stud-framing']['source'].update(library='library/us-starter'))
+src_sch('source-version-not-a-version', 'A source whose version is "v0.1": not a version string of 1.6.7.',
+        ['8.1.3'], lambda d: d['types']['wall-2x4-interior']['source'].update(version='v0.1'))
+src_sch('source-version-a-number', 'A source whose version is the number 1, not a string.',
+        ['8.1.3'], lambda d: d['types']['wall-2x4-interior']['source'].update(version=1))
+src_sch('source-item-not-an-id', 'A source whose item is "2x4 partition": a space is not in the pattern of an ID.',
+        ['8.1.3'], lambda d: d['types']['wall-2x4-interior']['source'].update(item='2x4 partition'))
+src_sch('source-unknown-member', 'A source with a "sha256" member: a source has exactly library, version and item.',
+        ['8.1.3', '1.4.3'], lambda d: d['types']['door-interior-swing-30x80']['source'].update(sha256='ab' * 32))
+src_sch('source-a-string', 'A source that is the item\'s URI as a string, not an object.',
+        ['8.1.3'], lambda d: d['types']['door-interior-swing-30x80'].update(
+            source=LIB + '/0.1.0/items/door-interior-swing-30x80.json'))
+src_sch('source-on-a-wall', 'A wall with a source: only types and materials have one.',
+        ['1.4.1'], lambda d: d['walls']['W1'].update(source={'library': LIB, 'version': '0.1.0', 'item': 'W1'}))
+src_sch('source-on-a-layer', 'A layer with a source: the wall type has one, its layers do not.',
+        ['1.4.3'], lambda d: d['types']['wall-2x4-interior']['layers'][0].update(
+            source={'library': LIB, 'version': '0.1.0', 'item': 'gypsum-board'}))
+d = copy.deepcopy(as_02('version-0.2-with-everything'))
+d['types']['D']['source'] = {'library': LIB, 'version': '0.1.0', 'item': 'door-interior-swing-30x80'}
+n('types', '0.2-document-with-source', 'A document that declares "0.2" whose door type has a source, which 0.3 '
+  'adds: Core 0.2\'s schema has no "source" member.', ['1.2.6'], d, SCH)
 
 # =================================================================================== openings (0.3)
 n('openings', 'clear-opening-from-type', 'A door filled by a type with a clear opening has that clear opening, '

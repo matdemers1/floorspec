@@ -1,0 +1,92 @@
+{
+  "name": "Double swing doors, a pair, 72 x 80 in",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/door-double-swing-72x80.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "door-double-swing-72x80",
+  "kind": "doorType",
+  "collection": "types",
+  "materials": [],
+  "summary": {
+    "unit": "72 in x 80 in",
+    "roughOpening": "74 in x 82 1/2 in",
+    "clearOpening": "68 in x 80 in (generic)"
+  },
+  "element": {
+    "clearOpening": {
+      "height": 2600960,
+      "width": 2210816
+    },
+    "clearances": {
+      "swing": {
+        "max": [
+          1170432,
+          1202944,
+          2682240
+        ],
+        "min": [
+          0,
+          -1202944,
+          0
+        ],
+        "purpose": "swing",
+        "shape": "box"
+      }
+    },
+    "height": 2682240,
+    "kind": "doorType",
+    "name": "Double swing doors, a pair, 72 x 80 in",
+    "operation": "doubleSwing",
+    "source": {
+      "item": "door-double-swing-72x80",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    },
+    "width": 2405888
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "door-double-swing-72x80",
+      "element": {
+        "clearOpening": {
+          "height": 2600960,
+          "width": 2210816
+        },
+        "clearances": {
+          "swing": {
+            "max": [
+              1170432,
+              1202944,
+              2682240
+            ],
+            "min": [
+              0,
+              -1202944,
+              0
+            ],
+            "purpose": "swing",
+            "shape": "box"
+          }
+        },
+        "height": 2682240,
+        "kind": "doorType",
+        "name": "Double swing doors, a pair, 72 x 80 in",
+        "operation": "doubleSwing",
+        "source": {
+          "item": "door-double-swing-72x80",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        },
+        "width": 2405888
+      }
+    }
+  ]
+}

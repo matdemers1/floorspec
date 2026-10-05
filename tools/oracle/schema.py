@@ -13,7 +13,8 @@ And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an
 (16.1.1) and the `stairs` collection (17.1.1, 17.2.1); a material's `metallic` and `roughness`, a
 texture's maps, `offset` and `rotation`, an asset's `byteLength` and a wall's `finishes` (18.1.1,
 18.2.1, 18.4.1, 18.5.1); and design options: the `optionSets` and `options` collections and the
-`option` member of the elements that may be in one (19.1.1, 19.2.1).
+`option` member of the elements that may be in one (19.1.1, 19.2.1); and a type's or a material's
+`source` (8.1.3).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -541,8 +542,8 @@ class _Checker:
             return
         kind = v.get('kind')
         if kind == 'wallType':
-            self.members(v, path, {'kind': self.any_value, 'layers': self.layers, **self.common()},
-                         ('kind', 'layers'))
+            self.members(v, path, {'kind': self.any_value, 'layers': self.layers, **self.common(),
+                                   **({'source': self.source} if self.v03 else {})}, ('kind', 'layers'))
         elif kind in ('doorType', 'windowType'):
             allowed = {'kind': self.any_value, 'width': self.positive, 'height': self.positive,
                        'sill': self.nonneg, **self.common()}
@@ -551,12 +552,28 @@ class _Checker:
             if self.v03:
                 allowed['operation'] = self.enum(*(DOOR_OPERATIONS if kind == 'doorType' else WINDOW_OPERATIONS))
                 allowed['clearOpening'] = self.clear_opening(kind == 'windowType')
+                allowed['source'] = self.source
             self.members(v, path, allowed, ('kind',))
         else:
             self.bad(path, 'bad type kind')
 
     def any_value(self, v, path):
         pass
+
+    def source(self, v, path):
+        """8.1 (0.3): the library item a type or a material was copied from (8.1.3)."""
+        if not self.obj(v, path):
+            return
+
+        def library(x, p):
+            if not isinstance(x, str) or not URI_RE.fullmatch(x):
+                self.bad(p, 'bad library uri')
+
+        def version(x, p):
+            if not isinstance(x, str) or not VERSION_RE.fullmatch(x):
+                self.bad(p, 'bad library version')
+        self.members(v, path, {'library': library, 'version': version, 'item': self.ref},
+                     ('library', 'version', 'item'))
 
     def material(self, v, path):
         if not self.obj(v, path):
@@ -606,7 +623,7 @@ class _Checker:
 
         thousandths = self.integer(0, 1000)
         self.members(v, path, {'color': color, 'metallic': thousandths, 'roughness': thousandths,
-                               'texture': texture, **self.common()})
+                               'texture': texture, 'source': self.source, **self.common()})
 
     def wall_finishes(self, v, path):
         if not self.obj(v, path):

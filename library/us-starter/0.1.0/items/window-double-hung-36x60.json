@@ -1,0 +1,65 @@
+{
+  "name": "Double-hung window, 36 x 60 in",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/window-double-hung-36x60.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "window-double-hung-36x60",
+  "kind": "windowType",
+  "collection": "types",
+  "materials": [],
+  "summary": {
+    "unit": "36 in x 60 in",
+    "roughOpening": "36 1/2 in x 60 1/2 in",
+    "sill": "22 in",
+    "clearOpening": "32 in x 27 in (generic)"
+  },
+  "element": {
+    "clearOpening": {
+      "area": 913274044416,
+      "height": 877824,
+      "width": 1040384
+    },
+    "height": 1966976,
+    "kind": "windowType",
+    "name": "Double-hung window, 36 x 60 in",
+    "operation": "doubleHung",
+    "sill": 715264,
+    "source": {
+      "item": "window-double-hung-36x60",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    },
+    "width": 1186688
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "window-double-hung-36x60",
+      "element": {
+        "clearOpening": {
+          "area": 913274044416,
+          "height": 877824,
+          "width": 1040384
+        },
+        "height": 1966976,
+        "kind": "windowType",
+        "name": "Double-hung window, 36 x 60 in",
+        "operation": "doubleHung",
+        "sill": 715264,
+        "source": {
+          "item": "window-double-hung-36x60",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        },
+        "width": 1186688
+      }
+    }
+  ]
+}

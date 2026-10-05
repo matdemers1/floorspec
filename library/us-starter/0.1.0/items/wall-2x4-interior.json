@@ -1,0 +1,112 @@
+{
+  "name": "2x4 interior partition, gypsum both faces",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/wall-2x4-interior.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "wall-2x4-interior",
+  "kind": "wallType",
+  "collection": "types",
+  "materials": [
+    "gypsum-board",
+    "wood-stud-framing"
+  ],
+  "summary": {
+    "layers": "1/2 in gypsum board; 2x4 studs (3 1/2 in deep); 1/2 in gypsum board",
+    "thickness": "4 1/2 in"
+  },
+  "element": {
+    "kind": "wallType",
+    "layers": [
+      {
+        "function": "finish",
+        "material": "gypsum-board",
+        "thickness": 16256
+      },
+      {
+        "function": "core",
+        "material": "wood-stud-framing",
+        "thickness": 113792
+      },
+      {
+        "function": "finish",
+        "material": "gypsum-board",
+        "thickness": 16256
+      }
+    ],
+    "name": "2x4 interior partition, gypsum both faces",
+    "source": {
+      "item": "wall-2x4-interior",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    }
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "gypsum-board",
+      "element": {
+        "color": "#efede8",
+        "name": "Gypsum board, painted",
+        "roughness": 900,
+        "source": {
+          "item": "gypsum-board",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "wood-stud-framing",
+      "element": {
+        "color": "#c8a46e",
+        "name": "Wood stud framing",
+        "roughness": 850,
+        "source": {
+          "item": "wood-stud-framing",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "wall-2x4-interior",
+      "element": {
+        "kind": "wallType",
+        "layers": [
+          {
+            "function": "finish",
+            "material": "gypsum-board",
+            "thickness": 16256
+          },
+          {
+            "function": "core",
+            "material": "wood-stud-framing",
+            "thickness": 113792
+          },
+          {
+            "function": "finish",
+            "material": "gypsum-board",
+            "thickness": 16256
+          }
+        ],
+        "name": "2x4 interior partition, gypsum both faces",
+        "source": {
+          "item": "wall-2x4-interior",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    }
+  ]
+}
