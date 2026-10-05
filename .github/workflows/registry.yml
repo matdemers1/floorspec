@@ -1,0 +1,45 @@
+name: Registry
+
+# The extension registry's lifecycle gates (FLR-T-10.3, FLR-REQ-138, FLR-REQ-092; registry/README.md,
+# tools/registry-gates.ts): every entry in registry/ has what its status asks - a Proposal its
+# rationale; a Draft its specification, a schema at a versioned URL and a suite covering every MUST;
+# a Release Candidate an implementation with evidence of passing that suite (or an owner's recorded
+# exception); Ratified two independent implementations with current evidence, and its schema, suite
+# and entry frozen at the commit that ratified it. On a pull request, each change is checked against
+# its base: a version moves forward one status at a time, a new extension or version enters as a
+# Proposal or a Draft, nothing is removed - unless a maintainer adds the `registry-maintainer` label.
+#
+# Its own workflow so that adding or removing that label re-runs the gates and nothing else.
+# GitHub-hosted runners only (this repo is public); actions pinned to the SHAs ci.yml pins.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registry-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # evidence names the commit whose suite it ran; Ratified freezes at a commit
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Every registry entry has what its status asks, and every change since the pull request's base is a step the lifecycle allows
+        run: pnpm registry:check
+        env:
+          REGISTRY_BASE: ${{ github.event.pull_request.base.sha }}
+          REGISTRY_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}

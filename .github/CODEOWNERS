@@ -1,0 +1,5 @@
+# The registry's maintainers review every change to an extension's entry, specification, schema,
+# suite and evidence, and decide its lifecycle (registry/README.md, "Who decides").
+/registry/                 @matdemers1
+/conformance/ext/          @matdemers1
+/.github/PULL_REQUEST_TEMPLATE/  @matdemers1

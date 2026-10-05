@@ -130,6 +130,8 @@ const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, 
 for (const x of extensionSchemas(root)) {
   if (!registry(x.entry)) problems.push(`registry/${x.name}/extension.json does not match the registry entry schema:\n    ${formatErrors(registry.errors ?? []).join('\n    ')}`);
   const own = x.files.find((f) => f.id === x.entry.schema);
+  // A Proposal needs no schema yet (registry/README.md); from Draft on, tools/registry-gates.ts requires it.
+  if (!own && x.entry.status === 'proposal' && x.files.length === 0) continue;
   if (!own) {
     problems.push(`registry/${x.name}: no schema file has the $id ${String(x.entry.schema)} that its entry names`);
     continue;
