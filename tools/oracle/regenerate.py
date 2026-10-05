@@ -1,6 +1,7 @@
 """Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2 and 0.3, Floorspec Ops 0.1, 0.2 and 0.3,
-every official extension's suite (conformance/ext/<NAME>/<version>/) and Floorspec Rules 0.1
-(conformance/rules/0.1/, by tools/oracle/rules/suite.py) - against the oracle.
+every official extension's suite (conformance/ext/<NAME>/<version>/), Floorspec Rules 0.1
+(conformance/rules/0.1/, by tools/oracle/rules/suite.py) and the migration suite of Core 0.3's
+chapter 20 (conformance/migration/0.3/, by tools/oracle/migration_suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
@@ -194,6 +195,9 @@ def main(argv) -> int:
     from .rules.suite import verify_all as verify_rules
     rules_n, rules_errors = verify_rules(write)
     ops_errors.extend(rules_errors)
+    from .migration_suite import verify_all as verify_migration
+    migration_n, migration_errors = verify_migration(write)
+    ops_errors.extend(migration_errors)
     for e in all_errors + ops_errors:
         print(e)
     for version, (n, k) in counts.items():
@@ -203,6 +207,7 @@ def main(argv) -> int:
     for label, (n, k) in ext_counts.items():
         print(f'{label}: {n} tests, {k} differences from the oracle')
     print(f'Rules 0.1: {rules_n} tests, {len(rules_errors)} differences from the oracle')
+    print(f'Migration (Core 0.3, chapter 20): {migration_n} tests, {len(migration_errors)} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
 
 

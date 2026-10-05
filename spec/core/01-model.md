@@ -94,7 +94,8 @@ draft derives the finishes (18.6) of a document of any draft, from the rooms' `w
 > anything, and a reader implements the drafts it names. From 1.0, a minor version will only add
 > optional members and new extension points, so a 1.x reader can read every 1.y document with
 > y ≤ x; a major version will ship a normative migration from the previous major, and a reader
-> of a major will read the previous one by migrating it on load.
+> of a major will read the previous one, as this section reads 0.1 and 0.2 documents or by migrating
+> it on load. Chapter 20 defines the migrations from 0.1 and 0.2 to this draft.
 
 ## 1.3 Spatial structure
 
@@ -222,6 +223,8 @@ A deriver MUST NOT let `extras` affect any derived value. {#FS-CORE-1.7.1 MUST N
 A writer MUST preserve `extras` it does not itself manage, unchanged. {#FS-CORE-1.7.2 MUST}
 
 Anything that changes what the building is belongs in core or an extension, never in `extras`.
+The one member of `extras` this specification names is the document's `floorspec:migration`, where a
+migration records what it moved (20.3); it is `extras` like any other, and nothing is derived from it.
 
 ## 1.8 Project, site, buildings and levels
 

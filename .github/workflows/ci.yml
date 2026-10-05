@@ -69,7 +69,7 @@ jobs:
           python-version: '3.13'
       - name: Oracle unit tests
         run: python -m unittest discover -s tools/oracle -p 'test_*.py'
-      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Ops 0.1, Ops 0.2, Ops 0.3, extension and Rules 0.1 suites
+      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Ops 0.1, Ops 0.2, Ops 0.3, extension, Rules 0.1 and migration suites
         run: python -m tools.oracle.regenerate
       - name: Every suite is exactly what its author script declares
         run: |
@@ -81,6 +81,7 @@ jobs:
           python -m tools.oracle.ops_author03
           python -m tools.oracle.ext_author
           python -m tools.oracle.rules_author
+          python -m tools.oracle.migrate_author
           git diff --exit-code -- conformance
           test -z "$(git status --porcelain -- conformance)"
       - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35, Core 0.2, Ops 0.2 and the registry entry schema as published at 6f9bc07)

@@ -22,6 +22,7 @@ conformance/
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
+  migration/0.3/…    the migration suite of Core 0.3's chapter 20 (below)
 ```
 
 **Core 0.3** (`core/0.3/`) is the suite of the current spec text, and the one `pnpm coverage`
@@ -595,3 +596,49 @@ tools.oracle.rules <test-dir>` prints one test's expected output. The oracle's e
 `Q(√m)` for local coordinates. `pnpm schema:check` checks that the request, profile and pack schemas
 reject exactly the inputs whose expected diagnostics say they should, that every report matches the
 report schema and every measure result the measure result definition.
+
+## Migration
+
+The migration suite, `migration/0.3/`, tests a **migrator** (Core §20.1): software that migrates a
+document of an earlier draft to a later one. `pnpm coverage` gates Core 0.3's chapter 20 against it,
+with the Core 0.3 suite.
+
+```text
+conformance/
+  migration/0.3/<group>/<NNN-slug>/
+    test.json        what the test is and which FS-CORE statements it covers
+    input.json       the document, byte for byte (it may be malformed on purpose)
+    request.json     the target draft: { "to": "0.3" }
+    expected.json    { "status": "migrated" | "refused", "diagnostics": [ … ],
+                       "hash": …, "validation": { "valid": …, "diagnostics": [ … ] } }
+    output.json      the migration, byte for byte - present exactly when it is migrated
+```
+
+- `status` and `diagnostics` - whether the migrator migrates the document or refuses it, and why
+  (Core §20.2, §20.3.3, §20.8), compared as a validator's diagnostics are; a refusal that carries
+  `FS-SCH-001` carries only that one entry.
+- `hash` - present when it is migrated: the migration's content hash (Core §9.3).
+- `validation` - present when it is migrated: what a reader of the target draft, implementing no
+  extension and configured with no known extensions, reports for the document and, alike, for its
+  migration (Core §20.6.1).
+- output.json - the migration, written as Core §20.1.1 says: members sorted and indented, no default
+  omitted. It is compared byte for byte.
+
+A migrator conforms on a test when it migrates or refuses as `status` says, with `diagnostics`, and
+writes exactly output.json's bytes. Groups: `documents` (what a migrator is given: malformed and
+schema-invalid documents, a required extension it does not implement, a broken invariant),
+`targets` (the document's own draft, an earlier or unknown draft, the order of the checks),
+`step-0.1-0.2` (opaque top-level `collections` moved, Core §20.4), `step-0.2-0.3` (an extension
+element's own `option` moved, Core §20.5), `composition` (0.1 to 0.3, and a document migrated
+twice), `record` (the record in `extras`, Core §20.3) and `examples` (the three-room house as Core 0.1
+and 0.2 published it, migrated to 0.3).
+
+The tests are declared in `tools/oracle/migrate_author.py`, with every status, diagnostic,
+validation and moved pointer written by hand; the oracle's migrator is `tools/oracle/migrate.py`.
+`python3.13 -m tools.oracle.migrate_author` rewrites the suite and fails if the oracle disagrees with
+anything written by hand, and `python3.13 -m tools.oracle.regenerate` re-verifies it with the others
+(`tools/oracle/migration_suite.py`): each expected output, that a reader of the target reads the
+migration as it reads the document and derives the same values, that migrating a migration to its
+own draft changes nothing, and that a migration is its steps applied in order.
+`python3.13 -m tools.oracle.migrate <document> --to 0.3` prints one migration. `pnpm schema:check`
+checks each document against the schema of its draft and each migration against its target's.

@@ -20,11 +20,14 @@
  *      checkExtensionSuite says;
  *   6. the Floorspec Rules schemas (schema/rules/<v>/) - the default profile of spec/rules 10.6 matches
  *      the profile schema, and the Rules suite (conformance/rules/<v>/) agrees with them, as
- *      checkRulesSuite says.
+ *      checkRulesSuite says;
+ *   7. the migration suite (conformance/migration/0.3/, Core 0.3 chapter 20): each document against
+ *      the schema of the draft it declares, and each migration against its target's.
  *
  *   pnpm schema:check
  */
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import {
   CORE_VERSIONS,
   checkOpsSuite,
@@ -53,6 +56,7 @@ import {
   requestValidator,
   rootValidator,
   undefinedRequired,
+  validateText,
   type SchemaFile,
 } from './schema.ts';
 import { extensionSpecs } from './statements.ts';
@@ -162,6 +166,34 @@ for (const v of RULES_VERSIONS) {
   const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.3'), registry, profile0, root);
   problems.push(...rules.problems);
   console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
+}
+
+// 7. The migration suite (Core 0.3, chapter 20): every document as a reader of 0.3 checks it - one a
+// migrator refuses with FS-SCH-001 is exactly one the schema of its own draft rejects - and every
+// migration (output.json) matches the schema of the draft it declares, which is the test's target.
+{
+  const suite = join(root, 'conformance', 'migration', '0.3');
+  const validate = versionedValidator(cores, '0.3');
+  const inputs = checkSuite(suite, validate, root);
+  problems.push(...inputs.problems);
+  let outputs = 0;
+  const walk = (dir: string): void => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir).sort()) {
+      const p = join(dir, entry);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (entry === 'output.json') {
+        const text = readFileSync(p, 'utf8');
+        const to = (JSON.parse(readFileSync(join(dir, 'request.json'), 'utf8')) as { to?: unknown }).to;
+        if ((JSON.parse(text) as { floorspec?: unknown }).floorspec !== to) problems.push(`${relative(root, dir)}: output.json does not declare the target ${String(to)}`);
+        const { valid, errors } = validateText(text, validate);
+        if (!valid) problems.push(`${relative(root, dir)}: output.json does not match the schema of its draft:\n    ${formatErrors(errors).join('\n    ')}`);
+        outputs++;
+      }
+    }
+  };
+  walk(suite);
+  console.log(`schema: migration/0.3: ${inputs.checked} documents checked against the schema of their draft, ${outputs} migrations against their target's`);
 }
 
 if (problems.length) fail();
