@@ -126,6 +126,12 @@ What 0.3 adds:
 - the diagnostics `FS-INV-305` to `FS-INV-308` and `FS-INV-701` to `FS-INV-703` (chapter 10);
 - the mapping of operations, clear openings, floors, ceilings and slab purposes to IFC4 (Annex A).
 
+And for the starter library (8.1):
+
+- a type's or a material's **source** — the library, its version and the item it was copied from —
+  recorded as provenance only: nothing derives from it, and a document that has one is as complete
+  on its own as one that does not (8.1, 8.5).
+
 And roofs (chapter 16):
 
 - **roofs**, a collection of its own (1.1): a footprint, a pitch, gables and overhangs edge by edge,

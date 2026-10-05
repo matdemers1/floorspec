@@ -620,6 +620,33 @@ import tools.oracle.ops_author03_materials as materials                       # 
 
 materials.declare()
 
+# ============================================================================= the US starter library (Core 0.3, 8.1)
+import tools.oracle.us_library as us_library                                 # noqa: E402
+
+EXT = 'wall-2x6-exterior-fibre-cement'
+SWING = 'door-exterior-swing-36x80'
+
+
+def embedded(B, item):
+    """Whether B holds the item and every material it uses exactly as the library publishes them."""
+    return all(B.get(op['collection'], {}).get(op['id']) == op['element'] for op in us_library.embed_ops(item))
+
+
+T('primitives', 'embed-a-library-type', 'The US starter library\'s recipe for embedding an item: the item\'s published '
+  'batch - addElement of each material the 2x6 exterior wall\'s layers use, then of the wall type, each with its '
+  'source - and setProperty pointing the four walls of the box at it, in one batch. The wall type and its materials '
+  'are added exactly as given (2.1), so the document holds the library\'s elements byte for byte and is complete on '
+  'its own; the box\'s own wall type is now unused (FS-LINT-006 is a lint, so the batch commits).', ['2.1.1', '2.3.1'],
+  v3(box()), req(*us_library.embed_ops(EXT), *({'op': 'setProperty', 'id': w, 'path': '/type', 'value': EXT}
+                                              for w in ('W1', 'W2', 'W3', 'W4'))),
+  check=lambda r, B: ensure(embedded(B, EXT) and all(w['type'] == EXT for w in B['walls'].values())
+                            and r['created'] == sorted(op['id'] for op in us_library.embed_ops(EXT)), r['created']))
+T('primitives', 'embed-a-library-type-twice', 'The 36-inch exterior door\'s published batch applied to a document '
+  'that already holds it: addElement of an ID that is used fails the batch with FS-OPS-005 (2.1.1) - which is why the '
+  'library\'s recipe leaves out every element the document already holds with the same content, so that embedding '
+  'twice adds nothing.', ['2.1.1'], us_library.embed(v3(box()), SWING), req(*us_library.embed_ops(SWING)),
+  'rejected', [('FS-OPS-005', [])])
+
 NEW = list(TESTS)
 del TESTS[:]
 

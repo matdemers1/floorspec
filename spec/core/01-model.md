@@ -54,13 +54,13 @@ declaration object in `extensionsUsed` (12.1), a door or window type's `clearanc
 `collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
 type's `operation` and `clearOpening` (8.4), an opening's `clearOpening` (7.1), a level's
 `floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2), a slab's
-`purpose` (6.7), the `stairs` collection (17.1), and the `optionSets` and `options` collections
-and an element's `option` (19.1, 19.2). Each is optional, and its absence means what a document of an earlier draft means
+`purpose` (6.7), the `stairs` collection (17.1), the `optionSets` and `options` collections
+and an element's `option` (19.1, 19.2), and a type's or a material's `source` (8.1). Each is optional, and its absence means what a document of an earlier draft means
 without it: an empty program, a room that fulfils no program item, a version string, no
 clearances, extension data that core does not look inside, an operation that is not declared, no
 declared clear opening, a floor at its level's elevation with no declared thickness, a flat
-ceiling at its level's height, a slab whose purpose is not stated, no stairs, and no design options — one design, the document
-itself (19.3).
+ceiling at its level's height, a slab whose purpose is not stated, no stairs, no design options — one design, the document
+itself (19.3) — and a type or material whose origin is not recorded.
 The `roofs` collection (chapter 16) is new in 0.3 too: its absence means no roof, and a reader of
 this draft derives an empty set of roofs for a document of any draft; so are `stairs` (chapter 17),
 of which it derives an empty set too. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator

@@ -1,0 +1,188 @@
+{
+  "name": "2x4 exterior wall, brick veneer",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/wall-2x4-exterior-brick-veneer.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "wall-2x4-exterior-brick-veneer",
+  "kind": "wallType",
+  "collection": "types",
+  "materials": [
+    "brick-veneer",
+    "weather-resistive-barrier",
+    "osb-sheathing",
+    "wood-stud-framing-insulated",
+    "gypsum-board"
+  ],
+  "summary": {
+    "layers": "brick veneer (3 5/8 in actual); 1 in air space; weather-resistive barrier, 1/64 in; 7/16 in OSB sheathing; 2x4 studs (3 1/2 in deep), insulated cavities; 1/2 in gypsum board",
+    "thickness": "9 5/64 in"
+  },
+  "element": {
+    "kind": "wallType",
+    "layers": [
+      {
+        "function": "finish",
+        "material": "brick-veneer",
+        "thickness": 117856
+      },
+      {
+        "function": "airGap",
+        "thickness": 32512
+      },
+      {
+        "function": "membrane",
+        "material": "weather-resistive-barrier",
+        "thickness": 508
+      },
+      {
+        "function": "substrate",
+        "material": "osb-sheathing",
+        "thickness": 14224
+      },
+      {
+        "function": "core",
+        "material": "wood-stud-framing-insulated",
+        "thickness": 113792
+      },
+      {
+        "function": "finish",
+        "material": "gypsum-board",
+        "thickness": 16256
+      }
+    ],
+    "name": "2x4 exterior wall, brick veneer",
+    "source": {
+      "item": "wall-2x4-exterior-brick-veneer",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    }
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "brick-veneer",
+      "element": {
+        "color": "#9a4b34",
+        "name": "Brick veneer",
+        "roughness": 950,
+        "source": {
+          "item": "brick-veneer",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "weather-resistive-barrier",
+      "element": {
+        "color": "#e9edf0",
+        "name": "Weather-resistive barrier",
+        "roughness": 600,
+        "source": {
+          "item": "weather-resistive-barrier",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "osb-sheathing",
+      "element": {
+        "color": "#c09a5b",
+        "name": "OSB sheathing",
+        "roughness": 900,
+        "source": {
+          "item": "osb-sheathing",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "wood-stud-framing-insulated",
+      "element": {
+        "color": "#dcc28c",
+        "name": "Wood stud framing, insulated cavities",
+        "roughness": 900,
+        "source": {
+          "item": "wood-stud-framing-insulated",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "gypsum-board",
+      "element": {
+        "color": "#efede8",
+        "name": "Gypsum board, painted",
+        "roughness": 900,
+        "source": {
+          "item": "gypsum-board",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "wall-2x4-exterior-brick-veneer",
+      "element": {
+        "kind": "wallType",
+        "layers": [
+          {
+            "function": "finish",
+            "material": "brick-veneer",
+            "thickness": 117856
+          },
+          {
+            "function": "airGap",
+            "thickness": 32512
+          },
+          {
+            "function": "membrane",
+            "material": "weather-resistive-barrier",
+            "thickness": 508
+          },
+          {
+            "function": "substrate",
+            "material": "osb-sheathing",
+            "thickness": 14224
+          },
+          {
+            "function": "core",
+            "material": "wood-stud-framing-insulated",
+            "thickness": 113792
+          },
+          {
+            "function": "finish",
+            "material": "gypsum-board",
+            "thickness": 16256
+          }
+        ],
+        "name": "2x4 exterior wall, brick veneer",
+        "source": {
+          "item": "wall-2x4-exterior-brick-veneer",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    }
+  ]
+}
