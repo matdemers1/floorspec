@@ -5,11 +5,14 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 
 ## Files
 
-Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
-Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
-are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
-copied, with ten changed and four new (`roof.schema.json`, `stair.schema.json`, `finish.schema.json`,
-`option.schema.json`); the table lists 0.3's.
+Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), Core
+0.3 in [`0.3/`](0.3/), and Core 0.4 — the current draft — in [`0.4/`](0.4/). Start at
+`floorspec.schema.json`. The 0.2 files are the 0.1 files copied and changed, plus five new ones, the
+0.3 files are the 0.2 files copied, with ten changed and four new (`roof.schema.json`,
+`stair.schema.json`, `finish.schema.json`, `option.schema.json`), and the 0.4 files are the 0.3 files
+copied with their `$id`s moved, three of them changed: `floorspec.schema.json` declares `"0.4"`,
+`defs.schema.json` names the draft, and `stair.schema.json` gains a stair's `minHeadroom` and a winder
+stair's `newel`, neither with a default. The table lists 0.4's.
 
 | File | Describes | Spec |
 |---|---|---|
@@ -32,7 +35,7 @@ copied, with ten changed and four new (`roof.schema.json`, `stair.schema.json`, 
 | `fallback.schema.json` | an extension element's fallback (0.2) | 12.6 |
 | `host.schema.json` | the three forms of a host (0.2) | 13.3 |
 | `clearance.schema.json` | a `clearances` object and its envelopes (0.2) | 13.5 |
-| `stair.schema.json` | stairs: their forms and handrails (0.3) | 17.1, 17.2 |
+| `stair.schema.json` | stairs: their forms and handrails (0.3), the headroom a stair is designed for and a winder's newel (0.4) | 17.1, 17.2 |
 | `option.schema.json` | option sets and options (0.3) | 19.1 |
 
 `defs.schema.json` gains, in 0.2, `triple`, `box`, `area`, `angleHalfOpen`, `collectionName` and
@@ -88,8 +91,9 @@ Two things a validator does before it applies the schema:
 - **Parsing and document tiers first.** Malformed JSON, duplicate members and unpaired
   surrogates (`FS-JSON-*`), and an unknown version or required extension (`FS-DOC-*`), are reported
   before the schema is applied (10.3).
-- **The declared draft's schema.** A reader of 0.3 applies 0.1's schema to a document that
-  declares `"0.1"`, 0.2's to one that declares `"0.2"`, and 0.3's to every other (1.2.6).
+- **The declared draft's schema.** A reader of 0.4 applies 0.1's schema to a document that
+  declares `"0.1"`, 0.2's to one that declares `"0.2"`, 0.3's to one that declares `"0.3"`, and
+  0.4's to every other (1.2.8).
 - **Lexical integers.** A length or an angle is a JSON integer, written without a fraction or an
   exponent (2.1, 2.4). JSON Schema sees only the parsed number, for which `1.0` and `1e3` are
   integers. A validator maps every number written with a fraction or an exponent to a value that

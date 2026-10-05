@@ -1,5 +1,5 @@
 /**
- * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5), 0.2 and 0.3, Floorspec Ops 0.1
+ * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5), 0.2, 0.3 and 0.4, Floorspec Ops 0.1
  * (FLR-T-2.1), 0.2 and 0.3, and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
  *
  *   1. every schema file compiles under ajv's strict mode, and every `required` name is declared;
@@ -7,8 +7,8 @@
  *   3. each Core schema agrees with its suite: for every test whose input is well-formed JSON and
  *      whose expected diagnostics have no FS-CFG-, FS-JSON- or FS-DOC- code, the schema rejects the
  *      input when the expected diagnostics are exactly [FS-SCH-001], and accepts it otherwise. The
- *      0.2 and 0.3 suites are checked as a reader of their draft checks them - a document declaring
- *      an earlier draft against that draft's schema (FS-CORE-1.2.6) - and their registry.json files
+ *      0.2, 0.3 and 0.4 suites are checked as a reader of their draft checks them - a document declaring
+ *      an earlier draft against that draft's schema (FS-CORE-1.2.8) - and their registry.json files
  *      against the registry entry schema;
  *   4. each Ops request schema agrees with its suite: it rejects a test's request exactly when the
  *      expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
@@ -21,8 +21,8 @@
  *   6. the Floorspec Rules schemas (schema/rules/<v>/) - the default profile of spec/rules 10.6 matches
  *      the profile schema, and the Rules suite (conformance/rules/<v>/) agrees with them, as
  *      checkRulesSuite says;
- *   7. the migration suite (conformance/migration/0.3/, Core 0.3 chapter 20): each document against
- *      the schema of the draft it declares, and each migration against its target's.
+ *   7. the migration suites (conformance/migration/0.3/ and 0.4/, chapter 20 of Core 0.3 and 0.4): each
+ *      document against the schema of the draft it declares, and each migration against its target's.
  *
  *   pnpm schema:check
  */
@@ -43,6 +43,7 @@ import {
   checkRulesSuite,
   defaultProfile,
   extensionSchemas,
+  RULES_CORE,
   RULES_VERSIONS,
   rulesSchemaDir,
   rulesValidators,
@@ -127,8 +128,8 @@ for (const v of OPS_VERSIONS) {
 
 // 5. Every extension in registry/ (registry/<NAME>/): its entry matches the registry entry schema,
 // its schema compiles and is the one the entry names, and its suite (conformance/ext/<NAME>/<v>/)
-// agrees with it - documents with the schema of the Core draft each declares (0.2, or 0.3 for a
-// document declaring "0.3": the drafts every official extension lists), registry.json with the entry
+// agrees with it - documents with the schema of the Core draft each declares (0.2, or 0.3 or 0.4 for a
+// document declaring it: the drafts every official extension lists), registry.json with the entry
 // schema, the extension's data with its own schema, Ops requests with Ops 0.2's (0.3's for a "0.3" document).
 const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, x.code]));
 for (const x of extensionSchemas(root)) {
@@ -143,7 +144,7 @@ for (const x of extensionSchemas(root)) {
   const ajv = compile(`registry/${x.name}`, x.files);
   const validateData = ajv.getSchema(own.id)!;
   const suiteDir = join(root, 'conformance', 'ext', x.name, x.version);
-  const docs = checkSuite(suiteDir, versionedValidator(cores, '0.3'), root, registry);
+  const docs = checkSuite(suiteDir, versionedValidator(cores, '0.4'), root, registry);
   problems.push(...docs.problems);
   const code = CODES[x.name];
   if (!code) {
@@ -161,19 +162,21 @@ for (const x of extensionSchemas(root)) {
 // 6. Floorspec Rules: its schemas, the default profile of 10.6, and its suite.
 for (const v of RULES_VERSIONS) {
   const rv = rulesValidators(compile(`rules/${v}`, loadSchemaFiles(rulesSchemaDir(v))), v);
-  const profile0 = defaultProfile(root);
+  // The spec text is the current draft's; an earlier draft's default profile is the same, declaring it.
+  const profile0 = { ...(defaultProfile(root) as Record<string, unknown>), floorspecRules: v };
   if (!rv.profile(profile0)) problems.push(`spec/rules/10-profiles.md: the default profile does not match the profile schema:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
-  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.3'), registry, profile0, root);
+  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, RULES_CORE[v]), registry, profile0, root);
   problems.push(...rules.problems);
   console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
 }
 
-// 7. The migration suite (Core 0.3, chapter 20): every document as a reader of 0.3 checks it - one a
-// migrator refuses with FS-SCH-001 is exactly one the schema of its own draft rejects - and every
-// migration (output.json) matches the schema of the draft it declares, which is the test's target.
-{
-  const suite = join(root, 'conformance', 'migration', '0.3');
-  const validate = versionedValidator(cores, '0.3');
+// 7. The migration suites (chapter 20 of Core 0.3 and 0.4): every document as a reader of the suite's
+// draft checks it - one a migrator refuses with FS-SCH-001 is exactly one the schema of its own draft
+// rejects - and every migration (output.json) matches the schema of the draft it declares, which is the
+// test's target.
+for (const v of ['0.3', '0.4'] as const) {
+  const suite = join(root, 'conformance', 'migration', v);
+  const validate = versionedValidator(cores, v);
   const inputs = checkSuite(suite, validate, root);
   problems.push(...inputs.problems);
   let outputs = 0;
@@ -193,7 +196,7 @@ for (const v of RULES_VERSIONS) {
     }
   };
   walk(suite);
-  console.log(`schema: migration/0.3: ${inputs.checked} documents checked against the schema of their draft, ${outputs} migrations against their target's`);
+  console.log(`schema: migration/${v}: ${inputs.checked} documents checked against the schema of their draft, ${outputs} migrations against their target's`);
 }
 
 if (problems.length) fail();

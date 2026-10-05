@@ -1,4 +1,4 @@
-"""python3.13 -m tools.oracle <test-dir | input.json> [--core 0.1|0.2|0.3] [--canonical] [--notes]
+"""python3.13 -m tools.oracle <test-dir | input.json> [--core 0.1|0.2|0.3|0.4] [--canonical] [--notes]
 
 Prints the expected result for a document - {valid, diagnostics, hash?, derived?} - as JSON.
 The reader is Core <v> for a test under conformance/core/<v> and Core 0.1 otherwise, unless

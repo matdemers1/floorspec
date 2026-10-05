@@ -16,8 +16,10 @@ texture's maps, `offset` and `rotation`, an asset's `byteLength` and a wall's `f
 `option` member of the elements that may be in one (19.1.1, 19.2.1); and a type's or a material's
 `source` (8.1.3).
 
+And, for Core 0.4, a stair's `minHeadroom` (17.1.3) and a winder stair's `newel` (17.2.3).
+
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
-draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
+draft whose schema applies: "0.1", "0.2", "0.3" or "0.4" (1.2.8).
 """
 
 from __future__ import annotations
@@ -60,8 +62,9 @@ class _Checker:
     def __init__(self, version: str = '0.1'):
         self.problems: list[str] = []
         self.version = version
-        self.v02 = version in ('0.2', '0.3')
-        self.v03 = version == '0.3'
+        self.v02 = version in ('0.2', '0.3', '0.4')
+        self.v03 = version in ('0.3', '0.4')
+        self.v04 = version == '0.4'                 # what 0.4 adds: a stair's minHeadroom, a winder's newel
 
     def bad(self, path: str, why: str) -> None:
         self.problems.append(f'{path}: {why}')
@@ -494,6 +497,7 @@ class _Checker:
         self.members(v, path, {'level': self.ref, 'to': self.ref, 'position': self.point, 'rotation': self.rotation,
                                'width': self.positive, 'tread': self.positive, 'risers': count,
                                'maxRiser': self.positive, 'form': self.stair_form, 'handrail': self.handrail,
+                               **({'minHeadroom': self.positive} if self.v04 else {}),
                                **self.optional()}, ('level', 'to', 'position', 'width', 'tread'))
         if ('risers' in v) == ('maxRiser' in v):
             self.bad(path, 'a stair has exactly one of risers and maxRiser')
@@ -517,6 +521,8 @@ class _Checker:
                        'risersBeforeTurn': count, 'winders': count}
             if v.get('angle') == 'half':
                 allowed['gap'] = self.nonneg
+            if self.v04:
+                allowed['newel'] = self.positive                         # 17.2.3 (0.4)
             self.members(v, path, allowed, ('kind', 'turn', 'angle', 'risersBeforeTurn', 'winders'))
         elif kind == 'spiral':
             self.members(v, path, {'kind': self.any_value, 'turn': turn, 'diameter': self.positive,

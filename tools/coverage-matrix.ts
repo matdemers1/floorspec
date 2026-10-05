@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildPack, canonicalJson, compareSections, deferredMeasures, loadPack, packDirs, REPO, ruleMeasures, RULES_DIR, within, type Test } from './packs.ts';
-import type { Json } from './schema.ts';
+import { CURRENT_RULES, type Json, type RulesVersion } from './schema.ts';
 
 export type MatrixStatus = 'covered' | 'partial' | 'deferred' | 'notCovered';
 export const STATUSES: MatrixStatus[] = ['covered', 'partial', 'deferred', 'notCovered'];
@@ -82,7 +82,7 @@ export interface MatrixPack {
 }
 
 export interface Matrix {
-  floorspecRules: '0.1';
+  floorspecRules: RulesVersion;
   packs: MatrixPack[];
   domains: DomainSummary[];
   rows: MatrixRow[];
@@ -214,7 +214,7 @@ export function coverageMatrix(packs: unknown[], deferred: Set<string>): Matrix 
   const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
   rows.sort((a, b) => cmp(a.code, b.code) || compareSections(a.edition, b.edition) || compareSections(a.section, b.section) || cmp(a.pack, b.pack));
   allRules.sort((a, b) => cmp(a.pack, b.pack) || cmp(a.rule, b.rule));
-  return { floorspecRules: '0.1', packs: meta, domains, rows, rules: allRules };
+  return { floorspecRules: CURRENT_RULES, packs: meta, domains, rows, rules: allRules };
 }
 
 const cell = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');

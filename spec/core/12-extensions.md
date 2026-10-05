@@ -177,7 +177,7 @@ Top-level extension data that has a `collections` member MUST have, as its value
 Every extension element MUST have a `fallback`, and its core members MUST have the types their tables give. {#FS-CORE-12.5.2 MUST}
 
 The `collections` member has this meaning only in top-level extension data, and only in a document
-that declares 0.2 or 0.3 (1.2.6); extension data on an element is never searched for collections.
+that declares 0.2, 0.3 or 0.4 (1.2.8); extension data on an element is never searched for collections.
 Extension elements are extension data: the canonical form never changes them (9.2), so a writer
 that wants one hash for one meaning omits their default members itself. A reader that does not
 implement an extension still finds its elements, checks their core members, and derives their

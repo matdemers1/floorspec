@@ -5,7 +5,7 @@ FS_lowvoltage, FS_furniture and FS_structural 0.1.0 - as the script that writes 
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
 
 Each suite is conformance/ext/<NAME>/0.1.0/, run by an implementation of that one extension (a reader
-of the Core draft each document declares - 0.2, or 0.3 for a document declaring "0.3" - that implements
+of the Core draft each document declares - 0.2, or 0.3 or 0.4 for a document declaring it - that implements
 <NAME> 0.1.0 and no other extension), configured with the test's
 registry.json as its known extensions, or with none when the test has no registry.json. Most tests
 are validator and deriver tests, laid out as Core's (input.json, registry.json, expected.json,
@@ -356,6 +356,10 @@ def shared(name):
     T('activation', 'core-0.3-invariants', f'The same "0.3" {HOUSE[name].split()[-1]} with {name}\'s data breaking one of its invariants: '
       f'{name} is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3'],
       ed(lambda d: (d.update(floorspec='0.3'), BREAK[name](d))), BREAK_DIAG[name])
+    T('activation', 'core-0.4-document', f'The {HOUSE[name]} declaring Core "0.4", a draft {name} 0.1.0 lists (1.1): {name} is '
+      f'evaluated, reports nothing, and derives exactly what it derives for the {HOUSE[name].split()[-1]} declaring "0.2". The suite reads a '
+      'document declaring "0.4" as a Core 0.4 reader.', ['1.2.1', '1.2.3', '1.2.4', DERIVE[name]],
+      ed(lambda d: d.update(floorspec='0.4')), check=same_as_02(name))
     T('order', 'core-error-first', 'A Core invariant breaks - an element 13\' along the 12\' wall W2, FS-INV-501 - '
       f'and so does {name}\'s schema: Core\'s error is reported, and {name} is not evaluated.', ['1.2.2'],
       ed(lambda d: (ext(d, name).update(colour='red'), WALL_ELEMENT[name](d)['host'].update(wall='W2', offset=13 * FT))),
@@ -1415,6 +1419,9 @@ S('activation', 'core-0.3-document', 'The framed house declaring Core "0.3", a d
 S('activation', 'core-0.3-invariants', 'The same "0.3" house with W10\'s studs closer than they are wide: '
   'FS_structural is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.2.2'],
   sedit(lambda d: (d.update(floorspec='0.3'), INVALID(d))), INVALID_DIAG)
+S('activation', 'core-0.4-document', 'The framed house declaring Core "0.4", a draft FS_structural 0.1.0 lists (1.1): '
+  'FS_structural is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], sedit(lambda d: d.update(floorspec='0.4')), check=check_strc)
 
 S('order', 'core-error-first', 'A Core invariant breaks - the door O3 runs past the end of W10, FS-INV-302 - and '
   'so does FS_structural\'s schema: Core\'s error is reported, and FS_structural is not evaluated.', ['1.2.2'],

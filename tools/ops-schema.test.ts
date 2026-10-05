@@ -20,7 +20,8 @@ interface Case {
 }
 // Ops 0.3's requests have Ops 0.2's shape and may add an element to Core 0.3's `roofs` (Ops 0.4): its cases are
 // 0.2's, with "unknown collection" naming a name that is still reserved and a case adding a roof.
-const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.3.json' };
+// Ops 0.4's requests match Ops 0.3's schema: its cases are 0.3's.
+const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.3.json', '0.4': 'ops-requests-0.3.json' };
 const load = (v: OpsVersion) => JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', FIXTURES[v]), 'utf8')) as Case[];
 const validators = Object.fromEntries(OPS_VERSIONS.map((v) => [v, requestValidator(undefined, v)]));
 

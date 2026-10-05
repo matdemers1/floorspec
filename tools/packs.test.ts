@@ -27,10 +27,11 @@ const ruleOf = (id: string) => clone(example.rules.find((r) => r.id === id)!.rul
 const accepts = (validate: typeof v.rule, value: unknown) => assert.ok(validate(value), formatErrors(validate.errors ?? []).join('\n'));
 const rejects = (validate: typeof v.rule, value: unknown) => assert.ok(!validate(value), `expected a rejection of ${JSON.stringify(value)}`);
 
-test('the example pack reads cleanly: a manifest, three rules, six fixtures', () => {
+test('the example pack reads cleanly: a manifest, nine rules, eighteen fixtures', () => {
   assert.deepEqual(example.problems, []);
-  assert.deepEqual(example.rules.map((r) => r.id), ['ROOM-SIZE', 'SMOKE-ALARM', 'STAIR-RISER']);
-  assert.equal(example.rules.flatMap((r) => r.fixtures).length, 6);
+  assert.deepEqual(example.rules.map((r) => r.id), ['ROOM-SIZE', 'SMOKE-ALARM', 'SPIRAL-GOING', 'SPIRAL-HEADROOM', 'SPIRAL-RISER', 'SPIRAL-WIDTH',
+    'STAIR-RISER', 'WINDER-NARROW', 'WINDER-WALKLINE']);
+  assert.equal(example.rules.flatMap((r) => r.fixtures).length, 18);
 });
 
 test('a rule on disk carries a viewer link, the certification and a review mark (FLR-REQ-094, 163, 164)', () => {

@@ -9,7 +9,7 @@ from fractions import Fraction
 
 from .. import canon, plane
 from ..program import room_relations
-from . import geometry
+from . import draft, geometry
 from .context import circuit_defaults, element_defaults, matches, member
 from .qr import QR, round_div_sqrt
 from .structure import COLLECTION, EXT_NAME, MAXI, is_int
@@ -58,8 +58,9 @@ def a_enum(*vals):
 
 
 class M:
-    def __init__(self, name, kinds, typ, fn, args=None, required=(), reads=None, involved=False, check=None):
+    def __init__(self, name, kinds, typ, fn, args=None, required=(), reads=None, involved=False, check=None, since='0.1'):
         self.name, self.kinds, self.typ, self.fn = name, set(kinds), typ, fn
+        self.since = since          # the draft that defines it: an evaluator of an earlier one does not know it
         self.args, self.required = args or {}, set(required)
         self.reads = reads or (lambda a: set())
         self.involved = involved
@@ -91,7 +92,9 @@ def names():
 
 
 def get(name, kind):
-    return MEASURES.get((name, kind))
+    """The measure of that name on that kind of target, in the current draft (draft.py), or None."""
+    m = MEASURES.get((name, kind))
+    return m if m is not None and draft.at_least(m.since) else None
 
 
 # ------------------------------------------------------------------ 5. rooms
@@ -497,8 +500,31 @@ def stair_width(ctx, t, a):
 
 @measure('stairHeadroom', ['stair'], 'length')
 def stair_headroom(ctx, t, a):
-    """Core's headroom (Core 17.6), or no value when Core derives none."""
+    """Core's headroom (Core 17.6), or no value when Core derives none - which a Core 0.3 reader, and so an
+    evaluator of Rules 0.1, never derives for a winder or a spiral stair; a Core 0.4 reader does (Rules 0.2)."""
     return ctx.derived['stairs'][t['id']].get('headroom'), None
+
+
+STAIR_FORMS = ('straight', 'lShaped', 'uShaped', 'winder', 'spiral')
+
+
+@measure('stairForm', ['stair'], 'term', since='0.2')
+def stair_form(ctx, t, a):
+    """8.5 (0.2): the kind of its form (Core 17.2), `straight` when it declares none."""
+    return ctx.doc.stairs[t['id']].get('form', {'kind': 'straight'})['kind'], None
+
+
+@measure('stairWalklineGoing', ['stair'], 'length', since='0.2')
+def stair_walkline_going(ctx, t, a):
+    """8.5 (0.2): the least going at the walkline of its tapered treads (Core 17.7), or no value for a stair
+    that has none."""
+    return ctx.derived['stairs'][t['id']].get('walklineGoing'), None
+
+
+@measure('stairNarrowGoing', ['stair'], 'length', since='0.2')
+def stair_narrow_going(ctx, t, a):
+    """8.5 (0.2): the least going at the narrow end of its tapered treads (Core 17.7), or no value."""
+    return ctx.derived['stairs'][t['id']].get('narrowGoing'), None
 
 
 @measure('stairHandrailHeight', ['stair'], 'length')

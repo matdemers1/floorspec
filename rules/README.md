@@ -17,7 +17,7 @@ decides.
   ([spec/rules/02-packs.md](../spec/rules/02-packs.md)), built from the files described here.
 
 > [!note] Status
-> The pack format is 0.x Draft, like Floorspec Rules 0.1. `example/` is the only pack so far; it
+> The pack format is 0.x Draft, like Floorspec Rules 0.2, whose packs it builds. `example/` is the only pack so far; it
 > cites the synthetic codes `TEST-CODE` and `TEST-ELEC`, which stand for no real code.
 
 ## Layout
@@ -44,7 +44,7 @@ rules/
 ```
 
 The directory name is the pack's `name`; a rule's directory name is its rule ID (Floorspec Rules
-2.1). Each file has a schema in [`schema/rules/0.1/`](../schema/rules/0.1/):
+2.1). Each file has a schema in [`schema/rules/0.2/`](../schema/rules/0.2/), the current draft's:
 
 | File | Schema |
 |---|---|
@@ -57,7 +57,7 @@ The directory name is the pack's `name`; a rule's directory name is its rule ID 
 
 | Member | Required | Meaning |
 |---|---|---|
-| `floorspecRules` | yes | `"0.1"` |
+| `floorspecRules` | yes | `"0.2"`: a pack targets the current draft, and an evaluator of one draft reads no other's packs (Floorspec Rules 2.1) |
 | `name`, `version`, `title`, `description` | all but `description` | as the pack object's (Floorspec Rules 2.1); `version` is Semantic Versioning |
 | `license` | yes | `"CC-BY-4.0"`, always |
 | `attribution` | yes | the attribution a reuser gives: who made the pack, its name and version, where it is published |

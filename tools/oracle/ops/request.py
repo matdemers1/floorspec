@@ -38,7 +38,7 @@ OPTION_SETS, OPTIONS = 'optionSets', 'options'   # Ops 0.3: Core 0.3's design op
 
 def collections(profile: Profile) -> tuple:
     """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` and `stairs` too."""
-    return COLLECTIONS + ((ROOFS, STAIRS, OPTION_SETS, OPTIONS) if profile.version == '0.3' else ())
+    return COLLECTIONS + ((ROOFS, STAIRS, OPTION_SETS, OPTIONS) if profile.v03 else ())
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them

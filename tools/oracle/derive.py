@@ -20,9 +20,9 @@ from .surd import Surd
 
 def ext_elements(d: dict):
     """Core 0.2, 12.5: (extension, collection, ID, element) for every extension element - only in a
-    document that declares 0.2 or 0.3 (1.2.6); in a 0.1 document, extension data is opaque."""
+    document that declares 0.2, 0.3 or 0.4 (1.2.8); in a 0.1 document, extension data is opaque."""
     out = []
-    if d.get('floorspec') not in ('0.2', '0.3'):
+    if d.get('floorspec') not in ('0.2', '0.3', '0.4'):
         return out
     for ext, data in d.get('extensions', {}).items():
         if isinstance(data, dict) and isinstance(data.get('collections'), dict):

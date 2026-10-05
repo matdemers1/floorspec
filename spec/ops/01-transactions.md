@@ -16,7 +16,8 @@ that once existed in this document's history and therefore are never minted agai
 JSON Schema `schema/ops/0.3/request.schema.json` gives the shape of an apply request: every
 operation, every member each has, and the JSON type of each member. Ops 0.3 adds no operation;
 its schema is Ops 0.2's, except that `addElement` may also add to Core 0.3's `roofs`, `stairs`,
-`optionSets` and `options`, and `context` may have `option` (0.4).
+`optionSets` and `options`, and `context` may have `option` (0.4). Ops 0.4 adds no operation and no
+member, and its requests match the same schema, `schema/ops/0.3/` (0.4).
 
 An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.3 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.3 MUST}
 Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`

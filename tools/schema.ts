@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
- * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2
- * and 0.3), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3), whose rejections are
+ * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2,
+ * 0.3 and 0.4), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3, which Ops 0.4's requests match), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -10,10 +10,10 @@ import { join, relative } from 'node:path';
 import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js';
 
 /** The Core drafts this repository publishes, oldest first. */
-export const CORE_VERSIONS = ['0.1', '0.2', '0.3'] as const;
+export const CORE_VERSIONS = ['0.1', '0.2', '0.3', '0.4'] as const;
 export type CoreVersion = (typeof CORE_VERSIONS)[number];
 /** The draft the spec text in spec/core/ is. */
-export const CURRENT_CORE: CoreVersion = '0.3';
+export const CURRENT_CORE: CoreVersion = '0.4';
 
 export const coreSchemaBase = (v: CoreVersion) => `https://d3cloud.io/floorspec/schema/core/${v}/`;
 export const coreRootId = (v: CoreVersion) => `${coreSchemaBase(v)}floorspec.schema.json`;
@@ -27,17 +27,17 @@ export const REGISTRY_ID = 'https://d3cloud.io/floorspec/schema/registry/0.1/ext
 export const registrySchemaDir = join(import.meta.dirname, '..', 'schema', 'registry', '0.1');
 
 /** The Ops drafts this repository publishes, oldest first. */
-export const OPS_VERSIONS = ['0.1', '0.2', '0.3'] as const;
+export const OPS_VERSIONS = ['0.1', '0.2', '0.3', '0.4'] as const;
 export type OpsVersion = (typeof OPS_VERSIONS)[number];
 /** The draft the spec text in spec/ops/ is. */
-export const CURRENT_OPS: OpsVersion = '0.3';
+export const CURRENT_OPS: OpsVersion = '0.4';
 /** The Core draft each Ops draft operates on: its document A is valid under that draft's reader. */
-export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
+export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3', '0.4': '0.4' };
 /** The Ops request schemas, schema/ops/<v>/, oldest first. */
 export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
-/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4). */
-export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
+/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4); Ops 0.4 has none of its own and matches 0.3's. */
+export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3', '0.4': '0.3' };
 
 export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
 export const opsRootId = (v: OpsSchemaVersion) => `${opsSchemaBase(v)}request.schema.json`;
@@ -464,10 +464,12 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
 }
 
 /** The Floorspec Rules drafts this repository publishes, oldest first. */
-export const RULES_VERSIONS = ['0.1'] as const;
+export const RULES_VERSIONS = ['0.1', '0.2'] as const;
 export type RulesVersion = (typeof RULES_VERSIONS)[number];
 /** The draft the spec text in spec/rules/ is. */
-export const CURRENT_RULES: RulesVersion = '0.1';
+export const CURRENT_RULES: RulesVersion = '0.2';
+/** The Core draft whose reader each Rules draft reads documents with (Rules 1.2). */
+export const RULES_CORE: Record<RulesVersion, CoreVersion> = { '0.1': '0.3', '0.2': '0.4' };
 
 export const rulesSchemaBase = (v: RulesVersion) => `https://d3cloud.io/floorspec/schema/rules/${v}/`;
 export const rulesId = (v: RulesVersion, name: string) => `${rulesSchemaBase(v)}${name}.schema.json`;
@@ -482,9 +484,10 @@ export interface RulesValidators {
   measureResult: ValidateFunction;
 }
 
-export function rulesValidators(ajv = createAjv(loadSchemaFiles(rulesSchemaDir('0.1'))), v: RulesVersion = '0.1'): RulesValidators {
+export function rulesValidators(ajv?: Ajv2020, v: RulesVersion = '0.1'): RulesValidators {
+  const loaded = ajv ?? createAjv(loadSchemaFiles(rulesSchemaDir(v)));
   const get = (id: string) => {
-    const f = ajv.getSchema(id);
+    const f = loaded.getSchema(id);
     if (!f) throw new Error(`schema ${id} is not loaded`);
     return f;
   };

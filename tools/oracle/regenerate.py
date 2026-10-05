@@ -1,7 +1,7 @@
-"""Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2 and 0.3, Floorspec Ops 0.1, 0.2 and 0.3,
-every official extension's suite (conformance/ext/<NAME>/<version>/), Floorspec Rules 0.1
-(conformance/rules/0.1/, by tools/oracle/rules/suite.py) and the migration suite of Core 0.3's
-chapter 20 (conformance/migration/0.3/, by tools/oracle/migration_suite.py) - against the oracle.
+"""Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2, 0.3 and 0.4, Floorspec Ops 0.1, 0.2 and 0.3,
+every official extension's suite (conformance/ext/<NAME>/<version>/), Floorspec Rules 0.1 and 0.2
+(conformance/rules/<v>/, by tools/oracle/rules/suite.py) and the migration suites of chapter 20 of Core
+0.3 and 0.4 (conformance/migration/<v>/, by tools/oracle/migration_suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
@@ -11,7 +11,8 @@ recomputed (and rewritten with --write), and every committed result is checked f
 1.4.1 and 1.6.1.
 
 For every test directory under conformance/core/<v> - read as a Core <v> reader reads it: 0.1
-alone; 0.2, which also reads 0.1 documents; 0.3, which also reads 0.1 and 0.2 documents (1.2.6) -
+alone; 0.2, which also reads 0.1 documents; 0.3, which also reads 0.1 and 0.2 documents (1.2.6 of 0.3);
+0.4, which also reads 0.1, 0.2 and 0.3 documents (1.2.8) -
 configured with the test's registry.json as its known extensions when the test has one (12.2),
 and deriving the design its design.json names when it has one (Core 0.3, 19.6), it recomputes, from
 input.json (and registry.json and design.json) alone:
@@ -157,7 +158,7 @@ def verify_ext(name: str, suite: str, write: bool):
     extension and has the test's known extensions."""
     from .ext import official
     from .ops.suite import verify as verify_op
-    from .ops.version import OPS_02, OPS_03
+    from .ops.version import OPS_02, OPS_03, OPS_04
     implemented = official.implemented(name)
     dirs = list(test_dirs(suite))
     errors = []
@@ -165,7 +166,8 @@ def verify_ext(name: str, suite: str, write: bool):
         if os.path.exists(os.path.join(d, 'request.json')):
             _, registry = reader_for(d)
             with open(os.path.join(d, 'input.json'), 'rb') as f:
-                profile = OPS_03 if ext_reader(f.read()).v03 else OPS_02
+                reader = ext_reader(f.read())
+                profile = OPS_04 if reader.v04 else OPS_03 if reader.v03 else OPS_02
             errors.extend(verify_op(d, write, profile.configured(registry, implemented)))
         else:
             errors.extend(verify(d, write, implemented))
@@ -192,12 +194,18 @@ def main(argv) -> int:
         n, errors = verify_ext(name, suite, write)
         ext_counts[f'{name} {os.path.basename(suite)}'] = (n, len(errors))
         ops_errors.extend(errors)
-    from .rules.suite import verify_all as verify_rules
-    rules_n, rules_errors = verify_rules(write)
-    ops_errors.extend(rules_errors)
-    from .migration_suite import verify_all as verify_migration
-    migration_n, migration_errors = verify_migration(write)
-    ops_errors.extend(migration_errors)
+    from .rules.suite import SUITES as RULES_SUITES, verify_all as verify_rules
+    rules_counts = {}
+    for version in RULES_SUITES:
+        rules_n, rules_errors = verify_rules(write, version)
+        rules_counts[version] = (rules_n, len(rules_errors))
+        ops_errors.extend(rules_errors)
+    from .migration_suite import SUITES as MIGRATION_SUITES, verify_all as verify_migration
+    migration_counts = {}
+    for version in MIGRATION_SUITES:
+        migration_n, migration_errors = verify_migration(write, version)
+        migration_counts[version] = (migration_n, len(migration_errors))
+        ops_errors.extend(migration_errors)
     for e in all_errors + ops_errors:
         print(e)
     for version, (n, k) in counts.items():
@@ -206,8 +214,10 @@ def main(argv) -> int:
         print(f'Ops {version}: {n} tests, {k} differences from the oracle')
     for label, (n, k) in ext_counts.items():
         print(f'{label}: {n} tests, {k} differences from the oracle')
-    print(f'Rules 0.1: {rules_n} tests, {len(rules_errors)} differences from the oracle')
-    print(f'Migration (Core 0.3, chapter 20): {migration_n} tests, {len(migration_errors)} differences from the oracle')
+    for version, (n, k) in rules_counts.items():
+        print(f'Rules {version}: {n} tests, {k} differences from the oracle')
+    for version, (n, k) in migration_counts.items():
+        print(f'Migration (Core {version}, chapter 20): {n} tests, {k} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
 
 

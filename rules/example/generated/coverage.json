@@ -36,7 +36,7 @@
       "oldestVerification": "2026-10-05",
       "pack": "example",
       "reviewed": 0,
-      "rules": 1,
+      "rules": 7,
       "sections": {
         "covered": 1,
         "deferred": 0,
@@ -46,18 +46,18 @@
       "title": "Stairs"
     }
   ],
-  "floorspecRules": "0.1",
+  "floorspecRules": "0.2",
   "packs": [
     {
-      "attribution": "Floorspec example pack (example 0.1.0) by the Floorspec contributors, CC BY 4.0, https://github.com/matdemers1/floorspec/tree/main/rules/example",
+      "attribution": "Floorspec example pack (example 0.2.0) by the Floorspec contributors, CC BY 4.0, https://github.com/matdemers1/floorspec/tree/main/rules/example",
       "jurisdiction": "Nowhere: synthetic codes for testing the format",
       "license": "CC-BY-4.0",
       "name": "example",
       "reviewed": 1,
-      "rules": 3,
+      "rules": 9,
       "synthetic": true,
       "title": "Example pack (synthetic codes)",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ],
   "rows": [
@@ -93,7 +93,7 @@
       ],
       "section": "§1",
       "status": "covered",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "code": "TEST-CODE",
@@ -109,7 +109,7 @@
       "rules": [],
       "section": "§2",
       "status": "notCovered",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "code": "TEST-CODE",
@@ -127,7 +127,7 @@
       "rules": [],
       "section": "§3",
       "status": "deferred",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "code": "TEST-CODE",
@@ -136,11 +136,59 @@
       "edition": "2024",
       "needs": [],
       "newestVerification": "2026-10-05",
-      "note": "Riser heights of every stair.",
+      "note": "Riser heights of every stair; the goings of winders at the walkline and at their narrow ends; and the width, going at the walkline, risers and headroom of spiral stairs.",
       "oldestVerification": "2026-10-05",
       "pack": "example",
       "reviewed": 0,
       "rules": [
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.8",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "SPIRAL-GOING",
+          "section": "§4.8",
+          "severity": "mayNotMeet",
+          "title": "Spiral treads deep enough at the walkline",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
+        },
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.10",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "SPIRAL-HEADROOM",
+          "section": "§4.10",
+          "severity": "mayNotMeet",
+          "title": "Headroom over a spiral stair",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
+        },
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.9",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "SPIRAL-RISER",
+          "section": "§4.9",
+          "severity": "mayNotMeet",
+          "title": "Spiral risers not too tall",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
+        },
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.7",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "SPIRAL-WIDTH",
+          "section": "§4.7",
+          "severity": "mayNotMeet",
+          "title": "Spiral stairs wide enough",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
+        },
         {
           "deferred": [],
           "link": "https://example.org/test-code/2024/4.1",
@@ -152,11 +200,35 @@
           "title": "Stair risers are not too tall",
           "verifiedBy": "Floorspec contributors",
           "verifiedOn": "2026-10-05"
+        },
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.6",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "WINDER-NARROW",
+          "section": "§4.6",
+          "severity": "mayNotMeet",
+          "title": "Winders not too narrow at the inside",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
+        },
+        {
+          "deferred": [],
+          "link": "https://example.org/test-code/2024/4.5",
+          "pack": "example",
+          "review": "unreviewed",
+          "rule": "WINDER-WALKLINE",
+          "section": "§4.5",
+          "severity": "mayNotMeet",
+          "title": "Winders deep enough at the walkline",
+          "verifiedBy": "Floorspec contributors",
+          "verifiedOn": "2026-10-05"
         }
       ],
       "section": "§4",
       "status": "covered",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "code": "TEST-ELEC",
@@ -185,7 +257,7 @@
       ],
       "section": "§3",
       "status": "partial",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ],
   "rules": [
@@ -220,6 +292,54 @@
     },
     {
       "deferred": [],
+      "link": "https://example.org/test-code/2024/4.8",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "SPIRAL-GOING",
+      "section": "§4.8",
+      "severity": "mayNotMeet",
+      "title": "Spiral treads deep enough at the walkline",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
+      "link": "https://example.org/test-code/2024/4.10",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "SPIRAL-HEADROOM",
+      "section": "§4.10",
+      "severity": "mayNotMeet",
+      "title": "Headroom over a spiral stair",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
+      "link": "https://example.org/test-code/2024/4.9",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "SPIRAL-RISER",
+      "section": "§4.9",
+      "severity": "mayNotMeet",
+      "title": "Spiral risers not too tall",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
+      "link": "https://example.org/test-code/2024/4.7",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "SPIRAL-WIDTH",
+      "section": "§4.7",
+      "severity": "mayNotMeet",
+      "title": "Spiral stairs wide enough",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
       "link": "https://example.org/test-code/2024/4.1",
       "pack": "example",
       "review": "unreviewed",
@@ -227,6 +347,30 @@
       "section": "§4.1",
       "severity": "mayNotMeet",
       "title": "Stair risers are not too tall",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
+      "link": "https://example.org/test-code/2024/4.6",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "WINDER-NARROW",
+      "section": "§4.6",
+      "severity": "mayNotMeet",
+      "title": "Winders not too narrow at the inside",
+      "verifiedBy": "Floorspec contributors",
+      "verifiedOn": "2026-10-05"
+    },
+    {
+      "deferred": [],
+      "link": "https://example.org/test-code/2024/4.5",
+      "pack": "example",
+      "review": "unreviewed",
+      "rule": "WINDER-WALKLINE",
+      "section": "§4.5",
+      "severity": "mayNotMeet",
+      "title": "Winders deep enough at the walkline",
       "verifiedBy": "Floorspec contributors",
       "verifiedOn": "2026-10-05"
     }

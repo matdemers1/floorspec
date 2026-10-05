@@ -7,7 +7,7 @@ from .. import frames, plane
 from .common import Context, load_schema
 
 NAME, VERSION, CODE = 'FS_furniture', '0.1.0', 'FURN'
-CORE = ('0.2', '0.3')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
+CORE = ('0.2', '0.3', '0.4')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
 SCHEMA = load_schema(NAME, 'furniture')
 SEVERITY = {'FS-FURN-LINT-001': 'warning', 'FS-FURN-LINT-002': 'warning', 'FS-FURN-LINT-003': 'info',
             'FS-FURN-LINT-004': 'warning', 'FS-FURN-LINT-005': 'warning'}
