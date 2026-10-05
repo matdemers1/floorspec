@@ -5,6 +5,7 @@ from __future__ import annotations
 from fractions import Fraction
 from math import gcd
 
+from ..canon import utf16_key
 from .qr import round_frac
 
 SQFT = 152212340736          # square base units in a square foot
@@ -44,7 +45,7 @@ def value(typ: str, v, units: str, unit=None) -> str:
     if typ == 'term':
         return v
     if typ == 'terms':
-        return ', '.join(sorted(v)) if v else 'none'
+        return ', '.join(sorted(v, key=utf16_key)) if v else 'none'
     raise ValueError(typ)
 
 

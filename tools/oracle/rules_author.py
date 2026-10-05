@@ -487,18 +487,17 @@ R('typing', 'rules-that-are-not-well-typed',
   diags=[D('FS-RULES-007', pack='test-pack', rule=r) for r in TYPED['rules'] if r != 'GOOD'],
   check=lambda r: ensure([e['rule'] for e in r['evaluated']] == ['GOOD'] and all(e['reason'] == 'invalid' for e in r['notEvaluated']), 'invalid'))
 
-DEFERRED_NAMES = ['ceilingHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles', 'doorClearWidth',
-                  'floorElevationDifference', 'openingNetClearArea', 'openingNetClearHeight', 'openingNetClearWidth',
-                  'roomNarrowestDimension', 'stairHandrailHeight', 'stairHeadroom', 'stairRiserHeight', 'stairTreadDepth',
+DEFERRED_NAMES = ['ceilingHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
+                  'floorElevationDifference', 'roomNarrowestDimension', 'stairHandrailHeight', 'stairHeadroom', 'stairRiserHeight', 'stairTreadDepth',
                   'stairWidth', 'travelDistance']
 DEFERRED_PACK = pack({f'D-{n}': rule(SLEEPING, C(n, '>=', 1, anything=True), title=f'Uses {n}') for n in DEFERRED_NAMES})
 R('typing', 'every-deferred-measure',
-  'A rule for each of the fifteen deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
+  'A rule for each of the eleven deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
   'counts as taking any arguments, so each rule is well typed, and each is reported with FS-RULES-008 (an `info`) and '
   'listed as "deferred". None is evaluated.',
   ['FS-RULES-3.9.2', 'FS-RULES-4.8.1', 'FS-RULES-11.1.1'], house(), req(DEFERRED_PACK),
   diags=[D('FS-RULES-008', pack='test-pack', rule=f'D-{n}') for n in DEFERRED_NAMES],
-  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 15, 'all deferred'))
+  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 11, 'all deferred'))
 
 FURN_MEMBER = rule({'to': 'element', 'extension': 'EXT_furniture'}, C('elementMember', '=', 'oak', name='finish', type='term'),
                    title='A member of an extension nobody implements')
@@ -1177,6 +1176,139 @@ MT('measures-circuits-and-levels', 'two-circuits',
    [(room('R1'), 'circuitCount', None), (room('R1'), 'circuitCount', {'circuit': {'breaker': 20}}),
     (element('X5'), 'elementProtectedBy', {'protection': 'afci'})], [2, 1, False],
    check=lambda rs: ensure(rs[0]['involved'] == ['C1', 'C2'] and rs[1]['involved'] == ['C2'], 'circuits'))
+
+
+
+# ============================================================================= net clear openings (6.1, 6.5)
+WIN_CLEAR = {'width': 30 * IN, 'height': 44 * IN, 'area': 8 * SQFT}       # 30" x 44", 8 sq ft declared
+DOOR_CLEAR = {'width': 32 * IN, 'height': 78 * IN}
+
+
+def clear_openings(d):
+    """The rules house as a Core 0.3 document: its window type a casement and its door type a swing
+    door, each with the clear opening its maker declares; the living room's window O5 overrides
+    its clear opening without an area; and an empty opening O6 in R3's south wall states its own."""
+    d['floorspec'] = '0.3'
+    d['types']['WIN'].update(operation='casement', clearOpening=dict(WIN_CLEAR))
+    d['types']['DOOR'].update(operation='swing', clearOpening=dict(DOOR_CLEAR))
+    d['openings']['O5']['clearOpening'] = {'width': 28 * IN, 'height': 40 * IN}
+    d['openings']['O6'] = {'wall': 'W6', 'offset': 2 * FT, 'width': 2 * FT, 'height': 7 * FT,
+                           'clearOpening': {'width': 22 * IN, 'height': 82 * IN}}
+
+
+CLEAR_HOUSE = edit(clear_openings)
+MT('measures-openings', 'net-clear-openings',
+   'The rules house as a Core 0.3 document whose window and door types declare their operation and clear opening. The '
+   'bedroom window O1 has its type\'s 30" x 44" and 8 sq ft - not 30" times 44" - and no door clear width; the door O2 '
+   'has its type\'s 32" x 78", no area, and a door clear width of 32"; the living-room window O5 overrides its clear '
+   'opening without an area, so its area has no value; the empty opening O6 states its own clear opening, and has no '
+   'door clear width and no operation.',
+   ['FS-RULES-6.1.1', 'FS-RULES-6.5.1', 'FS-RULES-4.7.1', 'FS-RULES-9.6.1'], CLEAR_HOUSE,
+   [(opening('O1'), 'openingOperation', None), (opening('O1'), 'openingNetClearWidth', None),
+    (opening('O1'), 'openingNetClearHeight', None), (opening('O1'), 'openingNetClearArea', None),
+    (opening('O1'), 'doorClearWidth', None),
+    (opening('O2'), 'openingOperation', None), (opening('O2'), 'openingNetClearWidth', None),
+    (opening('O2'), 'openingNetClearArea', None), (opening('O2'), 'doorClearWidth', None),
+    (opening('O5'), 'openingNetClearWidth', None), (opening('O5'), 'openingNetClearArea', None),
+    (opening('O6'), 'openingOperation', None), (opening('O6'), 'openingNetClearHeight', None),
+    (opening('O6'), 'doorClearWidth', None)],
+   ['casement', 30 * IN, 44 * IN, str(8 * SQFT), None, 'swing', 32 * IN, None, 32 * IN, 28 * IN, None, None, 82 * IN, None],
+   check=lambda rs: ensure([rs[i]['display'] for i in (1, 3, 4, 7)] == ['2\' 6"', '8.00 sq ft', 'not stated', 'not stated'],
+                           [r['display'] for r in rs]))
+MT('measures-openings', 'net-clear-in-a-0.2-document',
+   'The rules house as it is, a Core 0.2 document: it declares no operation and no clear opening, so every net clear '
+   'measure has no value - none is computed from the openings\' sizes.', ['FS-RULES-6.5.1', 'FS-RULES-6.1.1'], house(),
+   [(opening('O1'), 'openingNetClearWidth', None), (opening('O1'), 'openingNetClearHeight', None),
+    (opening('O1'), 'openingNetClearArea', None), (opening('O2'), 'doorClearWidth', None),
+    (opening('O2'), 'openingOperation', None)],
+   [None, None, None, None, None])
+
+NET_ESCAPE = rule(SLEEPING, {'all': [C('openingNetClearArea', '>=', 5 * SQFT), C('openingNetClearWidth', '>=', 20 * IN),
+                                     C('openingNetClearHeight', '>=', 24 * IN), C('openingSillHeight', '<=', 44 * IN)]},
+                  select={'from': 'openings', 'args': {'to': 'outside'},
+                          'where': {'not': C('openingOperation', '=', 'fixed')}, 'need': 'any'},
+                  section='§3.2', title='Net clear escape opening in every sleeping room')
+R('selection', 'net-clear-escape-opening',
+  'A synthetic escape rule on net clear openings, of any opening to the outside that is not fixed: the bedroom\'s '
+  'casement O1 declares 8 sq ft, 30" by 44" clear, so R1 passes and the rule gives no finding.',
+  ['FS-RULES-6.5.1', 'FS-RULES-3.5.1', 'FS-RULES-3.8.1'], CLEAR_HOUSE, req(pack({'NET-ESCAPE': NET_ESCAPE})),
+  check=lambda r: ensure(r['evaluated'][0]['subjects'] == 1 and r['evaluated'][0]['findings'] == 0, 'no finding'))
+
+
+def area_not_declared(d):
+    clear_openings(d)
+    del d['types']['WIN']['clearOpening']['area']
+
+
+def check_not_stated(r):
+    f = findings_of(r, 'NET-ESCAPE')[0]
+    area = f['measures'][0]
+    ensure(area['measure'] == 'openingNetClearArea' and area['value'] is None and area['display'] == 'not stated'
+           and area['holds'] is False, area)
+    ensure([m['holds'] for m in f['measures']] == [False, True, True, True], 'only the area fails')
+
+
+R('selection', 'net-clear-area-not-stated',
+  'The same rule when the casement\'s clear opening declares no area: its area is not 30" times 44" but has no value, '
+  'which no threshold is met by (3.8), so R1 may not meet the rule; the finding shows the area as `not stated`.',
+  ['FS-RULES-6.5.1', 'FS-RULES-3.8.1', 'FS-RULES-9.3.1', 'FS-RULES-9.6.1'], edit(area_not_declared),
+  req(pack({'NET-ESCAPE': NET_ESCAPE})), found=[('NET-ESCAPE', 'R1')], check=check_not_stated)
+
+DOOR_WIDTH = rule({'to': 'opening', 'where': C('openingKind', '=', 'door')}, C('doorClearWidth', '>=', 32 * IN),
+                  section='§4.1', title='Door clear width')
+
+
+def narrow_door(d):
+    clear_openings(d)
+    d['openings']['O2']['width'] = 32 * IN
+    d['openings']['O2']['clearOpening'] = {'width': 30 * IN, 'height': 78 * IN}
+
+
+R('selection', 'door-clear-width',
+  'A synthetic door-width rule on every door: O3 and O4 have their type\'s 32" clear and pass; O2, a 32" door with its '
+  'own 30" clear opening, may not meet it. The window and the empty opening are not subjects.',
+  ['FS-RULES-6.5.1', 'FS-RULES-3.4.1', 'FS-RULES-3.6.1'], edit(narrow_door), req(pack({'DOOR-WIDTH': DOOR_WIDTH})),
+  found=[('DOOR-WIDTH', 'O2')],
+  check=lambda r: ensure(r['evaluated'][0]['subjects'] == 3
+                         and findings_of(r, 'DOOR-WIDTH')[0]['measures'][0]['display'] == '2\' 6"', r['evaluated']))
+
+
+# ============================================================================= what the text says, as TS found (9.4, 9.7)
+SERVICE_CLEAR = rule({'to': 'element', 'extension': MECH, 'collection': 'equipment'}, C('envelopeOverlaps', '=', 0),
+                     select={'from': 'envelopes', 'args': {'purpose': 'workingSpace'}, 'need': 'all'},
+                     section='§6.1', title='Service space clear of other spaces')
+
+
+def check_opening_drawn(r):
+    f = findings_of(r, 'SERVICE')[0]
+    ensure(f['measures'][0]['involved'] == ['O4'] and f['elements'] == ['O4', 'X2'], f['elements'])
+    shapes = f['location']['shapes']
+    ensure([s['kind'] for s in shapes] == ['polygon', 'polygon', 'segment'], shapes)
+    ensure(shapes[2]['points'] == [[24 * FT, 4 * FT], [24 * FT, 7 * FT]], shapes[2])
+
+
+R('findings', 'an-involved-opening-is-drawn',
+  'A synthetic rule that the boiler\'s service space overlaps no other space, with every door swinging 3\': the space '
+  'overlaps O4\'s swing, so X2 may not meet it, O4 is involved, and the finding draws the boiler, its service space '
+  'and - as every involved ID with a shape (9.4) - the door O4, as the segment from its start to its end point.',
+  ['FS-RULES-9.4.1', 'FS-RULES-7.8.1'], edit(swinging_doors), req(pack({'SERVICE': SERVICE_CLEAR})),
+  found=[('SERVICE', 'X2')], check=check_opening_drawn)
+
+
+def tagged_piece(d):
+    furniture(d, {'P1': {'fallback': {'level': 'L1', 'box': box(-300, -300, 0, 300, 300, 900)},
+                         'host': {'mode': 'free', 'level': 'L1', 'position': [18 * FT, 6 * FT]},
+                         'tags': ['ﬁ', 'z', '\U0001f600', 'A']}})
+
+
+MT('measures-elements', 'terms-in-utf-16-order',
+   'A furniture piece whose `tags` member is the strings U+FB01, "z", U+1F600 and "A": a `terms` value is sorted as '
+   'sequences of UTF-16 code units (9.7), so U+1F600 - the surrogates 0xD83D 0xDE00 - comes before U+FB01, although its '
+   'code point is the larger; and the display lists them in the same order.',
+   ['FS-RULES-9.7.1', 'FS-RULES-7.1.1', 'FS-RULES-4.7.1'], edit(tagged_piece),
+   [(element('P1'), 'elementMember', {'name': 'tags', 'type': 'terms'})],
+   [['A', 'z', '\U0001f600', 'ﬁ']],
+   check=lambda rs: ensure(rs[0]['display'] == 'A, z, \U0001f600, ﬁ', rs[0]['display']))
 
 
 # ============================================================================= writing the suite

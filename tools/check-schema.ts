@@ -153,7 +153,7 @@ for (const v of RULES_VERSIONS) {
   const rv = rulesValidators(compile(`rules/${v}`, loadSchemaFiles(rulesSchemaDir(v))), v);
   const profile0 = defaultProfile(root);
   if (!rv.profile(profile0)) problems.push(`spec/rules/10-profiles.md: the default profile does not match the profile schema:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
-  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.2'), registry, profile0, root);
+  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.3'), registry, profile0, root);
   problems.push(...rules.problems);
   console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
 }

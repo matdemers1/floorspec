@@ -362,14 +362,14 @@ it in every valid test that evaluates it.
 The Rules suite, `rules/0.1/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
 packs against a document under a jurisdiction profile. It is run by an evaluator that implements the
 four official extensions at 0.1.0, configured with the test's `registry.json` as its known
-extensions - or with none, when the test has none - exactly as a Core 0.2 validator is. `pnpm
+extensions - or with none, when the test has none - exactly as a Core 0.3 validator is. `pnpm
 coverage` gates FS-RULES 0.1 against it.
 
 ```text
 conformance/
   rules/0.1/<group>/<NNN-slug>/
     test.json        what the test is and which FS-RULES statements it covers
-    input.json       the document (Core 0.2, with official extensions where the test needs them)
+    input.json       the document (Core 0.2, with official extensions where the test needs them; Core 0.3 where it needs clear openings)
     registry.json    optional: the evaluator's known extensions
     request.json     a report test: the evaluation request (Rules §1.1) - packs, profile, units
     measures.json    a measure test: { "units"?: …, "calls": [ { "target", "measure", "args"? }, … ] }
@@ -397,6 +397,10 @@ and the bedroom without a window), and the measure groups `measures-rooms`, `mea
 `measures-elements`, `measures-envelopes`, `measures-walllines` and `measures-circuits-and-levels`,
 built on one plan - **the rules house**: a bedroom, a living room and a utility room in a row, with a
 panel, a boiler, a smoke alarm and two receptacles - so that most values can be checked by hand.
+The net clear measures (Rules §6.5) are tested on the rules house as a Core 0.3 document whose door
+and window types declare their operation and clear opening (`measures-openings/…-net-clear-openings`,
+`selection/…-net-clear-escape-opening` and the tests after it). The official extensions at 0.1.0
+are evaluated only for a document that declares `"0.2"`, so those tests read no extension.
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can

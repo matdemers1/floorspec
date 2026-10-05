@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from fractions import Fraction
 
-from .. import plane
+from .. import canon, plane
 from ..program import room_relations
 from . import geometry
 from .context import circuit_defaults, element_defaults, matches, member
@@ -22,8 +22,7 @@ PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
 ELEC = 'FS_electrical'
 
 # 4.8: reserved, not evaluated
-DEFERRED = {'ceilingHeight', 'roomNarrowestDimension', 'openingNetClearArea', 'openingNetClearWidth',
-            'openingNetClearHeight', 'doorClearWidth', 'stairRiserHeight', 'stairTreadDepth', 'stairWidth',
+DEFERRED = {'ceilingHeight', 'roomNarrowestDimension', 'stairRiserHeight', 'stairTreadDepth', 'stairWidth',
             'stairHeadroom', 'stairHandrailHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
             'travelDistance', 'floorElevationDifference'}
 
@@ -239,6 +238,13 @@ def opening_kind(ctx, t, a):
     return ('door' if ctx.doc.types[fill]['kind'] == 'doorType' else 'window'), None
 
 
+@measure('openingOperation', ['opening'], 'term')
+def opening_operation(ctx, t, a):
+    """6.1: its fill type's operation (Core 0.3, 8.4), or no value."""
+    fill = ctx.doc.openings[t['id']].get('fill')
+    return (ctx.doc.types[fill].get('operation') if fill is not None else None), None
+
+
 @measure('openingWidth', ['opening'], 'length')
 def opening_width(ctx, t, a):
     return ctx.doc.opening_dims(t['id'])[0], None
@@ -275,6 +281,33 @@ def opening_to_outside(ctx, t, a):
     return wall_to_outside(ctx, ctx.doc.openings[t['id']]['wall']), None
 
 
+# 6.5: the clear opening Core derives (Core 0.3, 7.4.2) - as declared, never computed
+def _clear(ctx, t):
+    return ctx.derived['openings'][t['id']].get('clearOpening', {})
+
+
+@measure('openingNetClearWidth', ['opening'], 'length')
+def opening_net_clear_width(ctx, t, a):
+    return _clear(ctx, t).get('width'), None
+
+
+@measure('openingNetClearHeight', ['opening'], 'length')
+def opening_net_clear_height(ctx, t, a):
+    return _clear(ctx, t).get('height'), None
+
+
+@measure('openingNetClearArea', ['opening'], 'area')
+def opening_net_clear_area(ctx, t, a):
+    area = _clear(ctx, t).get('area')
+    return (Fraction(area) if area is not None else None), None
+
+
+@measure('doorClearWidth', ['opening'], 'length')
+def door_clear_width(ctx, t, a):
+    kind, _ = opening_kind(ctx, t, a)
+    return (_clear(ctx, t).get('width') if kind == 'door' else None), None
+
+
 # ------------------------------------------------------------------ 7. elements
 def _member_ok(a):
     return 'unit' not in a or a['type'] == 'integer'
@@ -297,7 +330,7 @@ def element_member(ctx, t, a):
     if typ == 'boolean' and isinstance(v, bool):
         return v, None
     if typ == 'terms' and isinstance(v, list) and all(isinstance(s, str) for s in v):
-        return sorted(v), None
+        return sorted(v, key=canon.utf16_key), None                    # 9.7: UTF-16 code units
     return None, None
 
 
