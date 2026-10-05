@@ -109,8 +109,11 @@ mints one: the element's **prefix** followed by a decimal integer.
 | every extension collection | `X` | | |
 
 The integer is one more than the largest *n* among the IDs that match `^<prefix>[0-9]+$` — the IDs
-of every element in A (0.3), every ID named or minted earlier in the same batch (including any
-removed again since), and those in `context.retired` — or `1` when there are none. Every
+of every element in A (0.3), of every element in the working copy as it stands, every ID named or
+minted earlier in the same batch (including any removed again since), and those in
+`context.retired` — or `1` when there are none. The working copy can hold IDs that are neither in
+A as elements nor named by the batch: a batch that makes a Core 0.1 document declare `"0.2"` turns
+its top-level extension data, opaque under 0.1, into extension elements (0.3), and their IDs count. Every
 extension collection shares the one prefix `X`: an extension's collections are named by the
 extension, and an applier that has never heard of it still mints the same ID.
 

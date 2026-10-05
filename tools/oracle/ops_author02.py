@@ -824,6 +824,37 @@ T('references', 'sq-needs-a-space', '"sq" and its unit are two words: "120 sqft"
   req({'op': 'addProgramItem', 'function': 'storage', 'targetArea': '120 sqft'}), 'rejected', [('FS-OPS-012', [])])
 
 
+# ============================================================================= what the text says as the oracle does
+# (Ops 0.2 text made as specific as the oracle: 1.5, 3.3, 4.2, 4.10)
+
+T('ids', 'mint-past-upgraded-extension-elements', 'A declares "0.1", so its top-level extension data is opaque and the '
+  'outlet X4 in it is no element of A (0.3). The batch makes the document declare "0.2", which turns X4 into an '
+  'extension element of the working copy; the next device placed is X5, because minting counts the IDs in the '
+  'working copy as it stands (1.5). "created" lists both: X4 is an element of B and was none of A (1.3).', ['1.5.1'],
+  dict(box(extensionsUsed={ELEC: '0.1.0'}), extensions={ELEC: {'collections': {'devices': {'X4': outlet('W2', 6 * FT)}}}}),
+  req({'op': 'setProperty', 'id': '$document', 'path': '/floorspec', 'value': '0.2'},
+      place(wall_face('W2', "2'", side='right'))),
+  check=lambda r, B: ensure(r['resolved'][1]['id'] == 'X5' and r['created'] == ['X4', 'X5'] and set(ext_of(B)) == {'X4', 'X5'}, r))
+T('composites', 'move-wall-takes-no-separator', 'moveWall\'s "wall" is a wall: the separator S1 across the box counts '
+  'as no match, so FS-OPS-003.', ['4.2.1', '3.3.1'],
+  box(junctions={'J5': J(6 * FT, 0), 'J6': J(6 * FT, 10 * FT)},
+      walls={'W4': W('J4', 'J5'), 'W5': W('J5', 'J1'), 'W2': W('J2', 'J6'), 'W6': W('J6', 'J3')},
+      separators={'S1': S('J5', 'J6')}, rooms={'R1': R(3 * FT, 5 * FT, 'Living'), 'R2': R(9 * FT, 5 * FT, 'Dining')}),
+  req({'op': 'moveWall', 'wall': 'S1', 'by': "1'"}), 'rejected', [('FS-OPS-003', [])])
+T('composites', 'move-wall-toward-a-room-upstairs', '"toward" names the Loft, on L2: its face is not a face of W1\'s '
+  'level, so it is on neither side of W1 - FS-OPS-008, naming the wall.', ['4.2.1', '7.1.1'], upstairs(),
+  req({'op': 'moveWall', 'wall': 'W1', 'by': "1'", 'toward': 'Loft'}), 'rejected', [('FS-OPS-008', ['W1'])])
+T('references', 'room-member-is-a-plain-string', 'A room member is read only as an ID or a room name: the Pantry is '
+  'named "North wall of Kitchen", and "toward" names it - not the Kitchen\'s north wall, W10 - so W10 moves 1\' north, '
+  'into the Pantry.', ['3.3.1', '4.2.1'],
+  house(rooms={'R2': R(6 * FT, 10 * FT, 'North wall of Kitchen', function='storage')}),
+  req({'op': 'moveWall', 'wall': 'W10', 'by': "1'", 'toward': 'north wall of kitchen'}),
+  check=resolved_eq({'op': 'moveJunction', 'id': 'J2', 'to': [0, 9 * FT]}, {'op': 'moveJunction', 'id': 'J8', 'to': [12 * FT, 9 * FT]}))
+T('hosting', 'place-toward-a-room-upstairs', 'A wall-face host "toward" the Loft, a room on L2, for a wall on L1: the '
+  'room is not beside the wall (4.10, as 4.2), so FS-OPS-008 names the wall.', ['4.10.1'], wired(upstairs()),
+  req(place(wall_face('W2', "2'", toward='Loft'))), 'rejected', [('FS-OPS-008', ['W2'])])
+
+
 # ============================================================================= write
 
 if __name__ == '__main__':
