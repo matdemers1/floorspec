@@ -488,13 +488,31 @@ class Transaction:
         o = self.wc['openings'][oid]
         if not (isd(o) and isinstance(o.get('wall'), str) and o['wall'] in coll(self.wc, 'walls')):
             raise OpsError('FS-OPS-003', [oid], f'{P}/opening', f'{oid} is on no wall')
-        w = effective_width(self.wc, o)
-        if w is None:
-            raise OpsError('FS-OPS-003', [oid], f'{P}/opening', f'the width of {oid} does not resolve')
-        _, _, S, E = R.wall_line('walls', o['wall'], f'{P}/opening')
-        D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
-        offset = R.position(op['at'], D, w, f'{P}/at')
-        return [{'op': 'setProperty', 'id': oid, 'path': '/offset', 'value': offset}]
+        if 'at' in op:                                              # absolute (4.5.1)
+            w = effective_width(self.wc, o)
+            if w is None:
+                raise OpsError('FS-OPS-003', [oid], f'{P}/opening', f'the width of {oid} does not resolve')
+            _, _, S, E = R.wall_line('walls', o['wall'], f'{P}/opening')
+            D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
+            offset = R.position(op['at'], D, w, f'{P}/at')
+            return [{'op': 'setProperty', 'id': oid, 'path': '/offset', 'value': offset}]
+        if type(o.get('offset')) is not int:                        # relative (4.5.2)
+            raise OpsError('FS-OPS-003', [oid], f'{P}/opening', f'{oid} has no integer offset')
+        by = length(op['by'], f'{P}/by')
+        toward = op.get('toward')
+        if toward == 'end':
+            by = abs(by)
+        elif toward == 'start':
+            by = -abs(by)
+        elif toward is not None:
+            _, _, S, E = R.wall_line('walls', o['wall'], f'{P}/opening')
+            ux, uy = DIRECTIONS[toward]
+            dot = (E[0] - S[0]) * ux + (E[1] - S[1]) * uy
+            if dot == 0:
+                raise OpsError('FS-OPS-008', [o['wall']], f'{P}/toward',
+                               f'{o["wall"]} is perpendicular to {toward}: {oid} cannot move along it that way')
+            by = abs(by) if dot > 0 else -abs(by)
+        return [{'op': 'setProperty', 'id': oid, 'path': '/offset', 'value': o['offset'] + by}]
 
     def x_addRoom(self, R, op, P):
         level = R.element(op['level'], ('levels',), f'{P}/level')[1]
@@ -524,6 +542,21 @@ class Transaction:
         prims.append({'op': 'removeElement', 'id': wid, 'cascade': True})
         return prims
 
+    def x_addLevel(self, R, op, P):
+        building = R.element(op['building'], ('buildings',), f'{P}/building')[1]
+        height = length(op['height'], f'{P}/height')
+        if 'elevation' in op:
+            elevation = length(op['elevation'], f'{P}/elevation')
+        else:
+            k = 'above' if 'above' in op else 'below'
+            lid = R.element(op[k], ('levels',), f'{P}/{k}')[1]
+            ref = self.wc['levels'][lid]
+            if not (isd(ref) and type(ref.get('elevation')) is int and type(ref.get('height')) is int):
+                raise OpsError('FS-OPS-003', [lid], f'{P}/{k}', f'{lid} has no integer elevation and height')
+            elevation = ref['elevation'] + ref['height'] if k == 'above' else ref['elevation'] - height
+        element = {'building': building, 'elevation': elevation, 'height': height}
+        element.update({k: copy.deepcopy(op[k]) for k in COMMON if k in op})
+        return [{'op': 'addElement', 'collection': 'levels', 'id': self.new_id(op, 'L'), 'element': element}]
 
 # ---------------------------------------------------------------------------------- chapter 6
 

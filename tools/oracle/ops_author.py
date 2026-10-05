@@ -861,6 +861,125 @@ T('composites', 'created-elements-carry-common-members', 'addRoom and addOpening
        'extensions': {'EXT_acoustics': {}}}),
   check=lambda r, B: ensure(B['openings']['O1']['extras'] == {'glazing': 'double'} and B['separators']['S1']['name'] == 'Patio edge', B))
 
+
+
+def four_windows(offset=4 * FT):
+    """The box with a 2' window on each wall at `offset`: O1 on W1 (J1 -> J2, running north), O2 on
+    W2 (running east), O3 on W3 (running south), O4 on W4 (running west)."""
+    return box(openings={f'O{i}': {'wall': f'W{i}', 'offset': offset, 'width': 2 * FT, 'height': 3 * FT, 'sill': 3 * FT}
+                         for i in range(1, 5)})
+
+
+def offsets(*values):
+    """A check: the resolved echo sets O1's, O2's ... /offset to these values, in order."""
+    return resolved_eq(*({'op': 'setProperty', 'id': f'O{i}', 'path': '/offset', 'value': v}
+                         for i, v in enumerate(values, 1)))
+
+
+T('composites', 'move-opening-by', 'moveOpening with "by" moves the opening along its wall: the new offset is the old '
+  'plus "by", so a positive "by" moves the door 2\' toward the end of its wall W4.', ['4.5.2'], door_on_south(FT),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "2'"}),
+  check=resolved_eq({'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 3 * FT}))
+T('composites', 'move-opening-by-negative', 'A negative "by" moves the opening toward its wall\'s start: 4\' less '
+  '1\' 6" is 2\' 6", 975360.', ['4.5.2', '3.1.1'], door_on_south(4 * FT),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "-1' 6\""}),
+  check=resolved_eq({'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 975360}))
+T('composites', 'move-opening-toward-start-and-end', 'With "toward": "end" or "start" the sign of "by" is chosen, '
+  'whatever is given: -1\' toward the end moves the door from 4\' to 5\', and 2\' toward the start from 5\' to 3\'.',
+  ['4.5.2'], door_on_south(4 * FT),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "-1'", 'toward': 'end'},
+      {'op': 'moveOpening', 'opening': 'O1', 'by': "2'", 'toward': 'start'}),
+  check=resolved_eq({'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 5 * FT},
+                    {'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 3 * FT}))
+T('composites', 'move-opening-toward-north-and-east', 'A window on each wall of the box, each 1\' toward north or '
+  'east: W1 runs north and W2 east, so O1 and O2 move toward their walls\' ends (4\' to 5\'); W3 runs south and W4 '
+  'west, so O3 and O4 move toward their walls\' starts (4\' to 3\').', ['4.5.2'], four_windows(),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "1'", 'toward': 'north'},
+      {'op': 'moveOpening', 'opening': 'O2', 'by': "1'", 'toward': 'east'},
+      {'op': 'moveOpening', 'opening': 'O3', 'by': "1'", 'toward': 'north'},
+      {'op': 'moveOpening', 'opening': 'O4', 'by': "1'", 'toward': 'east'}),
+  check=offsets(5 * FT, 5 * FT, 3 * FT, 3 * FT))
+T('composites', 'move-opening-toward-south-and-west', 'The same windows 1\' toward south or west: O1 and O2 move '
+  'toward their walls\' starts (4\' to 3\'), O3 and O4 toward their ends (4\' to 5\').', ['4.5.2'], four_windows(),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "1'", 'toward': 'south'},
+      {'op': 'moveOpening', 'opening': 'O2', 'by': "1'", 'toward': 'west'},
+      {'op': 'moveOpening', 'opening': 'O3', 'by': "-1'", 'toward': 'south'},
+      {'op': 'moveOpening', 'opening': 'O4', 'by': "1'", 'toward': 'west'}),
+  check=offsets(3 * FT, 3 * FT, 5 * FT, 5 * FT))
+T('composites', 'move-opening-toward-on-an-oblique-wall', 'W5 runs from (2\', 2\') to (5\', 6\'), d = (3\', 4\'): '
+  'd . east > 0, so 1\' toward east moves the window toward W5\'s end (1\' to 2\'); d . south < 0, so 2\' toward '
+  'south moves it toward the start, to 0.', ['4.5.2'],
+  dict(diag_wall, openings={'O1': {'wall': 'W5', 'offset': FT, 'width': FT, 'height': 3 * FT}}),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "1'", 'toward': 'east'},
+      {'op': 'moveOpening', 'opening': 'O1', 'by': "2'", 'toward': 'south'}),
+  check=resolved_eq({'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 2 * FT},
+                    {'op': 'setProperty', 'id': 'O1', 'path': '/offset', 'value': 0}))
+T('composites', 'move-opening-toward-perpendicular', 'W1 runs north, exactly perpendicular to east: the window on it '
+  'cannot move toward the east along it, so FS-OPS-008 names the wall.', ['4.5.2', '7.1.1'], four_windows(),
+  req({'op': 'moveOpening', 'opening': 'O1', 'by': "1'", 'toward': 'east'}), 'rejected', [('FS-OPS-008', ['W1'])])
+T('composites', 'move-opening-past-the-wall-end', 'The door at 8\' on the 12\' wall W4 moved 2\' toward its end: '
+  '10\' + 36" runs past the end, so the result is invalid and the rejection carries FS-INV-302.', ['4.5.2', '1.2.3'],
+  door_on_south(8 * FT), req({'op': 'moveOpening', 'opening': 'O1', 'by': "2'"}), 'rejected', [('FS-INV-302', ['O1'])])
+T('composites', 'move-opening-before-the-wall-start', 'The door at 1\' moved 2\' toward its wall\'s start: its offset '
+  'would be -1\', and an offset is never negative, so the result is invalid.', ['4.5.2', '1.2.3'],
+  door_on_south(FT), req({'op': 'moveOpening', 'opening': 'O1', 'by': "2'", 'toward': 'start'}), 'rejected',
+  [('FS-SCH-001', [])])
+T('composites', 'move-opening-at-and-by', 'moveOpening takes exactly one of "at" and "by": both is FS-OPS-001.',
+  ['1.1.1', '4.5.2'], door_on_south(FT), req({'op': 'moveOpening', 'opening': 'O1', 'at': 'centered', 'by': "1'"}),
+  'rejected', [('FS-OPS-001', [])])
+T('composites', 'move-opening-neither-at-nor-by', 'moveOpening with neither "at" nor "by": FS-OPS-001.', ['1.1.1'],
+  door_on_south(FT), req({'op': 'moveOpening', 'opening': 'O1'}), 'rejected', [('FS-OPS-001', [])])
+T('composites', 'move-opening-toward-without-by', '"toward" is allowed only with "by": with "at" it is FS-OPS-001.',
+  ['1.1.1', '4.5.2'], door_on_south(FT), req({'op': 'moveOpening', 'opening': 'O1', 'at': 0, 'toward': 'east'}),
+  'rejected', [('FS-OPS-001', [])])
+T('composites', 'move-opening-by-without-an-offset', 'The door\'s offset is unset earlier in the batch, so there is no '
+  'offset to move it from: FS-OPS-003 names the opening.', ['4.5.2', '7.1.1'], door_on_south(FT),
+  req({'op': 'unsetProperty', 'id': 'O1', 'path': '/offset'}, {'op': 'moveOpening', 'opening': 'O1', 'by': "1'"}),
+  'rejected', [('FS-OPS-003', ['O1'])])
+T('composites', 'add-level-above', '"Add a second floor": addLevel above L1 sits on top of it, at L1\'s elevation plus '
+  'its height, 0 + 3456000. Its height is 8\', 3121152, and its ID is minted.', ['4.8.1', '1.5.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'above': 'L1', 'height': "8'", 'name': 'Second floor'}),
+  check=resolved_eq({'op': 'addElement', 'collection': 'levels', 'id': 'L2',
+                     'element': {'building': 'B1', 'elevation': H, 'height': 8 * FT, 'name': 'Second floor'}}))
+T('composites', 'add-level-below', '"Add a basement": addLevel below L1 is the new level\'s own height under L1\'s '
+  'floor, 0 - 8\' = -3121152.', ['4.8.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'below': 'L1', 'height': "8'", 'name': 'Basement'}),
+  check=resolved_eq({'op': 'addElement', 'collection': 'levels', 'id': 'L2',
+                     'element': {'building': 'B1', 'elevation': -8 * FT, 'height': 8 * FT, 'name': 'Basement'}}))
+T('composites', 'add-level-explicit', 'addLevel with an explicit elevation, a named ID and extras: lengths in the '
+  'reference grammar - -8\' and 7\' 6" - are resolved to integers.', ['4.8.1', '3.1.1'], box(),
+  req({'op': 'addLevel', 'id': 'L0', 'building': 'B1', 'elevation': "-8'", 'height': "7' 6\"", 'extras': {'use': 'storage'}}),
+  check=resolved_eq({'op': 'addElement', 'collection': 'levels', 'id': 'L0',
+                     'element': {'building': 'B1', 'elevation': -8 * FT, 'height': 7 * FT + 6 * IN, 'extras': {'use': 'storage'}}}))
+T('composites', 'add-level-stacked', 'Levels added earlier in the batch are in the working copy: L2 above L1, then L3 '
+  'above L2 at 3456000 + 3121152, then L4 below L1.', ['4.8.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'above': 'L1', 'height': "8'"},
+      {'op': 'addLevel', 'building': 'B1', 'above': 'L2', 'height': "9'"},
+      {'op': 'addLevel', 'building': 'B1', 'below': 'L1', 'height': 2500 * MM}),
+  check=resolved_eq({'op': 'addElement', 'collection': 'levels', 'id': 'L2', 'element': {'building': 'B1', 'elevation': H, 'height': 8 * FT}},
+                    {'op': 'addElement', 'collection': 'levels', 'id': 'L3', 'element': {'building': 'B1', 'elevation': H + 8 * FT, 'height': 9 * FT}},
+                    {'op': 'addElement', 'collection': 'levels', 'id': 'L4', 'element': {'building': 'B1', 'elevation': -2500 * MM, 'height': 2500 * MM}}))
+T('composites', 'add-level-elevation-and-above', 'addLevel takes exactly one of "elevation", "above" and "below": '
+  'two is FS-OPS-001.', ['1.1.1', '4.8.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'elevation': 0, 'above': 'L1', 'height': "8'"}), 'rejected', [('FS-OPS-001', [])])
+T('composites', 'add-level-above-and-below', '"above" and "below" together: FS-OPS-001.', ['1.1.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'above': 'L1', 'below': 'L1', 'height': "8'"}), 'rejected', [('FS-OPS-001', [])])
+T('composites', 'add-level-no-elevation', 'addLevel with none of "elevation", "above" and "below": FS-OPS-001.',
+  ['1.1.1'], box(), req({'op': 'addLevel', 'building': 'B1', 'height': "8'"}), 'rejected', [('FS-OPS-001', [])])
+T('composites', 'add-level-above-an-unknown-level', '"above" names L9, which does not exist: FS-OPS-003, with no '
+  'elements, since the reference is in the request.', ['4.8.1', '3.3.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'above': 'L9', 'height': "8'"}), 'rejected', [('FS-OPS-003', [])])
+T('composites', 'add-level-below-a-room', '"below" names the room Living: only levels count as matches, so it '
+  'resolves to nothing.', ['4.8.1', '3.3.1'], box(),
+  req({'op': 'addLevel', 'building': 'B1', 'below': 'Living', 'height': "8'"}), 'rejected', [('FS-OPS-003', [])])
+T('composites', 'add-level-in-an-unknown-building', '"building" names B9, which does not exist: FS-OPS-003.',
+  ['4.8.1'], box(), req({'op': 'addLevel', 'building': 'B9', 'elevation': 0, 'height': "8'"}), 'rejected',
+  [('FS-OPS-003', [])])
+T('composites', 'add-level-above-a-level-without-a-height', 'L1\'s height is unset earlier in the batch, so there is '
+  'no top to sit on: FS-OPS-003 names L1.', ['4.8.1', '7.1.1'], box(),
+  req({'op': 'unsetProperty', 'id': 'L1', 'path': '/height'},
+      {'op': 'addLevel', 'building': 'B1', 'above': 'L1', 'height': "8'"}), 'rejected', [('FS-OPS-003', ['L1'])])
+
 # ================================================================================== normalization
 T('normalization', 'draw-a-wall-across-two-walls', 'A wall drawn straight across the room from (-2\', 6\') to '
   '(14\', 6\') crosses W1 and W3. Planarization inserts junctions at both crossings - J7 at (0, 6\') and J8 at '

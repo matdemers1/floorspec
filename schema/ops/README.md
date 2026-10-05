@@ -10,7 +10,7 @@ Ops 0.1 is in [`0.1/`](0.1/); start at `request.schema.json`.
 | File | Describes | Spec |
 |---|---|---|
 | `request.schema.json` | the apply request: `batch`, and `context` with its `locks` and `retired` IDs | 1.1, 6.1 |
-| `operation.schema.json` | one operation: a union on `op` over the eight primitives and shorthands and the ten composites, each a closed object with exactly the members its definition lists | 2, 4 |
+| `operation.schema.json` | one operation: a union on `op` over the eight primitives and shorthands and the eleven composites, each a closed object with exactly the members its definition lists (and exactly one of each group of alternatives - moveOpening's `at` or `by`, addLevel's `elevation`, `above` or `below`) | 2, 4 |
 | `reference.schema.json` | the JSON forms of the reference grammar: length, point, vector, position, selector, a new ID, element content | 3, 1.5 |
 
 Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/ops/0.1/<file>`. A

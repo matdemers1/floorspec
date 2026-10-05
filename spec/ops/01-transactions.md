@@ -16,6 +16,11 @@ JSON Schema `schema/ops/0.1/request.schema.json` gives the shape of an apply req
 operation, every member each has, and the JSON type of each member.
 
 An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.1 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.1 MUST}
+Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`
+and `by` (4.5), `addLevel`'s `elevation`, `above` and `below` (4.8) — an operation with none of
+them, or with more than one, does not have exactly the members its definition lists, and neither
+does one with a member its definition allows only beside another (`toward` without `by`): the
+request is malformed.
 The rule is about requests. The inverse of a committed result (1.6) is a batch too, and it may be
 empty; an empty inverse is never applied.
 

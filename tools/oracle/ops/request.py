@@ -2,7 +2,9 @@
 
 Transcribed from chapters 1, 2, 4 and 6, and kept in step with schema/ops/0.1 (check-schema runs
 that schema over every test's request, and must agree with this module on which requests are
-FS-OPS-001). Every object is closed; every operation has exactly the members its definition lists.
+FS-OPS-001). Every object is closed; every operation has exactly the members its definition lists,
+exactly one member of each group of alternatives (ONE_OF), and a member allowed only beside
+another only with it (NEEDS).
 
 Member values are typed only as far as the operation reads them:
 
@@ -79,12 +81,24 @@ OPERATIONS = {
     'addOpening': ({'wall': STRING, 'at': POSITION},
                    {'id': STRING, 'fill': STRING, 'width': LENGTH, 'height': LENGTH, 'sill': LENGTH,
                     'hinge': ANY, 'swing': ANY, **COMMON}),
-    'moveOpening': ({'opening': STRING, 'at': POSITION}, {}),
+    'moveOpening': ({'opening': STRING}, {'at': POSITION, 'by': LENGTH, 'toward': _enum('start', 'end', *SIDES)}),
     'addRoom': ({'level': STRING, 'at': POINT},
                 {'id': STRING, 'function': ANY, 'wallFinish': ANY, 'floorFinish': ANY,
                  'ceilingFinish': ANY, **COMMON}),
     'setRoomFinish': ({'room': STRING, 'surface': _enum(*SURFACES), 'material': STRING}, {}),
     'removeWall': ({'wall': STRING}, {'keep': STRING}),
+    'addLevel': ({'building': STRING, 'height': LENGTH},
+                 {'elevation': LENGTH, 'above': STRING, 'below': STRING, 'id': STRING, **COMMON}),
+}
+
+# op -> groups of members of which exactly one must be present (4.5, 4.8)
+ONE_OF = {
+    'moveOpening': (('at', 'by'),),
+    'addLevel': (('elevation', 'above', 'below'),),
+}
+# op -> {member: the member it is allowed only beside}
+NEEDS = {
+    'moveOpening': {'toward': 'by'},
 }
 
 PRIMITIVES = ('addElement', 'addJunction', 'addWall', 'addSeparator', 'removeElement', 'setProperty',
@@ -113,6 +127,13 @@ def check_operation(op, pointer: str) -> None:
             _bad(f'{pointer}/{esc(k)}', f'{name} has no member "{k}"')
         if not check(v):
             _bad(f'{pointer}/{esc(k)}', f'"{k}" has the wrong type')
+    for group in ONE_OF.get(name, ()):
+        present = [k for k in group if k in op]
+        if len(present) != 1:
+            _bad(pointer, f'{name} takes exactly one of {", ".join(group)}')
+    for k, other in NEEDS.get(name, {}).items():
+        if k in op and other not in op:
+            _bad(f'{pointer}/{esc(k)}', f'"{k}" is allowed only with "{other}"')
 
 
 def check_lock(lock, pointer: str) -> None:

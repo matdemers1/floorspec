@@ -116,10 +116,36 @@ effective width (Core §7.2): its own `width`, or its fill's. Expands to `addEle
 `openings` with `wall`, the resolved `offset`, the resolved `width`, `height` and `sill`, and the
 other members as given.
 
-`moveOpening` takes `opening` and `at`, and expands to `setProperty` of its `/offset`; the width
-used to resolve `at` is the opening's effective width in the working copy.
+`moveOpening` takes `opening` and exactly one of `at` and `by`, and expands to `setProperty` of
+the opening's `/offset`:
 
-An applier MUST expand addOpening and moveOpening as this section defines, and MUST reject an addOpening or a moveOpening whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.1 MUST}
+```json
+{ "op": "moveOpening", "opening": "O3", "at": "2' from end" }
+{ "op": "moveOpening", "opening": "O3", "by": "1'", "toward": "east" }
+```
+
+- **Absolute.** With `at`, a position (3.5), the offset is `at` resolved; the width used to
+  resolve it is the opening's effective width in the working copy.
+- **Relative.** With `by`, a length, the offset is the opening's `offset` in the working copy plus
+  `by`: a positive `by` moves the opening toward its wall's end junction, a negative one toward its
+  start. `toward`, allowed only with `by`, chooses the sign instead, and the opening moves by
+  `|by|`:
+  - `"end"`: by `+|by|`; `"start"`: by `−|by|`;
+  - `"north"`, `"south"`, `"east"` or `"west"`: in whichever direction along the wall points more
+    that way. Let `d = E − S`, where `S` and `E` are the positions of the wall's start and end
+    junctions, and `u` the direction's unit vector — east `(1, 0)`, north `(0, 1)`, west
+    `(−1, 0)`, south `(0, −1)`. The opening moves by `+|by|` when `d · u > 0` and by `−|by|` when
+    `d · u < 0`. When `d · u = 0` the wall is perpendicular to that direction, and the opening
+    cannot move along it toward it: `FS-OPS-008`, naming the wall.
+
+The references are resolved in the order `opening`, then `at` — after the width — or `by` and
+then `toward`. The new offset is not checked here: an opening moved past its wall's end, or before
+its start, makes the result invalid, and the batch is rejected with the Core diagnostics of the
+result (1.2.3): `FS-INV-302` past the end (Core §7.3), `FS-SCH-001` for a negative offset (Core §7.1).
+
+An applier MUST expand addOpening and moveOpening with `at` as this section defines, and MUST reject an addOpening, or a moveOpening with `at`, whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.1 MUST}
+
+An applier MUST expand a moveOpening with `by` as this section defines, MUST reject it with `FS-OPS-003`, naming the opening, when the opening has no integer `offset` in the working copy, and MUST reject it with `FS-OPS-008`, naming the wall, when `toward` is a direction perpendicular to the opening's wall. {#FS-OPS-4.5.2 MUST}
 
 ## 4.6 addRoom, setRoomFinish
 
@@ -146,3 +172,30 @@ two rooms are about to become one, and `keep` must name the one that survives:
 2. `removeElement` of the wall, with `cascade: true`.
 
 An applier MUST expand removeWall as this section defines, and MUST reject it with `FS-OPS-008` when the wall has rooms on both sides and `keep` does not name one of them. {#FS-OPS-4.7.1 MUST}
+
+## 4.8 addLevel
+
+```json
+{ "op": "addLevel", "building": "B1", "above": "L1", "height": "8' 6\"", "name": "Second floor" }
+{ "op": "addLevel", "building": "B1", "below": "L1", "height": "8'", "name": "Basement" }
+```
+
+Members: `building`; `height`, a length; exactly one of `elevation`, a length, `above`, a level,
+and `below`, a level; optionally `id`, `name`, `extensions` and `extras`. The references are
+resolved in that order — `building`, `height`, then `elevation`, `above` or `below` — and the
+new level's elevation is:
+
+- with `elevation`: that length;
+- with `above: <level>`: that level's `elevation` plus its `height` in the working copy — the new
+  level sits on top of it;
+- with `below: <level>`: that level's `elevation` in the working copy minus the new level's
+  `height` — the new level's top is the other's floor.
+
+A level named by `above` or `below` must have an integer `elevation` and an integer `height` in
+the working copy; one that does not resolves to nothing (`FS-OPS-003`, naming that level). The
+operation expands to `addElement` into `levels`, under `id` or a minted ID (1.5), of
+`{ "building", "elevation", "height" }` as the ID and the integers resolved, and `name`,
+`extensions` and `extras` as given. Whether the level is valid — its height greater than zero
+(Core §1.8) — is decided when the batch is validated.
+
+An applier MUST expand addLevel as this section defines, and MUST reject it with `FS-OPS-003` when `building` names no building, when `above` or `below` names no level, or when the level it names lacks an integer `elevation` or an integer `height`. {#FS-OPS-4.8.1 MUST}
