@@ -2,7 +2,8 @@
 
 Prints the expected result for a document - {valid, diagnostics, hash?, derived?} - as JSON.
 The reader is Core <v> for a test under conformance/core/<v> and Core 0.1 otherwise, unless
---core says; a test directory's registry.json is the known extensions (Core 12.2).
+--core says; a test directory's registry.json is the known extensions (Core 12.2), and its
+design.json the design derived (Core 19.6).
 --canonical prints the canonical form instead (valid documents only); --notes also prints the
 oracle's reasons for a parse or schema failure on stderr.
 """
@@ -12,7 +13,7 @@ from __future__ import annotations
 import os
 import sys
 
-from .regenerate import reader_for
+from .regenerate import design_for, reader_for
 from .report import dumps
 from .validate import READERS, check
 
@@ -35,7 +36,8 @@ def main(argv: list[str]) -> int:
         path = os.path.join(path, 'input.json')
     with open(path, 'rb') as f:
         data = f.read()
-    result, canonical, notes = check(data, reader, registry)
+    design = design_for(os.path.dirname(os.path.abspath(path)))
+    result, canonical, notes = check(data, reader, registry, design=design)
     if '--notes' in argv:
         for n in notes:
             print(n, file=sys.stderr)

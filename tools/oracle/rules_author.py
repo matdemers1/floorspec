@@ -179,12 +179,14 @@ PROFILE = {'floorspecRules': '0.1', 'name': 'Test jurisdiction',
            'adopts': [{'code': 'TEST-CODE', 'edition': '2024'}, {'code': 'TEST-ELEC', 'edition': '2026'}]}
 
 
-def req(*packs, profile=PROFILE, units=None):
+def req(*packs, profile=PROFILE, units=None, design=None):
     r = {'floorspecRules': '0.1', 'packs': list(packs)}
     if profile is not None:
         r['profile'] = profile
     if units is not None:
         r['units'] = units
+    if design is not None:
+        r['design'] = design
     return r
 
 
@@ -401,6 +403,36 @@ R('document', 'invalid-document-and-a-bad-pack', 'An invalid document and a malf
   'are step 4, which is not taken.', ['FS-RULES-1.3.1'], INVALID_DOC, req(pack({}, license='MIT')),
   diags=[D('FS-RULES-003')])
 
+
+
+def utility_options(d):
+    """The rules house as a Core 0.3 document with an option set for the utility room, RS: option RA (primary)
+    leaves it as it is; option RB draws a closed square of separators in it, 25' to 26'6" by 7' to 9', with a pantry
+    room R4 inside - a fourth room on L1."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'RS': {'name': 'Utility', 'primary': 'RA'}}
+    d['options'] = {'RA': {'set': 'RS'}, 'RB': {'set': 'RS'}}
+    pts = [(25 * FT, 7 * FT), (25 * FT, 9 * FT), (53 * FT // 2, 9 * FT), (53 * FT // 2, 7 * FT)]
+    for i, (x, y) in enumerate(pts, 1):
+        d['junctions'][f'P{i}'] = {**J(x, y), 'option': 'RB'}
+    d['separators'] = {f'PS{i}': {'level': 'L1', 'start': f'P{i}', 'end': f'P{i % 4 + 1}', 'option': 'RB'} for i in range(1, 5)}
+    d['rooms']['R4'] = {'level': 'L1', 'anchor': [103 * FT // 4, 8 * FT], 'name': 'Pantry', 'function': 'storage',
+                        'option': 'RB'}
+
+
+FEW_ROOMS = pack({'ROOMS': rule({'to': 'level'}, C('roomCount', '<=', 3), title='At most three rooms on a level')})
+R('document', 'primary-design', 'The rules house with a utility option set whose option RB adds a pantry: with no '
+  'design in the request, the primary design is evaluated - three rooms on L1, no finding.',
+  ['FS-RULES-1.2.2'], edit(utility_options), req(FEW_ROOMS),
+  check=lambda r: ensure(r['findings'] == [] and r['evaluated'][0]['subjects'] == 1, 'no finding'))
+R('document', 'requested-design', 'The same house and pack, the request naming the design {"RS": "RB"}: its view has '
+  'the pantry, four rooms on L1, and the rule finds that.', ['FS-RULES-1.2.2', 'FS-RULES-1.1.1'], edit(utility_options),
+  req(FEW_ROOMS, design={'RS': 'RB'}), found=[('ROOMS', 'L1')])
+R('document', 'design-core-does-not-derive', 'The request names the design {"RS": "RC"}, and the house has no option '
+  'RC: Core derives nothing for it (Core 19.6.2), so FS-RULES-003 and no finding.', ['FS-RULES-1.2.2'],
+  edit(utility_options), req(FEW_ROOMS, design={'RS': 'RC'}), diags=[D('FS-RULES-003')])
+R('request', 'design-not-an-object', 'A request whose design is a string: it does not match the request schema, '
+  'FS-RULES-001.', ['FS-RULES-1.1.1'], house(), req(FEW_ROOMS, design='RB'), diags=[D('FS-RULES-001')])
 
 # ============================================================================= packs (2)
 R('packs', 'no-licence', 'Two packs, the first without `license`: it does not match the pack schema (FS-RULES-004, '

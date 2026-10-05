@@ -12,7 +12,7 @@ when it cannot.
 ```
 
 Adds `element` to `collection` under `id`, or under a minted ID when `id` is absent (1.5).
-`collection` is one of the thirteen collections of Core §1.1, or `"items"`: the program's items
+`collection` is one of the fifteen collections of Core §1.1, or `"items"`: the program's items
 (Core §11.1). With an `extension` member — an extension name — `collection` is instead the name of
 one of that extension's collections, and the element is an extension element (Core §12.5):
 
@@ -66,8 +66,16 @@ pointing at nothing, so `removeElement` follows this table:
 | a wall | its openings, and the extension elements whose `host.wall` it is; and it is removed from any junction's `join.through`, which unsets that `join` | its openings and those extension elements |
 | a room | the extension elements whose `host.room` it is | those extension elements |
 | a separator, opening, slab, roof, stair or extension element | nothing | nothing |
+| an option set | its options (and what they take) | its options |
+| an option | every element in it (and what they take) | every element in it |
 | a program item | nothing — `cascade` does not apply; every adjacency that names it is removed | every room whose `brief` names it |
 | a type, material or asset | nothing — `cascade` does not apply | every element that refers to it, including an extension element whose `fallback.asset` or `fallback.symbol` it is |
+
+An element is **in** an option when its `option` names it (Core §19.2). An option set's `primary`
+blocks nothing: removing a set's primary option leaves the set without one, and the result is
+invalid (Core §19.1.2, `FS-INV-002`) unless the same batch names another option `primary` or
+removes the set — so an option and its set can always be removed, the options first, as the inverse
+does (1.6).
 
 `cascade` defaults to `false`. A wall is always removed from `join.through` lists, because a join
 that names a missing wall describes nothing. For the same reason an adjacency that names a
@@ -165,3 +173,47 @@ An applier MUST NOT change an extension element's `host` or `fallback` except wh
 A floor, ceiling or free host's position is a plan point, so it does not follow walls: the toilet stays
 where it stands when a bathroom wall moves, and a room resized past it leaves it outside, which
 validation reports (Core §13.3.4). Moving the room itself (4.3) takes it along.
+
+## 2.8 Design options
+
+A Core 0.3 document may hold design options (Core chapter 19): option sets and options are
+elements, and so is everything in an option. The primitives edit them as they edit anything else:
+
+| To | A batch uses |
+|---|---|
+| add an option set and its options | `addElement` into `optionSets`, naming its `primary`, and into `options`, each naming its `set` |
+| add an element to an option | `addElement` of the element with its `option` — or any operation that adds it, with `context.option` (below) |
+| switch a set's primary option | `setProperty` of the set's `/primary` |
+| move an element to another option | `setProperty` of its `/option` |
+| make an element common, in every design | `unsetProperty` of its `/option` |
+| remove an option, and what is in it | `removeElement` of the option, with `cascade` (2.2) |
+
+The result is judged as Core judges any document with options: a reference that crosses into an
+option the referring element is not in (`FS-INV-1102`), or an option design that is invalid —
+reported with its `design` — rejects the batch with those diagnostics (1.2.3).
+
+**Editing in an option.** An editor that shows the kitchen's option B, and draws there, puts what
+it draws in B. The request's `context.option` names that option. Every element that a primitive of
+the batch adds to one of the collections whose elements may be in an option — `junctions`, `walls`,
+`separators`, `openings`, `rooms`, `slabs`, `roofs` and `stairs` — or to an extension's collection
+(Core §19.2), and that has no `option` member of its own, is added with `option` set to
+`context.option`; so every composite that adds such an element adds it in that option. The elements
+normalization adds follow 5.5 instead.
+
+With `context.option`, an applier MUST add every element a primitive of the batch adds to one of those collections, or to an extension's collection, and that has no `option` member, with its `option` set to `context.option`; it MUST NOT add an `option` member to any other element. {#FS-OPS-2.8.1 MUST}
+The `resolved` echo (1.4) lists each `addElement` and shorthand as the batch gave it, without the
+`option` it was added with, and is replayed with the same context. An option that `context.option`
+names but A does not have is not an error of the request: the elements added in it refer to no
+option, and the result is invalid (`FS-INV-002`).
+
+**The edit design.** The junction at a point that `drawWall` and `drawSeparator` find (4.1), and the
+faces and rooms that a reference or a composite reads (3.4), are those of one design (Core §19.3): the **edit design**, which chooses `context.option` for its set and every
+other set's primary — or every set's primary when the context names no option. Selectors and
+composites read the working copy as seen in it: every junction, edge and room that is in an option
+the edit design does not choose, or in an option the working copy does not have, is left out. A
+working copy with nothing in an option is read as it is.
+
+An applier MUST read the junctions at a point and the faces and rooms of a level, wherever this specification reads them, in the working copy as seen in the edit design. {#FS-OPS-2.8.2 MUST}
+So "the wall between DIN and KIT" is option A's wall while A is the edit design, even where option
+B draws another wall across it; and 3.4.1 rejects a reference when the level as seen in the edit
+design is not planar.

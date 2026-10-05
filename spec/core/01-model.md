@@ -23,6 +23,8 @@ optional site, the element collections, the program, the extension declarations 
 | `materials` | collection of Material | `{}` | 8.5 |
 | `assets` | collection of Asset | `{}` | 8.6 |
 | `stairs` | collection of Stair | `{}` | 17.1 |
+| `optionSets` | collection of Option set | `{}` | 19.1 |
+| `options` | collection of Option | `{}` | 19.1 |
 | `program` | Program | `{}` | 11.1 |
 | `extensionsUsed` | object: extension name → version, or declaration (12.1) | `{}` | 1.6, 12.1 |
 | `extensionsRequired` | array of extension names | `[]` | 1.6 |
@@ -52,11 +54,13 @@ declaration object in `extensionsUsed` (12.1), a door or window type's `clearanc
 `collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
 type's `operation` and `clearOpening` (8.4), an opening's `clearOpening` (7.1), a level's
 `floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2), a slab's
-`purpose` (6.7) and the `stairs` collection (17.1). Each is optional, and its absence means what a document of an earlier draft means
+`purpose` (6.7), the `stairs` collection (17.1), and the `optionSets` and `options` collections
+and an element's `option` (19.1, 19.2). Each is optional, and its absence means what a document of an earlier draft means
 without it: an empty program, a room that fulfils no program item, a version string, no
 clearances, extension data that core does not look inside, an operation that is not declared, no
 declared clear opening, a floor at its level's elevation with no declared thickness, a flat
-ceiling at its level's height, a slab whose purpose is not stated, and no stairs.
+ceiling at its level's height, a slab whose purpose is not stated, no stairs, and no design options — one design, the document
+itself (19.3).
 The `roofs` collection (chapter 16) is new in 0.3 too: its absence means no roof, and a reader of
 this draft derives an empty set of roofs for a document of any draft; so are `stairs` (chapter 17),
 of which it derives an empty set too. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
@@ -138,6 +142,10 @@ Every element MAY carry these members, in addition to those of its kind: {#FS-CO
 | `name` | string, 1–200 characters | absent | a human-readable label; never read by derivation |
 | `extensions` | object: extension name → extension data | `{}` | 1.6 |
 | `extras` | object | `{}` | 1.7 |
+
+A junction, wall, separator, opening, room, slab, roof or stair, and an extension element, may
+also carry `option`, the option it is in: the table of 19.2 is part of the table of each of those
+kinds.
 
 ## 1.5 Defaults
 

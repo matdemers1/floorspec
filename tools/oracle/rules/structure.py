@@ -207,6 +207,8 @@ def profile_ok(v) -> bool:
 
 
 def request(v) -> bool:
-    return (_obj(v, ('floorspecRules', 'packs'), ('floorspecRules', 'packs', 'profile', 'units'))
+    return (_obj(v, ('floorspecRules', 'packs'), ('floorspecRules', 'packs', 'profile', 'units', 'design'))
             and v['floorspecRules'] == '0.1' and isinstance(v['packs'], list)
-            and ('units' not in v or v['units'] in ('imperial', 'metric')))
+            and ('units' not in v or v['units'] in ('imperial', 'metric'))
+            and ('design' not in v or (isinstance(v['design'], dict)                    # 1.1: Core 19.6
+                                       and all(isinstance(o, str) for o in v['design'].values()))))

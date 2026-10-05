@@ -46,8 +46,8 @@ applier is configured with; the conformance suite configures none.
 In this specification an **element** is any of the three kinds of thing that have an ID in a
 document's one space of IDs (Core §3.1.3):
 
-- an element of one of Core's thirteen collections (Core §1.4) — eleven, and Core 0.3's `roofs` and
-  `stairs`;
+- an element of one of Core's fifteen collections (Core §1.4) — eleven, and Core 0.3's `roofs`,
+  `stairs`, `optionSets` and `options`;
 - a **program item** (Core §11.1), in the program's `items`;
 - an **extension element** (Core §12.5), in a collection of an extension's top-level data.
 
@@ -105,11 +105,21 @@ What 0.3 adds:
   regions to its pieces (5.2 step 7, `FS-OPS-5.2.3`);
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
-  (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test.
+  (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test;
+- **design options** (Core chapter 19): option sets and options are Core 0.3's fourteenth and fifteenth
+  collections, added with `addElement` (prefixes `OS` and `OP`, 1.5), removed by the rows of the
+  removal table for them (2.2), and edited with the primitives Ops already has — switching a set's
+  primary is `setProperty` of its `/primary`, moving an element to another option `setProperty` of
+  its `/option`, making it common `unsetProperty` of it. The request's `context` gains `option`, the
+  option a batch edits in: every element the batch adds that may be in an option is added in it, and
+  references read faces and rooms in the design that chooses it (2.8). Normalization merges and
+  planarizes a level option by option, never across two options (5.5). The result is judged by Core
+  0.3's option invariants and each checked design's (Core §19.5), and a rejection carries their
+  diagnostics, each with its `design` (1.2.3).
 
-Ops 0.3 adds no operation and changes no member of a request, so its requests have the shape of
-Ops 0.2's, and `schema/ops/0.3/request.schema.json` is Ops 0.2's with one difference: an
-`addElement` may name the collection `roofs` or `stairs` (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
+Ops 0.3 adds no operation, so its requests have the shape of Ops 0.2's, and
+`schema/ops/0.3/request.schema.json` is Ops 0.2's with two differences: an `addElement` may name the
+collection `roofs`, `stairs`, `optionSets` or `options` (1.1), and `context` may have `option` (2.8). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
 rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`: a
 0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did, and no roof or
 stair, so removing a level takes or is blocked by what it was. No statement of
@@ -163,7 +173,9 @@ of `$document`, the steps of a composite — the statement applies to what was a
 
 Composite operations on roofs — a roof's footprint is plan points (Core §16.1), which `moveRoom`,
 `moveWall` and `resizeRoom` do not move — and on stairs — drawing one, or moving one with a room (a
-stair's `position` is a plan point, which `moveRoom` does not move) — and operations on design options; references inside an extension's own members,
+stair's `position` is a plan point, which `moveRoom` does not move) — and composites on design
+options: copying an element into another option, or adding an option set and its options in one
+operation; references inside an extension's own members,
 which core does not read and so no removal follows (an electrical circuit that names a device);
 an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); dimension locks
 other than the two of chapter 6; operations that edit several documents at once.

@@ -16,6 +16,14 @@ Anything else is left exactly as it is, for validation to reject.
 
 Ops 0.2 adds step 6 of 5.2: an extension element hosted on a face of a split wall moves to the
 piece whose interval contains its offset. Under Ops 0.1 there are no extension elements.
+
+Ops 0.3 adds design options (5.5): a junction or an edge in an option (Core 19.2) is merged and
+planarized only with what can be in one design with it. 5.1 merges every junction at a position into
+a common one when there is one there, and otherwise only junctions of one option with each other;
+5.2 runs on each **domain** of a level in turn - its common edges and junctions, then each option's
+together with the common ones, in order of the option's ID - and a junction it inserts on a common
+edge is common, and one only on edges of the option is in the option. Without an element in an
+option, a level has one domain, all of it, and normalizes exactly as before.
 """
 
 from __future__ import annotations
@@ -31,6 +39,24 @@ from .space import ext_elements, host_of
 from .version import OPS_01, Profile
 
 PREFIX = {'walls': 'W', 'separators': 'S'}
+ALL = object()          # every element, whatever its option: Ops 0.1 and 0.2, which have none
+BAD = object()          # an `option` that is not a string: in no domain, left for validation
+
+
+def scope(e):
+    """Ops 0.3, 5.5: the option an element is in - None when it is common."""
+    if not isinstance(e, dict) or 'option' not in e:
+        return None
+    return e['option'] if isinstance(e['option'], str) else BAD
+
+
+def in_domain(e, domain) -> bool:
+    """Ops 0.3, 5.5: the common domain (None) holds the common elements; an option's, the common
+    elements and the option's own."""
+    if domain is ALL:
+        return True
+    s = scope(e)
+    return s is None or (domain is not None and s == domain)
 
 
 # ------------------------------------------------------------------------------ pixels
@@ -124,16 +150,17 @@ def hot_pixels(junction_positions, segments) -> set:
 
 # ------------------------------------------------------------------------------ the steps
 
-def _junctions_on(wc, level):
+def _junctions_on(wc, level, domain=ALL):
     return {jid: tuple(j['position']) for jid, j in coll(wc, 'junctions').items()
-            if isinstance(j, dict) and j.get('level') == level and is_point(j.get('position'))}
+            if isinstance(j, dict) and j.get('level') == level and is_point(j.get('position')) and in_domain(j, domain)}
 
 
-def _edges_on(wc, level, js):
+def _edges_on(wc, level, js, domain=ALL):
     out = []
     for c in ('walls', 'separators'):
         for eid, e in coll(wc, c).items():
-            if isinstance(e, dict) and e.get('level') == level and e.get('start') in js and e.get('end') in js:
+            if isinstance(e, dict) and e.get('level') == level and e.get('start') in js and e.get('end') in js \
+                    and in_domain(e, domain):
                 out.append((c, eid, e['start'], e['end']))
     return sorted(out, key=lambda x: (x[0] != 'walls', x[1]))      # walls, then separators; by ID
 
@@ -143,17 +170,37 @@ def levels_of(wc) -> list[str]:
                    if isinstance(j, dict) and isinstance(j.get('level'), str) and is_point(j.get('position'))})
 
 
-def merge(wc: dict, level: str, in_a: set) -> None:
+def _survivor(ids, in_a):
+    was = [j for j in ids if j in in_a]
+    return was[0] if len(was) == 1 else min(ids)
+
+
+def merge(wc: dict, level: str, in_a: set, options: bool = False) -> None:
     """5.1: one survivor per position - the one that was in A if exactly one was, otherwise the
-    one whose ID sorts first; references to the others are redirected to it."""
+    one whose ID sorts first; references to the others are redirected to it. With design options
+    (Ops 0.3, 5.5), the survivor is common, chosen so among the common junctions, when one of them
+    is; otherwise the junctions of each option merge among themselves."""
     groups: dict = {}
     for jid, p in _junctions_on(wc, level).items():
         groups.setdefault(p, []).append(jid)
+    merges = []
     for ids in groups.values():
         if len(ids) < 2:
             continue
-        was = [j for j in ids if j in in_a]
-        survivor = was[0] if len(was) == 1 else min(ids)
+        js = coll(wc, 'junctions')
+        if not options or all(scope(js[j]) is None for j in ids):
+            merges.append((_survivor(ids, in_a), ids))
+            continue
+        common = [j for j in ids if scope(js[j]) is None]
+        if common:
+            merges.append((_survivor(common, in_a), [j for j in ids if scope(js[j]) is not BAD]))
+            continue
+        by: dict = {}
+        for j in ids:
+            if isinstance(scope(js[j]), str):
+                by.setdefault(scope(js[j]), []).append(j)
+        merges.extend((_survivor(sub, in_a), sub) for sub in by.values() if len(sub) > 1)
+    for survivor, ids in merges:
         for other in ids:
             if other == survivor:
                 continue
@@ -188,22 +235,45 @@ def breaks_5_3(js: dict, edges) -> bool:
     return False
 
 
-def planarize(wc: dict, level: str, mint, straddles: list, profile: Profile = OPS_01) -> None:
-    """5.2: snap rounding, on a level that breaks Core 5.3; any other level is left as it is."""
-    js = _junctions_on(wc, level)
-    edges = [e for e in _edges_on(wc, level, js) if js[e[2]] != js[e[3]]]
+def domains(wc: dict, level: str) -> list:
+    """Ops 0.3, 5.5: the domains of a level - the common one, then each option that has a junction or
+    an edge on the level, in order of its ID."""
+    found = set()
+    for c in ('junctions', 'walls', 'separators'):
+        for e in coll(wc, c).values():
+            if isinstance(e, dict) and e.get('level') == level and isinstance(scope(e), str):
+                found.add(scope(e))
+    return [None] + sorted(found)
+
+
+def planarize(wc: dict, level: str, mint, straddles: list, profile: Profile = OPS_01, domain=ALL) -> None:
+    """5.2: snap rounding, on a level - or, with design options, a domain of one (5.5) - that breaks
+    Core 5.3; any other is left as it is."""
+    js = _junctions_on(wc, level, domain)
+    edges = [e for e in _edges_on(wc, level, js, domain) if js[e[2]] != js[e[3]]]
     if not breaks_5_3(js, edges):
         return
     hot = hot_pixels(js.values(), [(js[s], js[t]) for _, _, s, t in edges])
+    routes = {eid: route(js[s], js[t], hot) for _, eid, s, t in edges}
+    in_option = domain is not ALL and domain is not None
+    common_px = set()                                       # 5.5: hot pixels a common edge passes through
+    if in_option:
+        for c, eid, _, _ in edges:
+            if scope(wc[c][eid]) is None:
+                common_px.update(routes[eid])
     at = {p: j for j, p in js.items()}
     for p in sorted(hot):                                   # step 3: x, then y
         if p not in at:
             jid = mint('J')
             wc.setdefault('junctions', {})[jid] = {'level': level, 'position': [p[0], p[1]]}
+            if in_option and p not in common_px:
+                wc['junctions'][jid]['option'] = domain     # 5.5: on the option's edges alone
             at[p] = jid
+        elif in_option and p in common_px and scope(wc['junctions'][at[p]]) is not None:
+            del wc['junctions'][at[p]]['option']            # 5.5: a common edge now ends at it
     for c, eid, s, t in edges:                              # step 4: walls then separators, by ID
         a, b = js[s], js[t]
-        path = route(a, b, hot)
+        path = routes[eid]
         assert path[0] == a and path[-1] == b, (eid, path)
         inner = path[1:-1]
         if not inner:
@@ -326,10 +396,11 @@ def normalize(wc: dict, in_a: set, mint, profile: Profile = OPS_01) -> None:
     planarization inserts. (Planarization creates junctions only where none are, so nothing can
     coincide after it.)"""
     for level in levels_of(wc):
-        merge(wc, level, in_a)
+        merge(wc, level, in_a, profile.v03)
     straddles: list[str] = []
     for level in levels_of(wc):
-        planarize(wc, level, mint, straddles, profile)
+        for domain in (domains(wc, level) if profile.v03 else [ALL]):  # Ops 0.3, 5.5
+            planarize(wc, level, mint, straddles, profile, domain)
     if straddles:
         raise OpsStraddle(straddles)
     join_cleanup(wc)

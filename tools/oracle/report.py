@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import json
 
-ORDER = ['valid', 'diagnostics', 'hash', 'derived', 'code', 'severity', 'elements',
+ORDER = ['valid', 'diagnostics', 'hash', 'derived', 'code', 'severity', 'elements', 'design',
          'walls', 'junctionFills', 'rooms', 'unanchored', 'openings',
          'program', 'fallbacks', 'placements', 'clearances', 'clearanceOverlaps',
          'startRight', 'endRight', 'endLeft', 'startLeft', 'baseElevation', 'topElevation',
          'level', 'outer', 'holes', 'area', 'start', 'end', 'sillElevation', 'headElevation',
          'items', 'adjacency', 'countMet', 'minAreaMet', 'targetAreaMet', 'a', 'b', 'kind', 'adjacent', 'connected',
-         'extension', 'collection', 'purpose', 'footprint', 'bottom', 'top', 'point', 'facing']
+         'extension', 'collection', 'purpose', 'footprint', 'bottom', 'top', 'point', 'facing',
+         'chosen', 'members', 'affected']
 
 
 def _key(k):

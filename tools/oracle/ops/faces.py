@@ -30,6 +30,33 @@ def coll(wc: dict, name: str) -> dict:
     return v if isinstance(v, dict) else {}
 
 
+OPTIONAL = ('junctions', 'walls', 'separators', 'rooms')
+
+
+def edit_view(wc: dict, option=None) -> dict:
+    """Ops 0.3, 2.8: the working copy as seen in the edit design - `option` for its set, when the
+    context names one, and every other set's primary - for the faces and rooms a reference reads.
+    An element in any other option is left out, and so is one whose option is not an option of the
+    working copy. A working copy with no element in an option is itself."""
+    if not any(isinstance(e, dict) and 'option' in e for c in OPTIONAL for e in coll(wc, c).values()):
+        return wc
+    opts, sets = coll(wc, 'options'), coll(wc, 'optionSets')
+
+    def set_of(o):
+        x = opts.get(o) if isinstance(o, str) else None
+        return x.get('set') if isinstance(x, dict) else None
+    chosen = {s.get('primary') for sid, s in sets.items()
+              if isinstance(s, dict) and (option is None or sid != set_of(option))}
+    if option is not None:
+        chosen.add(option)
+    chosen = {o for o in chosen if isinstance(o, str) and o in opts}
+    v = dict(wc)
+    for c in OPTIONAL:
+        v[c] = {k: e for k, e in coll(wc, c).items() if not (isinstance(e, dict) and 'option' in e)
+                or e['option'] in chosen}
+    return v
+
+
 class LevelFaces:
     """The plane graph of one level: positions, edges, bounded faces and which face each
     half-edge has on its left."""

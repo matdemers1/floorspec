@@ -108,6 +108,10 @@
       "description": "5.2, 18.5: the finishes of the wall's faces, and of regions of them, where they differ from the rooms they face.",
       "default": {}
     },
+    "option": {
+      "$ref": "defs.schema.json#/$defs/reference",
+      "description": "19.2: a reference to the option this wall is in. Absent: it is in no option, and so in every design."
+    },
     "name": {
       "$ref": "defs.schema.json#/$defs/name",
       "description": "1.4: a human-readable label, 1–200 characters. Absent by default."

@@ -8,7 +8,8 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
 Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
 are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
-copied, with ten changed and three new (`roof.schema.json`, `stair.schema.json`, `finish.schema.json`); the table lists 0.3's.
+copied, with ten changed and four new (`roof.schema.json`, `stair.schema.json`, `finish.schema.json`,
+`option.schema.json`); the table lists 0.3's.
 
 | File | Describes | Spec |
 |---|---|---|
@@ -32,6 +33,7 @@ copied, with ten changed and three new (`roof.schema.json`, `stair.schema.json`,
 | `host.schema.json` | the three forms of a host (0.2) | 13.3 |
 | `clearance.schema.json` | a `clearances` object and its envelopes (0.2) | 13.5 |
 | `stair.schema.json` | stairs: their forms and handrails (0.3) | 17.1, 17.2 |
+| `option.schema.json` | option sets and options (0.3) | 19.1 |
 
 `defs.schema.json` gains, in 0.2, `triple`, `box`, `area`, `angleHalfOpen`, `collectionName` and
 `httpsUri`; `room.schema.json` gains `brief`, and `type.schema.json` gains `clearances` on door and
@@ -46,7 +48,10 @@ new, and `floorspec.schema.json` gains the `stairs` collection; for materials an
 18), `material.schema.json` gains `metallic` and `roughness` and a texture's `normal`,
 `metallicRoughness` and `occlusion` maps, `offset` and `rotation` (its `asset` no longer required, so
 long as it has one map), `asset.schema.json` gains `byteLength`, `finish.schema.json` is new, and
-`wall.schema.json` gains `finishes`.
+`wall.schema.json` gains `finishes`; for design options (chapter 19),
+`option.schema.json` is new, `floorspec.schema.json` gains the `optionSets` and `options`
+collections, and the junction, wall, separator, opening, room, slab, roof and stair schemas and an
+extension element in `extension.schema.json` gain `option` (19.2), which has no default.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at

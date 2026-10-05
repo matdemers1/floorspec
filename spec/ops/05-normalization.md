@@ -103,3 +103,31 @@ An applier MUST remove such joins. {#FS-OPS-5.3.1 MUST}
 ## 5.4 When normalization runs
 
 An applier MUST normalize exactly as this chapter defines — 5.1, then 5.2, then 5.3 — once, after the last primitive of the batch and before validation. {#FS-OPS-5.4.1 MUST}
+
+## 5.5 Design options
+
+A level of a Core 0.3 document may hold elements of options (Core chapter 19). Two elements of
+different options of one set are never in one design, and nothing may refer from one option into
+another (Core §19.4), so normalization never joins them: it merges and planarizes a level option by
+option. A junction or an edge with no `option` member is **common**.
+
+- **Merging (5.1).** Where junctions on a level share a position and one of them is common, every
+  junction there merges into one survivor chosen among the common ones as 5.1 chooses. Where none
+  is common, the junctions of each option merge among themselves, and those of different options
+  are left as they are.
+- **Planarizing (5.2).** A level is planarized in **domains**: first its common junctions and edges;
+  then, for each option that has a junction or an edge on the level, in order of the option's ID,
+  the common ones together with that option's. Each domain is planarized exactly as 5.2 planarizes a
+  level — only when it breaks Core §5.3, and as a whole — with this addition: in an option's domain,
+  a junction step 3 inserts at a hot pixel that a common edge is routed through is common, and every
+  other junction it inserts is in the option; and an existing junction of the option at such a pixel
+  becomes common, its `option` removed. The pieces of a split edge copy its `option` as they copy
+  every other member (step 4), and openings and hosted elements move to the pieces as steps 5 and 6
+  say, whatever option they are in.
+
+Without a junction or an edge in an option, a level has one domain, all of it, and normalizes
+exactly as 5.1 and 5.2 say. Edges of options of two different sets are never planarized against each
+other: if they cross, the design that has both is invalid, and validation rejects the batch when
+that design is one Core checks (Core §19.5).
+
+An applier MUST merge and planarize a level that has junctions or edges in options exactly as this section defines. {#FS-OPS-5.5.1 MUST}

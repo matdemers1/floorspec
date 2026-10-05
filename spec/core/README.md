@@ -1,6 +1,6 @@
 # Floorspec Core
 
-The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings, floors, ceilings and slabs, roofs, stairs, and materials and finishes**.
+The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings, floors, ceilings and slabs, roofs, stairs, materials and finishes, and design options**.
 
 | Chapter | |
 |---|---|
@@ -23,6 +23,7 @@ The normative specification of the Floorspec document — **Draft 0.3: walls and
 | [16. Roofs](16-roofs.md) | footprints, gables, pitches and overhangs; the eave outline; flat, shed and equal-pitch surfaces; faces, ridges, hips and valleys |
 | [17. Stairs](17-stairs.md) | straight, L, U, winder and spiral stairs; foot, head, rise and risers; steps, run and walkline; headroom; circulation |
 | [18. Materials, assets and finishes](18-materials.md) | metallic-roughness materials; textures, their maps and real-world size; texture space; the package and the package validator; room, face and region finishes, resolved |
+| [19. Design options](19-options.md) | option sets, options and their primary; membership; designs and their views; references across options; the checked designs; deriving a design, and comparing options side by side |
 | [A. IFC4 mapping](annex-ifc.md) | every core kind and its IFC4 entity |
 
 Every normative statement ends with a tag such as `{#FS-CORE-5.3.1 MUST}`. `pnpm statements`

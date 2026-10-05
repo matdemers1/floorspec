@@ -4,7 +4,9 @@ A test is declared with t(group, slug, description, covers, input, diagnostics).
 are written by hand; write_all() asks the oracle for its own and reports any disagreement, and
 takes hash, derived and canonical.json from the oracle. Directories are numbered in declaration
 order within a group, so add new tests at the end of their group's section. A Core 0.2 test may
-also give the known extensions (registry=[entries]), written to registry.json.
+also give the known extensions (registry=[entries]), written to registry.json, and a Core 0.3 test
+the design to derive (design={set: option}, Core 19.6), written to design.json; a hand-written
+diagnostic found in an option design is (code, [elements], option).
 """
 import copy  # noqa: F401  (re-exported for author.py)
 import json
@@ -96,14 +98,21 @@ def cov(*ids):
     return [i if i.startswith('FS-') else f'FS-CORE-{i}' for i in ids]
 
 
-def t(group, slug, description, covers, inp, diags=(), raw=None, registry=None, registry_raw=None, package=None):
-    """diags: list of (code, [elements]) - written by hand, cross-checked by the oracle. package: the
-    files of the document's package (Core 0.3, 18.4), {path: bytes}, written under package/ - the test
-    is then run by a package validator."""
+def _diag(code, elements, design=None):
+    d = {'code': code, 'severity': SEVERITY.get(code, 'error'), 'elements': sorted(elements)}
+    if design is not None:
+        d['design'] = design
+    return d
+
+
+def t(group, slug, description, covers, inp, diags=(), raw=None, registry=None, registry_raw=None, package=None,
+      design=None):
+    """diags: list of (code, [elements]) or (code, [elements], option) - written by hand, cross-checked
+    by the oracle. package: the files of the document's package (Core 0.3, 18.4), {path: bytes}, written
+    under package/ - the test is then run by a package validator. design: the design to derive (19.6)."""
     TESTS.append(dict(group=group, slug=slug, description=description, covers=cov(*covers),
-                      inp=inp, raw=raw, registry=registry, registry_raw=registry_raw, package=package,
-                      diags=[{'code': c, 'severity': SEVERITY.get(c, 'error'), 'elements': sorted(e)}
-                             for c, e in diags]))
+                      inp=inp, raw=raw, registry=registry, registry_raw=registry_raw, package=package, design=design,
+                      diags=[_diag(*x) for x in diags]))
 
 
 def write_package(d, package):
@@ -163,8 +172,14 @@ def write_all(only_group=None, prune=False, tests=None, suite=None, reader=READE
             os.remove(rp)
         package = tc.get('package')
         write_package(d, package)
-        result, canonical, notes = check(data, reader, registry, package=package)
-        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
+        dp = os.path.join(d, 'design.json')
+        if tc.get('design') is not None:
+            with open(dp, 'w') as f:
+                f.write(fmt(tc['design']) + '\n')
+        elif os.path.exists(dp):
+            os.remove(dp)
+        result, canonical, notes = check(data, reader, registry, package=package, design=tc.get('design'))
+        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements'], 'design' in x, x.get('design', '')))
         valid = not any(x['severity'] == 'error' for x in hand)
         if hand != result['diagnostics'] or valid != result['valid']:
             failures += 1
@@ -174,6 +189,7 @@ def write_all(only_group=None, prune=False, tests=None, suite=None, reader=READE
         exp = {'valid': valid, 'diagnostics': hand}
         if 'hash' in result:
             exp['hash'] = result['hash']
+        if 'derived' in result:
             exp['derived'] = result['derived']
         with open(os.path.join(d, 'expected.json'), 'w') as f:
             f.write(dumps(exp))

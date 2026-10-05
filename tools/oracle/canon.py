@@ -1,7 +1,7 @@
 """Canonical form (9.2) and content hash (9.3).
 
 Step 1 omits constant defaults, innermost first. The table of constant defaults below is
-transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11, 15, 17 and 18; typed properties (8.2) and
+transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11, 15, 17, 18 and 19; typed properties (8.2) and
 members whose default is derived are never omitted, and the content of extension data - including
 Core 0.2's extension elements - and extras is never touched. Core 0.2 also writes a declaration
 object without `schema` as its version string (12.1). None of the 0.2 rules can apply to a 0.1
@@ -19,6 +19,7 @@ import math
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets', 'roofs', 'stairs')   # roofs, stairs: Core 0.3, chapters 16, 17
+COLLECTIONS += ('optionSets', 'options')                                     # Core 0.3, chapter 19
 
 
 def _is_int(v, n=None) -> bool:
@@ -140,6 +141,9 @@ def omit_defaults(doc: dict) -> dict:
             if _is_int(tex.get('rotation'), 0):
                 del tex['rotation']                     # rotation: constant 0
             # metallic and roughness default to their map's value: derived, never omitted
+    for c in ('optionSets', 'options'):                 # 19.1 (Core 0.3): only the common members
+        for e in d.get(c, {}).values():
+            _drop_common(e)
     for e in d.get('stairs', {}).values():              # 17.1, 17.2 (Core 0.3)
         _drop_common(e)
         if _is_int(e.get('rotation'), 0):               # rotation: constant 0

@@ -10,6 +10,7 @@ from .. import canon, plane, registry as reg
 from ..derive import Doc
 from ..ext import official
 from ..jsonparse import Malformed, parse
+from .. import options
 from ..validate import READER_03, check
 from . import display, structure
 from .context import Ctx
@@ -356,8 +357,17 @@ def _report(**members):
     return base
 
 
-def check_document(document: bytes, registry: bytes | None):
-    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL))
+def check_document(document: bytes, registry: bytes | None, design=None):
+    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL), design=design)
+
+
+def design_doc(document: bytes, design):
+    """1.2: the document as seen in the request's design (Core 19.3) - the primary design without one."""
+    d = _parsed(document)
+    if not options.present(d):
+        return d
+    chosen = options.primary_design(d) if design is None else options.resolve(d, design)
+    return options.view(d, chosen)
 
 
 def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
@@ -374,8 +384,8 @@ def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
     if not structure.profile_ok(profile):
         return _report(units=units, diagnostics=[diag('FS-RULES-002')])
     # 3. the document
-    result, _, _ = check_document(document, registry)
-    if not result['valid']:
+    result, _, _ = check_document(document, registry, req.get('design'))
+    if not result['valid'] or 'derived' not in result:              # 1.2.1, 1.2.2: Core derives nothing for the design
         return _report(units=units, profile=profile['name'], diagnostics=[diag('FS-RULES-003')])
     ds = []
     # 4. the packs
@@ -409,7 +419,7 @@ def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
                 ds.append(diag('FS-RULES-011', pack=w['pack'], rule=w['rule']))
     in_force = editions_in_force(profile)
     # 6. each rule; 7. its subjects
-    doc = Doc(_parsed(document))
+    doc = Doc(design_doc(document, req.get('design')))
     derived = result['derived']
     ctx = Ctx(doc, derived, set(derived.get('extensions', {})), units)
     ev = Evaluation(ctx)
