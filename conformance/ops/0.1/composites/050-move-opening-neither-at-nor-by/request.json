@@ -1,8 +1,0 @@
-{
-  "batch": [
-    {
-      "op": "moveOpening",
-      "opening": "O1"
-    }
-  ]
-}

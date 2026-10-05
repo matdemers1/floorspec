@@ -1,9 +1,0 @@
-{
-  "batch": [
-    {
-      "op": "addLevel",
-      "building": "B1",
-      "height": "8'"
-    }
-  ]
-}
