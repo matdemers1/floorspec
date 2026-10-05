@@ -26,11 +26,11 @@ may vary across the surface by a map of its texture (18.2).
 
 The **base colour** of a point of a surface is the texel of the base colour map there (18.3), when
 the material's texture has one, and otherwise its `color`; a material with neither has no declared
-base colour. Its **metallic** and **roughness** are the blue and the green channel of the
-metallic-roughness map there, each multiplied by `metallic` / 1000 and `roughness` / 1000 when the
-member is present, when the texture has that map; without the map they are `metallic` / 1000,
-absent `0`, and `roughness` / 1000, absent `1` — so a material that states only its colour is a
-matte, non-metallic surface, as it was before 0.3 said anything about it.
+base colour. Where the texture has a metallic-roughness map, a point's **metallic** is the map's
+blue channel there and its **roughness** its green channel, each multiplied by `metallic` / 1000 or
+`roughness` / 1000 when that member is present. Without the map they are `metallic` / 1000 — `0`
+when it is absent — and `roughness` / 1000 — `1` when it is absent: so a material that states only
+its colour is a matte, non-metallic surface, as it was before 0.3 said anything about it.
 
 A material's `metallic` and `roughness`, when present, MUST be integers from 0 to 1000. {#FS-CORE-18.1.1 MUST}
 
