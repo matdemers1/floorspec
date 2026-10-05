@@ -16,6 +16,7 @@ from . import canon, frames, plane, registry as reg, schema
 from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, rpoint, strictly_inside
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
+from .circulation import circulation_lints, derive_circulation
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -35,6 +36,7 @@ SEVERITY = {
     'FS-LINT-001': 'warning', 'FS-LINT-002': 'warning', 'FS-LINT-003': 'info', 'FS-LINT-004': 'warning',
     'FS-LINT-005': 'warning', 'FS-LINT-006': 'info', 'FS-LINT-007': 'warning',
     'FS-LINT-008': 'warning', 'FS-LINT-009': 'warning', 'FS-LINT-010': 'warning', 'FS-LINT-011': 'warning',
+    'FS-LINT-012': 'warning', 'FS-LINT-013': 'warning', 'FS-LINT-014': 'warning',
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -475,7 +477,7 @@ def surface_tier(doc: Doc, bad_levels, bad_rooms):
 
 def derive_02(doc: Doc) -> dict:
     """The members Core 0.2 adds to the derived values: program, fallbacks, placements,
-    clearances and clearanceOverlaps (11.3, 11.4, 12.6, 13.4, 13.5, 13.6)."""
+    clearances, clearanceOverlaps and circulation (11.3, 11.4, 12.6, 13.4, 13.5, 13.6, 14.3)."""
     program, _, _ = derive_program(doc)
     fallbacks, placements, clearances, envelopes = {}, {}, {}, []
 
@@ -512,7 +514,8 @@ def derive_02(doc: Doc) -> dict:
                 overlaps.append(sorted([list(ka), list(kb)]))
     overlaps.sort()
     return {'program': program, 'fallbacks': fallbacks, 'placements': placements,
-            'clearances': clearances, 'clearanceOverlaps': overlaps}
+            'clearances': clearances, 'clearanceOverlaps': overlaps,
+            'circulation': derive_circulation(doc)[0]}
 
 
 # ------------------------------------------------------------------------------ lints
@@ -655,6 +658,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
     derived = derive_all(doc)
     if reader.v02:
         ds.extend(program_lints(doc, diag))
+        ds.extend(circulation_lints(doc, diag))
         derived.update(derive_02(doc))
     result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value),
               'derived': derived}

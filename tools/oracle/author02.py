@@ -153,9 +153,13 @@ def adj(a, b, kind, **kw):
     return {'a': a, 'b': b, 'kind': kind, **kw}
 
 
+NOENTRY = ('FS-LINT-014', ['B1'])                      # a door, but no way in (14.4)
+
+
 def house_program(**kw):
     """The grid house as a three-item brief: two bedrooms (west), a kitchen (south-east) and a dining
-    room (north-east), with a separator between kitchen and dining and a door from bedroom to kitchen."""
+    room (north-east), with a separator between kitchen and dining and a door from bedroom to kitchen.
+    It has no door to the outside, so a 0.2 validator reports FS-LINT-014 for its building (14.4)."""
     items = {'BED': item('sleeping', name='Bedroom', count=2, minArea=11 * M2, targetArea=12 * M2),
              'KIT': item('kitchen', level='L1'), 'DIN': item('dining')}
     adjacency = [adj('KIT', 'DIN', 'required'), adj('BED', 'KIT', 'preferred', weight=8), adj('DIN', 'BED', 'preferred')]
@@ -309,6 +313,16 @@ n('model', 'version-0.2-with-everything', 'A 0.2 document using every member 0.2
                       openings={'O1': door_on('W4')}),
                 {'SOFA': element(host=free(CX, CY, rotation=0), extras={})}, version={'version': '0.1'}))
 
+d = level_doc(junctions={'J1': J(0, 0), 'J2': J(0, Y), 'J3': J(X, Y), 'J4': J(X, 0), 'J5': J(2 * X, Y), 'J6': J(2 * X, 0)},
+              walls={'W1': W('J1', 'J2'), 'W2': W('J2', 'J3'), 'W3': W('J3', 'J4'), 'W4': W('J4', 'J1'),
+                     'W5': W('J3', 'J5'), 'W6': W('J5', 'J6'), 'W7': W('J6', 'J4')},
+              rooms={'R1': R(CX, CY), 'R2': R(X + CX, CY)},
+              openings={'O1': {'wall': 'W3', 'offset': 1000 * MM, 'width': 900 * MM, 'height': 2100 * MM}})
+n('model', 'read-0.1-document-circulation', 'A 0.1 document of two rooms with a cased opening between them and no '
+  'way in, read by a reader of 0.2: circulation needs no member 0.2 adds, so it is derived for the 0.1 document too, '
+  'and its building has no entry (FS-LINT-014). As a 0.1 document it has no diagnostics.', ['1.2.4', '14.3.1'], d,
+  [('FS-LINT-014', ['B1'])])
+
 # =================================================================================== identity (0.2)
 d = setp(room_doc(), ['program'], {'items': {'R1': item('kitchen')}})
 n('identity', 'program-item-id-collides', 'A program item with the ID of a room: items share the document\'s space of '
@@ -365,39 +379,40 @@ n('program', 'house-brief', 'The grid house - four 4 m by 3 m rooms of 100 mm wa
   'met), a kitchen (preferred on L1) and a dining room. The kitchen and dining room are divided by a separator, and a '
   'door joins a bedroom to the kitchen. KIT-DIN is adjacent and connected (the separator); BED-KIT is adjacent and '
   'connected (the door on EV1); DIN-BED is adjacent across the wall EV2, which has no opening, so it is not '
-  'connected. No program lint is reported.',
-  ['11.1.1', '11.3.1', '11.4.1', '6.4.1'], house_program())
+  'connected. No program lint is reported. The house has a door but none to the outside, so its building has no '
+  'entry (FS-LINT-014, 14.4).',
+  ['11.1.1', '11.3.1', '11.4.1', '6.4.1'], house_program(), [NOENTRY])
 d = house_program()
 d['program']['items']['KIT'].update(count=1, extensions={}, extras={})
 d['program']['adjacency'][0]['weight'] = 5
 n('program', 'defaults-explicit', 'program/001 with an item\'s count 1, empty extensions and extras, and an '
   'adjacency\'s weight 5 written out: the same derived values and hash as program/001, and a canonical form without '
-  'them.', ['1.5.1', '9.2.1', '9.2.2', '11.1.1'], d)
+  'them.', ['1.5.1', '9.2.1', '9.2.2', '11.1.1'], d, [NOENTRY])
 d = house_program()
 d['program']['items']['BED']['count'] = 3
 n('program', 'count-unmet', 'The brief asks for three bedrooms and the plan has two: countMet is false and '
   'FS-LINT-008 names the item. The document stays valid: an unmet brief is a lint, never an error.',
-  ['11.3.1', '11.5.2', '10.1.1'], d, [('FS-LINT-008', ['BED'])])
+  ['11.3.1', '11.5.2', '10.1.1'], d, [('FS-LINT-008', ['BED']), NOENTRY])
 d = house_program()
 d['program']['items']['BED']['minArea'] = 12 * M2
 n('program', 'below-minimum-area', 'Bedrooms of at least 12 m2: both have 11.31 m2, so minAreaMet is false and '
   'FS-LINT-009 is reported once for each room, naming the item and the room.', ['11.3.1', '11.5.2'], d,
-  [('FS-LINT-009', ['BED', 'RNW']), ('FS-LINT-009', ['BED', 'RSW'])])
+  [('FS-LINT-009', ['BED', 'RNW']), ('FS-LINT-009', ['BED', 'RSW']), NOENTRY])
 d = house_program()
 d['program']['items']['BED'].update(minArea=ROOM_AREA, targetArea=ROOM_AREA + 1)
 n('program', 'area-compared-exactly', 'A minimum area exactly equal to each bedroom\'s net area (18,530,304,000,000 '
-  'square base units) is met; a target one square base unit more is not.', ['11.3.1'], d)
+  'square base units) is met; a target one square base unit more is not.', ['11.3.1'], d, [NOENTRY])
 d = house_program()
 d['program']['items']['STO'] = item('storage', minArea=2 * M2, targetArea=3 * M2)
 n('program', 'item-without-rooms', 'A storage item no room fulfils: countMet is false (FS-LINT-008), and minAreaMet '
   'and targetAreaMet are true, because every one of its rooms - there are none - meets them.', ['11.3.1'], d,
-  [('FS-LINT-008', ['STO'])])
+  [('FS-LINT-008', ['STO']), NOENTRY])
 d = house_program()
 d['rooms']['RNE']['brief'] = 'KIT'
 d['program']['items']['KIT']['count'] = 1
 n('program', 'more-rooms-than-count', 'Two rooms fulfil the kitchen item, which asks for one: an item with more rooms '
   'than its count meets it. DIN has no room, so its count is unmet and its adjacencies are not adjacent.',
-  ['11.3.1', '11.4.1'], d, [('FS-LINT-008', ['DIN']), ('FS-LINT-010', ['DIN', 'KIT'])])
+  ['11.3.1', '11.4.1'], d, [('FS-LINT-008', ['DIN']), ('FS-LINT-010', ['DIN', 'KIT']), NOENTRY])
 d = one_per_room([adj('SW', 'NE', 'required'), adj('SE', 'NW', 'preferred')])
 n('program', 'diagonal-rooms-not-adjacent', 'Rooms that meet only at the centre junction J11 share no edge, so they '
   'are not adjacent: the required SW-NE adjacency is unmet (FS-LINT-010) and the preferred SE-NW one is unmet '
@@ -415,7 +430,8 @@ d = one_per_room([adj('SW', 'SE', 'preferred'), adj('NW', 'NE', 'preferred'), ad
 n('program', 'adjacent-and-connected', 'One item per room, every pair of neighbours related: SW-SE share the wall '
   'EV1, which has a door (connected); NW-NE share EV2, which has only a window (adjacent, not connected); SW-NW '
   'share EH1, which has an empty, cased opening (connected); SE-NE share the separator EH2 (connected). NE-SW meet '
-  'only at a junction: neither adjacent nor connected.', ['11.4.1'], d)
+  'only at a junction: neither adjacent nor connected. No door leads outside (FS-LINT-014).', ['11.4.1'], d,
+  [NOENTRY])
 two = ldoc(levels={'L2': {'building': 'B1', 'elevation': H, 'height': H}})
 ja, wa = box('A', 0, 0, X, Y)
 jb, wb = box('B', 0, 0, X, Y, level='L2')
@@ -428,7 +444,7 @@ n('program', 'rooms-on-two-levels', 'A living room on L1 and a bedroom directly 
 d = house_program()
 d['program']['adjacency'] = [adj('KIT', 'DIN', 'required'), adj('DIN', 'KIT', 'preferred', weight=1)]
 n('program', 'required-and-preferred-on-one-pair', 'A pair with both a required and a preferred adjacency: redundant, '
-  'not contradictory, so valid; both are derived, in order.', ['11.2.3', '11.4.1'], d)
+  'not contradictory, so valid; both are derived, in order.', ['11.2.3', '11.4.1'], d, [NOENTRY])
 d = house_program()
 d['program']['adjacency'].append(adj('KIT', 'KIT', 'required'))
 n('program', 'self-adjacency', 'An adjacency relating the kitchen to itself: FS-INV-401 names the item.',
@@ -468,7 +484,7 @@ d = house_program()
 d['program']['items']['SPA'] = item('EXT_wellness:sauna', count=0 + 1)
 d['extensionsUsed'] = {'EXT_wellness': '1.0'}
 n('program', 'item-extension-term-declared', 'The same item with EXT_wellness declared: valid. No room fulfils it, so '
-  'its count is unmet.', ['11.1.2'], d, [('FS-LINT-008', ['SPA'])])
+  'its count is unmet.', ['11.1.2'], d, [('FS-LINT-008', ['SPA']), NOENTRY])
 d = house_program()
 d['program']['items']['KIT']['extensions'] = {'EXT_kitchens': {'island': True}}
 n('program', 'item-extension-data-undeclared', 'A program item carrying data of an undeclared extension: FS-INV-005 '
@@ -947,6 +963,190 @@ n('clearances', 'unused-type-derives-nothing', 'A second door type with clearanc
   'are placed in the frames of openings, so it derives none, and FS-LINT-006 names it.', ['13.5.2'], d,
   [('FS-LINT-006', ['D2'])])
 
+# =================================================================================== circulation
+# A grid plan: cells of 4 m by 3 m. Junctions pJij; horizontal edges pHij from (i, j) to (i+1, j) and
+# vertical edges pVij from (i, j) to (i, j+1), so H{i}0 is the south wall of column i and V0{j} the west
+# wall of row j. A door, window or cased opening is named after its edge: Dx, Nx, Cx.
+CW, CH = 4000 * MM, 3000 * MM
+
+
+def plan(cols, rows, rooms, doors=(), windows=(), cased=(), seps=(), omit=(), level='L1', p=''):
+    """rooms: {ID: (i, j)} or {ID: ((i, j), function)}, anchored at the centre of cell (i, j)."""
+    edges = {}
+    for i in range(cols):
+        for j in range(rows + 1):
+            edges[f'{p}H{i}{j}'] = ((i, j), (i + 1, j))
+    for i in range(cols + 1):
+        for j in range(rows):
+            edges[f'{p}V{i}{j}'] = ((i, j), (i, j + 1))
+    js, ws, ss, os_, rs = {}, {}, {}, {}, {}
+    for name, (a, b) in edges.items():
+        if name in omit:
+            continue
+        ja, jb = f'{p}J{a[0]}{a[1]}', f'{p}J{b[0]}{b[1]}'
+        for jid, (x, y) in ((ja, a), (jb, b)):
+            js[jid] = J(x * CW, y * CH, level)
+        (ss if name in seps else ws)[name] = (S if name in seps else W)(ja, jb, level)
+    for name in doors:
+        os_[f'D{name}'] = door_on(name)
+    for name in windows:
+        os_[f'N{name}'] = door_on(name, fill='WIN')
+    for name in cased:
+        os_[f'C{name}'] = door_on(name, fill=None)
+    for rid, v in rooms.items():
+        (i, j), fn = (v, None) if isinstance(v[0], int) else v
+        r = R(i * CW + CW // 2, j * CH + CH // 2, level)
+        if fn is not None:
+            r['function'] = fn
+        rs[rid] = r
+    return {'junctions': js, 'walls': ws, 'separators': ss, 'openings': os_, 'rooms': rs}
+
+
+def cdoc(*plans, levels=None, buildings=None):
+    """A 0.2 document of the plans, with the door type D and the window type WIN where they are used."""
+    fills = {o.get('fill') for pl in plans for o in pl['openings'].values()}
+    d = ldoc(types={k: v for k, v in (('D', DOOR), ('WIN', WINDOW)) if k in fills})
+    if buildings is not None:
+        d['buildings'] = buildings
+    if levels is not None:
+        d['levels'] = levels
+    for pl in plans:
+        for k, v in pl.items():
+            if v:
+                d.setdefault(k, {}).update(v)
+    return d
+
+
+L2 = {'L1': {'building': 'B1', 'elevation': 0, 'height': H}, 'L2': {'building': 'B1', 'elevation': H, 'height': H}}
+
+d = cdoc(plan(3, 2, {'LIV': ((0, 0), 'living'), 'HALL': ((1, 0), 'circulation'), 'KIT': ((2, 0), 'kitchen'),
+                     'BED1': ((0, 1), 'sleeping'), 'BATH': ((1, 1), 'bath'), 'BED2': ((2, 1), 'sleeping')},
+              doors=['H10', 'V10', 'V20', 'H11', 'H01', 'H21'], windows=['H02', 'V30']))
+n('circulation', 'every-room-reachable', 'A six-room house: a front door in the south wall of the hall (H10), doors '
+  'from the hall to the living room, the kitchen and the bathroom, a bedroom off the living room and one off the '
+  'kitchen. The hall is the only entry - the windows on H02 and V30 are not ways in - and every room is reachable. '
+  'Neither bedroom is reached through another sleeping room, so throughSleeping is false for both and absent for '
+  'every other room. No circulation lint.', ['14.3.1', '11.4.1'], d)
+d = cdoc(plan(3, 2, {'HALL': ((0, 0), 'circulation'), 'BED1': ((1, 1), 'sleeping'), 'BED2': ((2, 1), 'sleeping')},
+              omit=['V10', 'V20', 'H01'], doors=['V01', 'H11', 'H21']))
+n('circulation', 'l-shaped-hallway', 'An L-shaped hall - three cells along the south and one up the west side, the '
+  'walls between them left out - whose front door is in the west wall of the upper leg (V01), far from the hall\'s '
+  'anchor. Both bedrooms open off the long leg, so both are reachable: a room is one node of the door graph, '
+  'whatever its shape.', ['14.3.1'], d)
+d = cdoc(plan(3, 1, {'LIV': ((0, 0), 'living'), 'BED1': ((1, 0), 'sleeping'), 'BED2': ((2, 0), 'sleeping')},
+              doors=['H00', 'V10', 'V20']))
+n('circulation', 'bedroom-through-bedroom', 'Living room, bedroom, bedroom in a row, with the front door into the '
+  'living room: the second bedroom is reachable only through the first, so its throughSleeping is true and '
+  'FS-LINT-013 names it. The first bedroom is not reached through a sleeping room. A warning, never an error.',
+  ['14.3.1', '14.4.3', '10.2.1'], d, [('FS-LINT-013', ['BED2'])])
+d = cdoc(plan(3, 2, {'LIV': ((0, 0), 'living'), 'BED': ((1, 0), 'sleeping'), 'BATH': ((2, 0), 'bath'),
+                     'KIT': ((0, 1), 'kitchen'), 'CLO': ((1, 1), 'storage'), 'WIC': ((2, 1), 'storage')},
+              doors=['H00', 'V10', 'V20', 'H01', 'H11', 'H21']))
+n('circulation', 'en-suite-and-closet-through-bedroom', 'A bedroom with an en-suite bathroom and a closet, each '
+  'reached only through the bedroom, and a walk-in closet reached only through the bathroom. None of them is a '
+  'sleeping room, so each is simply reachable: no lint.', ['14.3.1'], d)
+d = cdoc(plan(2, 2, {'LIV': ((0, 0), 'living'), 'BED1': ((1, 0), 'sleeping'), 'OFF': ((0, 1), 'office'),
+                     'BED2': ((1, 1), 'sleeping')},
+              doors=['H00', 'V10'], windows=['H01', 'V01', 'H12']))
+n('circulation', 'unreachable-rooms', 'A living room with the front door and a bedroom off it; an office that has '
+  'only windows - one into the living room (H01), one to the outside (V01) - and a second bedroom with only a window '
+  'into the first (H11 has none; H12 is its window to the outside). The office and the second bedroom are '
+  'unreachable: FS-LINT-012 for each. The second bedroom is not reachable at all, so its throughSleeping is false '
+  'and FS-LINT-013 is not reported.', ['14.3.1', '14.4.3', '11.4.1'], d,
+  [('FS-LINT-012', ['BED2']), ('FS-LINT-012', ['OFF'])])
+d = cdoc(plan(3, 1, {'LIV': ((0, 0), 'living'), 'DIN': ((1, 0), 'dining'), 'KIT': ((2, 0), 'kitchen')},
+              doors=['H00'], cased=['V10'], seps=['V20']))
+n('circulation', 'cased-opening-and-separator-connect', 'The dining room opens from the living room through an '
+  'empty, cased opening, and the kitchen from the dining room across a separator: both connect (11.4), so both are '
+  'reachable.', ['14.3.1', '11.4.1'], d)
+d = cdoc(plan(2, 1, {'PORCH': ((0, 0), 'exterior'), 'LIV': ((1, 0), 'living')},
+              seps=['H00', 'V00', 'H01'], doors=['V10']))
+n('circulation', 'porch-with-separators-is-an-entry', 'A porch whose open sides are separators to the outside, and '
+  'a door from it into the living room. A separator between a room and the unbounded face makes the room an entry, '
+  'as a door does: the porch is the entry and the living room is reachable through it.', ['14.3.1'], d)
+d = cdoc(plan(3, 1, {'GAR': ((0, 0), 'garage'), 'MUD': ((1, 0), 'utility'), 'LIV': ((2, 0), 'living')},
+              doors=['H00', 'V10', 'V20'], windows=['H20', 'V30']))
+n('circulation', 'garage-only-entry', 'The only way in is the garage door (H00); a mudroom and the living room '
+  'beyond it are reached through the garage. An entry may be of any function, so every room is reachable and no '
+  'circulation lint is reported - whether a house may be entered only through its garage is for rules to say.',
+  ['14.3.1'], d)
+d = cdoc(plan(2, 1, {'LIV': ((0, 0), 'living'), 'BED': ((1, 0), 'sleeping')}, doors=['V10'], windows=['H00']))
+n('circulation', 'no-entry', 'Two rooms with a door between them and only a window to the outside: the building '
+  'has doors but no entry. FS-LINT-014 is reported once, for the building, and FS-LINT-012 is not reported for its '
+  'rooms, though neither is reachable.', ['14.3.1', '14.4.2', '14.4.3', '10.3.1'], d, [('FS-LINT-014', ['B1'])])
+d = cdoc(plan(2, 1, {'LIV': ((0, 0), 'living'), 'BED': ((1, 0), 'sleeping')}, windows=['H00', 'V10'], seps=[]))
+n('circulation', 'no-door-not-evaluated', 'Two rooms with windows - one between them, one to the outside - and no '
+  'door or cased opening anywhere: the building is not evaluated, so no circulation lint is reported, though no '
+  'room is an entry and none is reachable.', ['14.3.1', '14.4.2', '10.3.1'], d)
+d = cdoc(plan(2, 1, {'KIT': ((0, 0), 'kitchen'), 'DIN': ((1, 0), 'dining')}, seps=['V10']))
+n('circulation', 'separators-alone-not-evaluated', 'A kitchen and a dining room divided by a separator, and no '
+  'opening: the rooms are connected, but a building is evaluated only once a wall hosts a door or an empty opening, '
+  'so no circulation lint is reported.', ['14.3.1', '14.4.2'], d)
+d = cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+         plan(2, 1, {'LAND': ((0, 0), 'circulation'), 'BED': ((1, 0), 'sleeping')}, doors=['UV10'], level='L2', p='U'),
+         levels=L2)
+n('circulation', 'two-levels-joined-by-circulation-rooms', 'A stair hall on L1 with the front door, and a landing on '
+  'L2 with a bedroom off it. Stairs are not in this draft; two rooms of function circulation on different levels '
+  'of one building are linked, so the landing and the bedroom are reachable.', ['14.3.1'], d)
+d = cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+         plan(2, 1, {'BED1': ((0, 0), 'sleeping'), 'BED2': ((1, 0), 'sleeping')}, doors=['UV10'], level='L2', p='U'),
+         levels=L2)
+n('circulation', 'upper-level-without-circulation-room', 'The same house with no room of function circulation on '
+  'L2: nothing links L2 to L1, so both bedrooms upstairs are unreachable, FS-LINT-012 for each. Neither is reached '
+  'through a sleeping room, since neither is reached at all.', ['14.3.1'], d,
+  [('FS-LINT-012', ['BED1']), ('FS-LINT-012', ['BED2'])])
+d = cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+         plan(2, 1, {'WS': ((0, 0), 'circulation'), 'SHOP': ((1, 0), 'utility')}, doors=['UV10'], level='L2', p='U'),
+         buildings={'B1': {}, 'B2': {}},
+         levels={'L1': {'building': 'B1', 'elevation': 0, 'height': H},
+                 'L2': {'building': 'B2', 'elevation': 0, 'height': H}})
+n('circulation', 'two-buildings', 'A house B1 with an entry, and a detached workshop B2 whose two rooms have a door '
+  'between them but none to the outside. Each building has its own door graph: circulation rooms of different '
+  'buildings are never linked, so B2 has no entry (FS-LINT-014) and B1 is fine.', ['14.3.1', '14.4.2'], d,
+  [('FS-LINT-014', ['B2'])])
+d = cdoc(plan(3, 2, {'BED1': ((0, 0), 'sleeping'), 'BATH': ((1, 0), 'bath'), 'BED2': ((2, 0), 'sleeping'),
+                     'HALL': ((0, 1), 'circulation')},
+              omit=['V11', 'V21'], doors=['H12', 'H01', 'H21', 'V10', 'V20']))
+n('circulation', 'jack-and-jill-bath', 'Two bedrooms off a hall, with a bathroom between them that opens into both: '
+  'each bedroom can also be reached through the bathroom and the other bedroom, but not only that way, so neither '
+  'is reached through another sleeping room.', ['14.3.1'], d)
+d = cdoc(plan(3, 2, {'BED1': ((0, 0), 'sleeping'), 'BATH': ((1, 0), 'bath'), 'BED2': ((2, 0), 'sleeping'),
+                     'HALL': ((0, 1), 'circulation')},
+              omit=['V11', 'V21'], doors=['H12', 'H01', 'V10', 'V20']))
+n('circulation', 'bedroom-through-shared-bath', 'The same plan without the door from the hall to the second '
+  'bedroom: it is reached only through the bathroom, and every path to the bathroom passes through the first '
+  'bedroom. A path through a room that is not a sleeping room still passes through the bedroom before it: '
+  'FS-LINT-013 names the second bedroom.', ['14.3.1'], d, [('FS-LINT-013', ['BED2'])])
+d = cdoc(plan(2, 2, {'LIV': ((0, 0), 'living'), 'BED1': ((1, 0), 'sleeping'), 'BED2': ((0, 1), 'sleeping'),
+                     'BED3': ((1, 1), 'sleeping')},
+              doors=['H00', 'V10', 'H01', 'H11', 'V11']))
+n('circulation', 'through-either-of-two-bedrooms', 'A third bedroom with a door into each of two bedrooms that open '
+  'off the living room. No single bedroom stands in its way, but every path to it passes through one of them: it '
+  'is reachable only through another sleeping room (FS-LINT-013).', ['14.3.1'], d, [('FS-LINT-013', ['BED3'])])
+d = cdoc(plan(2, 1, {'BED1': ((0, 0), 'sleeping'), 'BED2': ((1, 0), 'sleeping')}, doors=['H00', 'V10']))
+n('circulation', 'sleeping-room-entry', 'A bedroom with its own door to the outside is an entry, and is not reached '
+  'through anything; the bedroom beyond it is reachable only through it (FS-LINT-013).', ['14.3.1'], d,
+  [('FS-LINT-013', ['BED2'])])
+d = cdoc(plan(3, 1, {'LIV': ((0, 0), 'living'), 'BED': ((1, 0), 'sleeping'), 'GUEST': ((2, 0), 'EXT_wellness:guest')},
+              doors=['H00', 'V10', 'V20']))
+d['extensionsUsed'] = {'EXT_wellness': '1.0'}
+n('circulation', 'extension-term-is-not-sleeping', 'A room whose function is an extension term, reached only through '
+  'a bedroom: only the core term sleeping makes a sleeping room, so the room has no throughSleeping and no lint.',
+  ['14.3.1'], d)
+js, ws = box('A', 0, 0, 8000 * MM, 6000 * MM)
+jc, wc = box('C', 3000 * MM, 2000 * MM, 5000 * MM, 4000 * MM)
+d = ldoc(junctions={**js, **jc}, walls={**ws, **wc}, types={'D': DOOR},
+         rooms={'LIV': R(1000 * MM, 1000 * MM, function='living'), 'CLO': R(4000 * MM, 3000 * MM, function='storage')},
+         openings={'D1': door_on('AW4'), 'D2': door_on('CW1', offset=500 * MM)})
+n('circulation', 'freestanding-closet', 'A freestanding closet inside the living room - an inner cycle of the living '
+  'room\'s face (6.1) - with a door in one of its walls: its walls lie between the two faces, so the closet is '
+  'connected to the living room and reachable.', ['14.3.1', '11.4.1'], d)
+d = cdoc(plan(2, 1, {'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']))
+n('circulation', 'through-an-unanchored-face', 'A vestibule with the front door that nobody has made a room, and a '
+  'door from it to the living room. Only rooms are nodes of the door graph, so no path passes through the '
+  'vestibule: the building has no entry (FS-LINT-014), beside the unanchored face (FS-LINT-003).', ['14.3.1', '14.4.2'],
+  d, [('FS-LINT-003', []), ('FS-LINT-014', ['B1'])])
+
 # =================================================================================== diagnostics (0.2)
 d = house_program()
 d['program']['items']['BED'].update(count=3, minArea=12 * M2)
@@ -955,9 +1155,10 @@ d['program']['adjacency'] = [adj('KIT', 'DIN', 'forbidden'), adj('BED', 'KIT', '
 n('diagnostics', 'every-program-lint', 'A valid document with every program lint: three bedrooms asked for and two '
   'drawn (FS-LINT-008), both under 12 m2 (FS-LINT-009 twice), a garage nothing fulfils (FS-LINT-008), a required '
   'adjacency from it that cannot be met (FS-LINT-010), and the kitchen and dining room forbidden but adjacent '
-  '(FS-LINT-011). No program condition is an error.', ['10.1.1', '10.2.1', '11.5.2'], d,
+  '(FS-LINT-011). No program condition is an error. (The house also has no entry, FS-LINT-014.)',
+  ['10.1.1', '10.2.1', '11.5.2'], d,
   [('FS-LINT-008', ['BED']), ('FS-LINT-008', ['GAR']), ('FS-LINT-009', ['BED', 'RNW']), ('FS-LINT-009', ['BED', 'RSW']),
-   ('FS-LINT-010', ['BED', 'GAR']), ('FS-LINT-011', ['DIN', 'KIT'])])
+   ('FS-LINT-010', ['BED', 'GAR']), ('FS-LINT-011', ['DIN', 'KIT']), NOENTRY])
 d = house_program()
 d['rooms']['RSW']['brief'] = 'NOPE'
 d['program']['adjacency'].append(adj('KIT', 'KIT', 'required'))
@@ -973,6 +1174,20 @@ n('diagnostics', 'new-invariants-together', 'A self-adjacency, a host beyond its
   'wall whose top is below its base: each group of invariants is evaluated, and the diagnostics are sorted by code.',
   ['10.2.1', '10.3.1'], d,
   [('FS-INV-112', ['WO1']), ('FS-INV-401', ['KIT']), ('FS-INV-501', ['A']), ('FS-INV-601', [])], registry=KNOWN)
+
+d = cdoc(plan(3, 2, {'LIV': ((0, 0), 'living'), 'BED1': ((1, 0), 'sleeping'), 'BED2': ((2, 0), 'sleeping'),
+                     'OFF': ((0, 1), 'office'), 'BATH': ((1, 1), 'bath'), 'CLO': ((2, 1), 'storage')},
+              doors=['H00', 'V10', 'V20', 'H11', 'H21'], windows=['H01']),
+         plan(2, 1, {'WS': ((0, 0), 'utility'), 'STORE': ((1, 0), 'storage')}, cased=['UV10'], level='L2', p='U'),
+         buildings={'B1': {}, 'B2': {}},
+         levels={'L1': {'building': 'B1', 'elevation': 0, 'height': H},
+                 'L2': {'building': 'B2', 'elevation': 0, 'height': H}})
+n('diagnostics', 'every-circulation-lint', 'A valid document with every circulation lint. In the house B1: an office '
+  'with only a window into the living room (FS-LINT-012), and a bedroom reached only through another (FS-LINT-013) - '
+  'the bathroom and closet behind it are not sleeping rooms, so nothing is said of them. In the workshop B2: a cased '
+  'opening between its two rooms and no way in (FS-LINT-014). No circulation condition is an error.',
+  ['10.1.1', '10.2.1', '14.4.1', '14.4.3'], d,
+  [('FS-LINT-012', ['OFF']), ('FS-LINT-013', ['BED2']), ('FS-LINT-014', ['B2'])])
 
 NEW = list(TESTS)
 del TESTS[:]

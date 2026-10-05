@@ -27,8 +27,8 @@ show that it reads them exactly as 0.1 does. **Core 0.1** (`core/0.1/`) is the s
 published 0.1 text, kept as it was so that a 0.1 implementation can still be tested against it.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`, and in 0.2 `program`, `extensions`, `hosting`
-and `clearances`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+`openings`, `types`, `serialization`, `diagnostics`, and in 0.2 `program`, `extensions`, `hosting`,
+`clearances` and `circulation`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -99,7 +99,7 @@ are illustrative only.
 ```
 
 - All five members are always present, even when empty (`{}` or `[]`); in the 0.2 suite, so are
-  the five members below.
+  the six members below.
 - `walls` — every wall on every level: its four face ends (5.7, 5.8) and its base and top
   elevations (5.9).
 - `junctionFills` — every junction whose fill is not empty (5.7), as a ring.
@@ -113,8 +113,8 @@ are illustrative only.
 - An **area** is a decimal string, because areas can exceed the range where JSON numbers are
   exact: an integer, or an integer followed by `.5`.
 
-Core 0.2 adds five members, derived for every valid document (with nothing in them for a
-document that has no program, extension elements or clearances):
+Core 0.2 adds six members, derived for every valid document (with nothing in them for a
+document that has no program, extension elements, clearances or rooms):
 
 ```json
 {
@@ -130,7 +130,11 @@ document that has no program, extension elements or clearances):
   "clearances": {
     "O1": { "swing": { "level": "L1", "purpose": "swing", "footprint": [[…], …], "bottom": 0, "top": 2688000 } }
   },
-  "clearanceOverlaps": [ [["O1", "swing"], ["PNL", "working"]] ]
+  "clearanceOverlaps": [ [["O1", "swing"], ["PNL", "working"]] ],
+  "circulation": {
+    "HALL": { "entry": true, "reachable": true },
+    "BED2": { "entry": false, "reachable": true, "throughSleeping": true }
+  }
 }
 ```
 
@@ -145,6 +149,8 @@ document that has no program, extension elements or clearances):
   (13.5).
 - `clearanceOverlaps` — every pair of envelopes of different owners that overlap (13.6), each
   pair sorted and the list sorted.
+- `circulation` — every room: whether it is an entry, whether it is reachable, and, for a sleeping
+  room only, whether it is reachable only through another sleeping room (14.3).
 
 A deriver conforms when what it derives equals `derived` exactly.
 
