@@ -7,8 +7,11 @@ assigns to FS-SCH-001: 1.1, 1.3, 1.4, 1.6.1, 1.8, 2.1, 2.4, 3.1.1, 4.1.1, 4.3.1,
 required; lengths are JSON integers (no fraction, no exponent - the parser keeps 1.0 and 1e0 apart
 from 1) within 2^53 - 1.
 
+And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
+`clearOpening` (8.4.2, 8.4.3).
+
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
-draft whose schema applies: "0.1" or "0.2" (1.2.4).
+draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
 """
 
 from __future__ import annotations
@@ -34,6 +37,10 @@ TOP_LEVEL = {'floorspec', 'project', 'site', 'buildings', 'levels', 'junctions',
              'separators', 'openings', 'rooms', 'slabs', 'types', 'materials', 'assets',
              'extensionsUsed', 'extensionsRequired', 'extensions', 'extras'}
 PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
+DOOR_OPERATIONS = ('swing', 'doubleSwing', 'doubleActing', 'bypassSlide', 'pocket', 'surfaceSlide', 'bifold',
+                   'overhead', 'cased')                                                       # 8.4 (0.3)
+WINDOW_OPERATIONS = ('fixed', 'casement', 'awning', 'hopper', 'singleHung', 'doubleHung', 'horizontalSlider',
+                     'tiltTurn', 'pivot')
 
 
 def is_int(v) -> bool:
@@ -43,7 +50,9 @@ def is_int(v) -> bool:
 class _Checker:
     def __init__(self, version: str = '0.1'):
         self.problems: list[str] = []
-        self.v02 = version == '0.2'
+        self.version = version
+        self.v02 = version in ('0.2', '0.3')
+        self.v03 = version == '0.3'
 
     def bad(self, path: str, why: str) -> None:
         self.problems.append(f'{path}: {why}')
@@ -240,10 +249,23 @@ class _Checker:
 
     def opening(self, v, path):
         if self.obj(v, path):
-            self.members(v, path, {'wall': self.ref, 'offset': self.nonneg, 'width': self.positive,
-                                   'height': self.positive, 'sill': self.nonneg, 'fill': self.ref,
-                                   'hinge': self.enum('start', 'end'), 'swing': self.enum('left', 'right'),
-                                   **self.common()}, ('wall', 'offset'))
+            allowed = {'wall': self.ref, 'offset': self.nonneg, 'width': self.positive,
+                       'height': self.positive, 'sill': self.nonneg, 'fill': self.ref,
+                       'hinge': self.enum('start', 'end'), 'swing': self.enum('left', 'right'),
+                       **self.common()}
+            if self.v03:
+                allowed['clearOpening'] = self.clear_opening(True)
+            self.members(v, path, allowed, ('wall', 'offset'))
+
+    def clear_opening(self, with_area):
+        """8.4 (0.3): width and height greater than zero; an area, where allowed, from 1 to 2^53 - 1."""
+        def f(v, path):
+            if self.obj(v, path):
+                allowed = {'width': self.positive, 'height': self.positive}
+                if with_area:
+                    allowed['area'] = self.integer(1, MAX_LEN)
+                self.members(v, path, allowed, ('width', 'height'))
+        return f
 
     def function(self, x, p):
         if not isinstance(x, str) or not (x in ROOM_FUNCTIONS or EXT_TERM_RE.fullmatch(x)):
@@ -397,6 +419,9 @@ class _Checker:
                        'sill': self.nonneg, **self.common()}
             if self.v02:
                 allowed['clearances'] = self.clearances
+            if self.v03:
+                allowed['operation'] = self.enum(*(DOOR_OPERATIONS if kind == 'doorType' else WINDOW_OPERATIONS))
+                allowed['clearOpening'] = self.clear_opening(kind == 'windowType')
             self.members(v, path, allowed, ('kind',))
         else:
             self.bad(path, 'bad type kind')
@@ -460,7 +485,7 @@ class _Checker:
             self.bad('', 'the document is not an object')
             return
 
-        want = '0.2' if self.v02 else '0.1'
+        want = self.version
 
         def floorspec(x, p):
             if not isinstance(x, str) or x != want:

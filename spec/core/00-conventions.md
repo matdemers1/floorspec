@@ -1,12 +1,13 @@
 # 0. Conventions
 
-> [!warning] Floorspec Core 0.2 — Draft
+> [!warning] Floorspec Core 0.3 — Draft
 > This is a working draft. It carries no compatibility promise: a later 0.x draft may change any
 > part of it. Floorspec stays 0.x until the 1.0 criteria are met (FLR-ADR-017).
 
 Floorspec Core defines a document that describes a building as code: its levels, the walls on a
 junction graph, the rooms that walls enclose, the openings hosted on walls, the types and
-materials they use, the program the building is meant to satisfy, and the elements that extensions
+materials they use — including how a door or window operates and the net clear opening its maker
+declares — the program the building is meant to satisfy, and the elements that extensions
 add — placed on their hosts, with the clearances they need. It defines what makes a document valid, the exact geometry a conformant tool
 derives from it — including which rooms a person can walk to — and the one byte sequence that every conformant writer produces for it.
 
@@ -22,12 +23,12 @@ giving its stable identifier and level, for example `{#FS-CORE-5.3.1 MUST}`. The
 named is removed.
 
 Every statement at level `MUST` or `MUST NOT` is exercised by at least one test in the conformance
-suite (`conformance/core/0.2/`), and the build that publishes this specification fails if one is
+suite (`conformance/core/0.3/`), and the build that publishes this specification fails if one is
 not. Tables, figures and informative callouts are normative only where a tagged statement says so.
 
 ## 0.2 Conformance classes
 
-Floorspec Core 0.2 places requirements on these kinds of thing:
+Floorspec Core 0.3 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
@@ -67,14 +68,16 @@ Informative: ISO 16739-1:2024 (IFC 4.3) and IFC4 ADD2 TC1, for the mapping in An
 
 ## 0.5 What this draft does not yet define
 
-Floorspec Core 0.2 adds the program, the extension mechanism in full, hosting and clearance
-envelopes, and circulation to the walls-and-rooms draft (0.6). These are reserved for later drafts and a 0.2
+Floorspec Core 0.2 added the program, the extension mechanism in full, hosting and clearance
+envelopes, and circulation to the walls-and-rooms draft (0.7), and Core 0.3 adds the operation and
+net clear opening of door and window types (0.6). These are reserved for later drafts and a 0.3
 document cannot contain them:
 
 - roofs and stairs (their collections, `roofs` and `stairs`, are reserved names); until stairs
   are defined, circulation joins the levels of a building through their rooms of function
   `circulation` (14.1);
 - design options (`optionSets`, and option membership on elements);
+- a door's or window's frame, glazing and hardware, and a casement's hand or a pivot's axis (8.4);
 - arc walls (core walls are straight);
 - derivation of floors, ceilings and 3D geometry, which is not normative in any 0.x draft yet;
 - finish overrides on a wall face or a region of one;
@@ -85,15 +88,45 @@ document cannot contain them:
 - layout solving: generating a plan from a program is what tools do with a program, not what a
   program means (11.6).
 
-## 0.6 Changes from 0.1
+## 0.6 Changes from 0.2
 
-Core 0.2 is a new draft, not an edit of 0.1. The text of Core 0.1 stays published, unchanged, at
+Core 0.3 is a new draft, not an edit of 0.2. The text of Core 0.2 stays published, unchanged, at
+its own URLs, built from the commit that pinned it (`6f9bc07` in the standard's repository); its
+schema is at `/floorspec/schema/core/0.2/` and its suite at `conformance/core/0.2/`, and neither
+changes. This draft's schema is at `/floorspec/schema/core/0.3/` and its suite at
+`conformance/core/0.3/`, which holds every 0.2 test re-targeted to 0.3 as well as the new ones.
+
+What 0.3 adds:
+
+- a door or window type's **operation** — how its leaves or sashes move (8.4);
+- the **net clear opening** — width, height and, for a window, area — that a door or window type
+  declares as its maker states it, and that an opening may override (7.1, 7.2, 8.4); a deriver
+  reports it as declared, and never computes one (7.4);
+- the diagnostics `FS-INV-305` to `FS-INV-308` (chapter 10);
+- the mapping of operations and clear openings to IFC4 (Annex A).
+
+A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
+its absence means that nothing is declared: a 0.2 document read as 0.3 means exactly what it
+meant.
+
+Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
+
+| Retired | Replaced by | Why |
+|---|---|---|
+| `FS-CORE-1.2.3` | `FS-CORE-1.2.5` | a document targeting this draft declares `"0.3"` |
+| `FS-CORE-1.2.4` | `FS-CORE-1.2.6` | a reader reads 0.2 documents as well as 0.1 ones |
+
+Every other statement of 0.2 keeps its ID and its meaning; where a table it refers to has grown,
+the statement applies to the new rows too.
+
+## 0.7 Changes from 0.1 to 0.2
+
+Core 0.2 was a new draft, not an edit of 0.1. The text of Core 0.1 stays published, unchanged, at
 its own URLs, built from the commit that pinned it (`32a7047` in the standard's repository); its
 schema is at `/floorspec/schema/core/0.1/` and its suite at `conformance/core/0.1/`, and neither
-changes. This draft's schema is at `/floorspec/schema/core/0.2/` and its suite at
-`conformance/core/0.2/`, which holds every 0.1 test re-targeted to 0.2 as well as the new ones.
+changes.
 
-What 0.2 adds:
+What 0.2 added:
 
 - the **program** — the brief of items and the adjacency graph — and a room's `brief` (chapter 11);
 - the **extension mechanism in full**: the declaration object, registry entries, dependencies,
@@ -104,17 +137,12 @@ What 0.2 adds:
 - the diagnostics `FS-CFG-001`, `FS-INV-401` to `FS-INV-403`, `FS-INV-501` to `FS-INV-506`,
   `FS-INV-601` to `FS-INV-605` and `FS-LINT-008` to `FS-LINT-014` (chapter 10).
 
-A 0.2 reader reads 0.1 documents as well (1.2.4). Every member 0.2 adds is optional and has a
-default, so a 0.1 document read as 0.2 means exactly what it meant. Circulation adds no member: it
-is derived from walls, rooms and openings that 0.1 already has, so it is derived, and its lints
-reported, for a 0.1 document read as 0.2 too.
+Circulation adds no member: it is derived from walls, rooms and openings that 0.1 already has, so
+it is derived, and its lints reported, for a 0.1 document read as 0.2 or 0.3 too.
 
-Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
+The statements 0.2 retired, each with the statement of this draft that replaces it:
 
 | Retired | Replaced by | Why |
 |---|---|---|
-| `FS-CORE-1.2.1` | `FS-CORE-1.2.3` | a document targeting this draft declares `"0.2"` |
+| `FS-CORE-1.2.1` | `FS-CORE-1.2.5` | a document declares the draft it targets; in 0.2 that was `FS-CORE-1.2.3`, which 0.3 retired in turn |
 | `FS-CORE-1.6.5` | `FS-CORE-1.6.9` | a reader derives fallbacks, placements and clearances from extension elements it does not implement (12.5) |
-
-Every other statement of 0.1 keeps its ID and its meaning; where a table it refers to has grown,
-the statement applies to the new rows too.

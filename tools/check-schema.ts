@@ -1,5 +1,5 @@
 /**
- * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5) and 0.2, Floorspec Ops 0.1
+ * Checks the normative JSON Schemas of Floorspec Core 0.1 (FLR-T-1.5), 0.2 and 0.3, Floorspec Ops 0.1
  * (FLR-T-2.1) and 0.2, and the extension registry entry (Core 0.2, 12.2), FLR-ADR-006:
  *
  *   1. every schema file compiles under ajv's strict mode, and every `required` name is declared;
@@ -7,8 +7,9 @@
  *   3. each Core schema agrees with its suite: for every test whose input is well-formed JSON and
  *      whose expected diagnostics have no FS-CFG-, FS-JSON- or FS-DOC- code, the schema rejects the
  *      input when the expected diagnostics are exactly [FS-SCH-001], and accepts it otherwise. The
- *      0.2 suite is checked as a 0.2 reader checks it - a document declaring "0.1" against 0.1's
- *      schema (FS-CORE-1.2.4) - and its registry.json files against the registry entry schema;
+ *      0.2 and 0.3 suites are checked as a reader of their draft checks them - a document declaring
+ *      an earlier draft against that draft's schema (FS-CORE-1.2.6) - and their registry.json files
+ *      against the registry entry schema;
  *   4. each Ops request schema agrees with its suite: it rejects a test's request exactly when the
  *      expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
  *      matches the Core schema of the draft that Ops draft operates on - Ops 0.1's documents
@@ -97,9 +98,9 @@ const cores = Object.fromEntries(
 const opsAjv = Object.fromEntries(OPS_VERSIONS.map((v) => [v, compile(`ops/${v}`, loadSchemaFiles(opsSchemaDirOf(v)))]));
 const registry = rootValidator(compile('registry/0.1', loadSchemaFiles(registrySchemaDir)), REGISTRY_ID);
 
-// 3. The Core suites: 0.1 as a 0.1 reader checks it, 0.2 as a 0.2 reader does.
+// 3. The Core suites, each as a reader of its own draft checks it.
 for (const v of CORE_VERSIONS) {
-  const validate = v === '0.1' ? cores['0.1'] : versionedValidator(cores);
+  const validate = versionedValidator(cores, v);
   const suite = checkSuite(join(root, 'conformance', 'core', v), validate, root, v === '0.1' ? undefined : registry);
   problems.push(...suite.problems);
   console.log(
@@ -111,7 +112,7 @@ for (const v of CORE_VERSIONS) {
 // 4. The Ops suites: requests against their draft's request schema, documents A against the Core
 // schema of the draft it operates on.
 for (const v of OPS_VERSIONS) {
-  const core = OPS_CORE[v] === '0.1' ? cores['0.1'] : versionedValidator(cores);
+  const core = versionedValidator(cores, OPS_CORE[v]);
   const ops = checkOpsSuite(join(root, 'conformance', 'ops', v), requestValidator(opsAjv[v], v), core, root);
   problems.push(...ops.problems);
   console.log(`schema: ops/${v}: ${ops.checked} conformance request${ops.checked === 1 ? '' : 's'} checked against the request schema`);
@@ -132,7 +133,7 @@ for (const x of extensionSchemas(root)) {
   const ajv = compile(`registry/${x.name}`, x.files);
   const validateData = ajv.getSchema(own.id)!;
   const suiteDir = join(root, 'conformance', 'ext', x.name, x.version);
-  const docs = checkSuite(suiteDir, versionedValidator(cores), root, registry);
+  const docs = checkSuite(suiteDir, versionedValidator(cores, '0.2'), root, registry);
   problems.push(...docs.problems);
   const code = CODES[x.name];
   if (!code) {
@@ -149,7 +150,7 @@ for (const v of RULES_VERSIONS) {
   const rv = rulesValidators(compile(`rules/${v}`, loadSchemaFiles(rulesSchemaDir(v))), v);
   const profile0 = defaultProfile(root);
   if (!rv.profile(profile0)) problems.push(`spec/rules/10-profiles.md: the default profile does not match the profile schema:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
-  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores), registry, profile0, root);
+  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.2'), registry, profile0, root);
   problems.push(...rules.problems);
   console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
 }

@@ -3,9 +3,10 @@
 ``check(data: bytes, reader, registry)`` returns the expected result of the conformance suite for a
 document - ``{valid, diagnostics, hash?, derived?}`` - plus the canonical bytes when the document
 is valid. ``reader`` is the draft the oracle reads as: READER_01 (Core 0.1 alone, the default, as
-the 0.1 suite and the Ops oracle use it) or READER_02 (Core 0.2, which also reads 0.1 documents,
-1.2.4). ``registry`` is the known extensions of Core 0.2 (12.2), as the bytes of a JSON array of
-registry entries, or None for none.
+the 0.1 suite and the Ops 0.1 oracle use it), READER_02 (Core 0.2, which also reads 0.1 documents,
+1.2.4 of 0.2) or READER_03 (Core 0.3, which also reads 0.1 and 0.2 documents, 1.2.6).
+``registry`` is the known extensions (12.2), as the bytes of a JSON array of registry entries, or
+None for none.
 """
 
 from __future__ import annotations
@@ -24,11 +25,15 @@ from .surd import Surd
 class Reader:
     def __init__(self, versions):
         self.versions = frozenset(versions)
-        self.v02 = '0.2' in self.versions
+        self.v02 = '0.2' in self.versions           # what 0.2 adds: program, extensions, hosting, circulation
+        self.v03 = '0.3' in self.versions           # what 0.3 adds: operation and clear openings
+        self.newest = max(self.versions)
 
 
 READER_01 = Reader({'0.1'})
 READER_02 = Reader({'0.1', '0.2'})
+READER_03 = Reader({'0.1', '0.2', '0.3'})
+READERS = {'0.1': READER_01, '0.2': READER_02, '0.3': READER_03}
 IMPLEMENTED_VERSIONS = READER_01.versions
 IMPLEMENTED_EXTENSIONS: set[str] = set()   # a core-only reader
 
@@ -354,6 +359,9 @@ def opening_tier(doc: Doc, no_top):
             ds.append(diag('FS-INV-301', [oid]))
             continue
         ok[oid] = (o['offset'], o['offset'] + width, sill, sill + height)
+        clear = doc.clear_opening(oid)                                      # 7.2.2 (0.3)
+        if clear is not None and (clear['width'] > width or clear['height'] > height):
+            ds.append(diag('FS-INV-305', [oid]))
         if not wall_length_ok(doc, o['wall'], o['offset'] + width):
             ds.append(diag('FS-INV-302', [oid]))
         wid = o['wall']
@@ -368,6 +376,34 @@ def opening_tier(doc: Doc, no_top):
             b0, b1, bv0, bv1 = ok[b]
             if max(a0, b0) < min(a1, b1) and max(av0, bv0) < min(av1, bv1):
                 ds.append(diag('FS-INV-304', [a, b]))
+    return ds
+
+
+def clear_opening_tier(doc: Doc):
+    """FS-INV-306, 307 and 308 (Core 0.3: 7.1.3, 8.4.4, 8.4.5), for every door or window type and
+    every opening. Only a 0.3 document can have a clear opening: the earlier schemas reject one."""
+    ds = []
+
+    def too_much_area(c):
+        return 'area' in c and c['area'] > c['width'] * c['height']
+
+    for tid, t in doc.types.items():
+        c = t.get('clearOpening')
+        if t.get('kind') not in ('doorType', 'windowType') or c is None:
+            continue
+        if too_much_area(c):
+            ds.append(diag('FS-INV-306', [tid]))
+        if ('width' in t and c['width'] > t['width']) or ('height' in t and c['height'] > t['height']):
+            ds.append(diag('FS-INV-307', [tid]))
+    for oid, o in doc.openings.items():
+        c = o.get('clearOpening')
+        if c is None:
+            continue
+        if too_much_area(c):
+            ds.append(diag('FS-INV-306', [oid]))
+        fill = doc.types.get(o['fill']) if 'fill' in o else None
+        if 'area' in c and (fill is None or fill.get('kind') != 'windowType'):
+            ds.append(diag('FS-INV-308', [oid]))
     return ds
 
 
@@ -393,7 +429,7 @@ def extension_tier(d: dict, known):
                 ds.append(diag('FS-INV-602'))
         kinds = entry.get('kinds', {})
         data = d.get('extensions', {}).get(x)
-        if d.get('floorspec') == '0.2' and isinstance(data, dict) and isinstance(data.get('collections'), dict):
+        if d.get('floorspec') in ('0.2', '0.3') and isinstance(data, dict) and isinstance(data.get('collections'), dict):
             for cname in data['collections']:
                 if cname not in kinds:
                     ds.append(diag('FS-INV-604'))
@@ -636,7 +672,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
     # tier 3: schema - of the draft the document declares (1.2.4)
     declared = value.get('floorspec') if isinstance(value, dict) else None
-    problems = schema.check(value, declared if declared in reader.versions else max(reader.versions))
+    problems = schema.check(value, declared if declared in reader.versions else reader.newest)
     if problems:
         notes.extend(problems)
         return {'valid': False, 'diagnostics': [diag('FS-SCH-001')]}, None, notes
@@ -653,6 +689,8 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
                 ds.extend(rds)
                 bad_rooms.update(e for x in rds if x['code'].startswith('FS-INV-2') for e in x['elements'])
         ds.extend(opening_tier(doc, no_top))
+        if reader.v03:
+            ds.extend(clear_opening_tier(doc))
         if reader.v02:
             ds.extend(program_invariants(value, diag))
             ds.extend(extension_tier(value, known))

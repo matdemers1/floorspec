@@ -9,27 +9,34 @@ adjusted to match an implementation.
 
 ```text
 conformance/
-  core/0.2/<group>/<NNN-slug>/
+  core/0.3/<group>/<NNN-slug>/
     test.json        what the test is and which statements it covers
     input.json       the document under test, byte for byte (it may be malformed on purpose)
-    registry.json    optional: the validator's known extensions (Core 0.2, 12.2) - an array of registry entries
+    registry.json    optional: the validator's known extensions (Core 12.2) - an array of registry entries
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
+  core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
 ```
 
-**Core 0.2** (`core/0.2/`) is the suite of the current spec text, and the one `pnpm coverage`
-gates it against. It holds every Core 0.1 test re-targeted to 0.2 — same group, same number,
-declaring `"0.2"`, covering `FS-CORE-1.2.3` and `FS-CORE-1.6.9` where the 0.1 test covered the
-retired `1.2.1` and `1.6.5` — and, after them in each group, the tests of what 0.2 adds. A 0.2
-reader also reads 0.1 documents (1.2.4), and `model/061-read-0.1-document` and the tests after it
-show that it reads them exactly as 0.1 does. **Core 0.1** (`core/0.1/`) is the suite of the
-published 0.1 text, kept as it was so that a 0.1 implementation can still be tested against it.
+**Core 0.3** (`core/0.3/`) is the suite of the current spec text, and the one `pnpm coverage`
+gates it against. It holds every Core 0.2 test re-targeted to 0.3 — same group, same number,
+declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
+it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
+0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
+0.3 adds: operations and clear openings. A 0.3 reader also reads 0.2 documents (1.2.6), and
+`model/070-read-0.2-document` shows that it reads one exactly as 0.2 does.
+
+**Core 0.2** (`core/0.2/`) and **Core 0.1** (`core/0.1/`) are the suites of the published 0.2 and
+0.1 texts, kept as they were so that an implementation of either can still be tested against it.
+The 0.2 suite holds every 0.1 test re-targeted to 0.2 and the tests of what 0.2 added; a 0.2
+reader also reads 0.1 documents, and its `model/061-read-0.1-document` and the tests after it show
+that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`, and in 0.2 `program`, `extensions`, `hosting`,
+`openings`, `types`, `serialization`, `diagnostics`, and from 0.2 `program`, `extensions`, `hosting`,
 `clearances` and `circulation`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
@@ -108,7 +115,9 @@ are illustrative only.
 - `rooms` — every room: its room polygon (6.2) and net area (6.4).
 - `unanchored` — every bounded face with no anchor and a room polygon that is not degenerate,
   sorted by level ID and then by first vertex.
-- `openings` — every opening's derived placement (7.4).
+- `openings` — every opening's derived placement (7.4) and, from 0.3, its clear opening (7.4.2),
+  exactly as declared: `"clearOpening": { "width": …, "height": … }`, with `"area"` only when one is
+  declared, and no `clearOpening` member at all for an opening that resolves none.
 - A **ring** is an array of points that starts at its least vertex (least `x`, then least `y`)
   and runs counter-clockwise for an outer ring or a junction fill, clockwise for a hole. Holes
   are sorted by their first vertex.
@@ -177,7 +186,7 @@ python3.13 -m unittest discover tools/oracle   # the oracle's own tests
 python3.13 -m tools.oracle.author              # rewrite the suite from its declarations
 ```
 
-`regenerate` reads `core/0.1` as a Core 0.1 reader and `core/0.2` as a Core 0.2 reader, and
+`regenerate` reads `core/0.1` as a Core 0.1 reader, `core/0.2` as a Core 0.2 reader and `core/0.3` as a Core 0.3 reader, and
 recomputes every expected result from `input.json` (and `registry.json`) alone and compares it with what is on
 disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
@@ -186,17 +195,18 @@ the canonical form canonicalizes to itself and derives the same values and hash 
 The suite assumes a reader that implements no extension: a document whose `extensionsRequired`
 is well formed (distinct names, each in `extensionsUsed`) and not empty is rejected with
 `FS-DOC-002`, once for each name. It assumes a validator configured with no known extensions
-(Core 0.2, 12.2) except in a test that has a `registry.json`: there, the validator is configured
+(Core 12.2) except in a test that has a `registry.json`: there, the validator is configured
 with exactly the entries in it. A test that expects `[FS-CFG-001]` has known extensions that are
 not a valid registry, and a conformant validator reports that and nothing else, whatever the
 document.
 
-The tests are declared in `tools/oracle/author.py` (Core 0.1) and `tools/oracle/author02.py`
-(Core 0.2, which takes every 0.1 declaration and re-targets it before adding its own), with every
-expected diagnostic written by hand; `python3.13 -m tools.oracle.author` and
-`python3.13 -m tools.oracle.author02` rewrite their suites and fail if the oracle disagrees with a
-hand-written diagnostic. Add new tests at the end of their group in `author02.py`, so existing
-directories keep their numbers; the 0.1 suite is published and does not change.
+The tests are declared in `tools/oracle/author.py` (Core 0.1), `tools/oracle/author02.py` (Core
+0.2, which takes every 0.1 declaration and re-targets it before adding its own) and
+`tools/oracle/author03.py` (Core 0.3, which does the same with every 0.2 declaration), with every
+expected diagnostic written by hand; `python3.13 -m tools.oracle.author`, `…author02` and
+`…author03` rewrite their suites and fail if the oracle disagrees with a hand-written diagnostic.
+Add new tests at the end of their group in `author03.py`, so existing directories keep their
+numbers; the 0.1 and 0.2 suites are published and do not change.
 
 ## Floorspec Ops
 

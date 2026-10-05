@@ -5,9 +5,10 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 
 ## Files
 
-Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), and Core 0.2 — the current draft —
-in [`0.2/`](0.2/). Start at `floorspec.schema.json`. The 0.2 files are the 0.1 files copied and
-changed, plus five new ones; the table lists 0.2's.
+Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
+Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
+are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
+copied, with four changed; the table lists 0.3's.
 
 | File | Describes | Spec |
 |---|---|---|
@@ -18,10 +19,10 @@ changed, plus five new ones; the table lists 0.2's.
 | `junction.schema.json` | junctions and their join overrides | 5.1, 5.8 |
 | `wall.schema.json`, `separator.schema.json` | walls (with `base` and `top`) and separators | 5.2, 5.9 |
 | `layer.schema.json` | a layer and a `layers` array | 4.3, 8.3 |
-| `opening.schema.json` | openings | 7.1 |
+| `opening.schema.json` | openings, with their own clear opening (0.3) | 7.1 |
 | `room.schema.json` | rooms and room functions | 4.1, 4.2, 6.5 |
 | `slab.schema.json` | slabs | 6.7 |
-| `type.schema.json` | wall, door and window types, discriminated by `kind` | 8.1, 8.3, 8.4 |
+| `type.schema.json` | wall, door and window types, discriminated by `kind`; a door's or window's operation and clear opening (0.3) | 8.1, 8.3, 8.4 |
 | `material.schema.json`, `asset.schema.json` | materials and assets | 8.5, 8.6 |
 | `program.schema.json` | the program, its items and adjacencies (0.2) | 11.1, 11.2 |
 | `extension.schema.json` | declarations in `extensionsUsed`, top-level extension data, collections and extension elements (0.2) | 12.1, 12.5 |
@@ -31,7 +32,9 @@ changed, plus five new ones; the table lists 0.2's.
 
 `defs.schema.json` gains, in 0.2, `triple`, `box`, `area`, `angleHalfOpen`, `collectionName` and
 `httpsUri`; `room.schema.json` gains `brief`, and `type.schema.json` gains `clearances` on door and
-window types.
+window types. In 0.3, `defs.schema.json` gains `clearOpening` and `doorClearOpening`,
+`type.schema.json` gains `operation` and `clearOpening` on door and window types,
+`opening.schema.json` gains `clearOpening`, and `floorspec.schema.json` declares `"0.3"`.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at
@@ -66,8 +69,8 @@ Two things a validator does before it applies the schema:
 - **Parsing and document tiers first.** Malformed JSON, duplicate members and unpaired
   surrogates (`FS-JSON-*`), and an unknown version or required extension (`FS-DOC-*`), are reported
   before the schema is applied (10.3).
-- **The declared draft's schema.** A reader of 0.2 applies 0.1's schema to a document that
-  declares `"0.1"`, and 0.2's to every other (1.2.4).
+- **The declared draft's schema.** A reader of 0.3 applies 0.1's schema to a document that
+  declares `"0.1"`, 0.2's to one that declares `"0.2"`, and 0.3's to every other (1.2.6).
 - **Lexical integers.** A length or an angle is a JSON integer, written without a fraction or an
   exponent (2.1, 2.4). JSON Schema sees only the parsed number, for which `1.0` and `1e3` are
   integers. A validator maps every number written with a fraction or an exponent to a value that
@@ -93,12 +96,14 @@ pnpm schema:check   # compile every file (ajv, strict); check every default; che
 pnpm test           # tools/check-schema.test.ts: documents the schema must accept and reject
 ```
 
-`pnpm schema:check` runs every conformance test in `conformance/core/0.1/` (against 0.1's schema)
-and `conformance/core/0.2/` (as a 0.2 reader would) whose input is well-formed JSON and whose
+`pnpm schema:check` runs every conformance test in `conformance/core/0.1/` (against 0.1's schema),
+`conformance/core/0.2/` (as a 0.2 reader would) and `conformance/core/0.3/` (as a 0.3 reader would) whose input is well-formed JSON and whose
 expected diagnostics have no `FS-CFG-`, `FS-JSON-` or `FS-DOC-` code: the schema must reject the
 input when the expected diagnostics are exactly `[FS-SCH-001]`, and accept it otherwise. Every
-`registry.json` of the 0.2 suite must match the registry entry schema, unless its test expects
-`FS-CFG-001`. `tools/check-schema-02.test.ts` pins 0.2's new defaults and edges.
+`registry.json` of the 0.2 and 0.3 suites must match the registry entry schema, unless its test expects
+`FS-CFG-001`. `tools/check-schema-02.test.ts` pins 0.2's new defaults and edges, and
+`tools/check-schema-03.test.ts` 0.3's — none of whose new members has a default: an absent
+operation is not declared, and a clear opening is a typed property (8.2).
 
 Extension elements are extension data, which the canonical form never changes (9.2), so
 `host.schema.json`, `fallback.schema.json`, `clearance.schema.json` and `extension.schema.json`

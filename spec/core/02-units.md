@@ -69,7 +69,10 @@ An angle MUST be a JSON integer. {#FS-CORE-2.4.1 MUST}
   `{ "rise": 6, "run": 12 }`). It is used by later drafts.
 - **Scaled decimals** — a thermal resistance, a fire rating — are integers with the scale named
   in the member's definition (for example, "R-value in thousandths").
-- **Areas** and **volumes** are always derived and never stored. Areas are in square base units.
+- **Areas** are in square base units. An area of the geometry — a room's net area — is always
+  derived and never stored; an area that is asked for or declared — a program item's
+  `targetArea` (11.1), a clear opening's `area` (8.4) — is stored as an integer. **Volumes** are
+  always derived and never stored.
 - **Counts** are non-negative integers.
 
 ## 2.6 Points and polygons

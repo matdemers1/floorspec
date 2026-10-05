@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
- * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1 and
- * 0.2), Floorspec Ops's apply-request schemas for each draft (0.1 and 0.2), whose rejections are
+ * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2
+ * and 0.3), Floorspec Ops's apply-request schemas for each draft (0.1 and 0.2), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -10,10 +10,10 @@ import { join, relative } from 'node:path';
 import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js';
 
 /** The Core drafts this repository publishes, oldest first. */
-export const CORE_VERSIONS = ['0.1', '0.2'] as const;
+export const CORE_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type CoreVersion = (typeof CORE_VERSIONS)[number];
 /** The draft the spec text in spec/core/ is. */
-export const CURRENT_CORE: CoreVersion = '0.2';
+export const CURRENT_CORE: CoreVersion = '0.3';
 
 export const coreSchemaBase = (v: CoreVersion) => `https://d3cloud.io/floorspec/schema/core/${v}/`;
 export const coreRootId = (v: CoreVersion) => `${coreSchemaBase(v)}floorspec.schema.json`;
@@ -97,14 +97,23 @@ export function registryValidator(ajv = createAjv(loadSchemaFiles(registrySchema
 }
 
 /**
- * The schema tier of a reader of Core 0.2 (FS-CORE-1.2.4): a document that declares "0.1" is
- * checked against Core 0.1's schema, and every other document against 0.2's.
+ * The schema tier of a reader of one Core draft (by default the newest of `validators`), which reads
+ * every earlier draft too (FS-CORE-1.2.6 of 0.3, 1.2.4 of 0.2): a document that declares a draft
+ * the reader implements is checked against that draft's schema, and every other document against
+ * the reader's own.
  */
-export function versionedValidator(validators: Record<CoreVersion, ValidateFunction>): ValidateFunction {
-  const pick = (doc: unknown) =>
-    doc !== null && typeof doc === 'object' && !Array.isArray(doc) && (doc as Record<string, unknown>).floorspec === '0.1'
-      ? validators['0.1']
-      : validators['0.2'];
+export function versionedValidator(
+  validators: Partial<Record<CoreVersion, ValidateFunction>>,
+  reader: CoreVersion = CORE_VERSIONS.filter((v) => validators[v]).at(-1)!,
+): ValidateFunction {
+  const implemented = CORE_VERSIONS.slice(0, CORE_VERSIONS.indexOf(reader) + 1);
+  const pick = (doc: unknown) => {
+    const declared = doc !== null && typeof doc === 'object' && !Array.isArray(doc) ? (doc as Record<string, unknown>).floorspec : undefined;
+    const v = implemented.find((x) => x === declared) ?? reader;
+    const f = validators[v];
+    if (!f) throw new Error(`no validator for Core ${v}`);
+    return f;
+  };
   const f = ((doc: unknown) => {
     const v = pick(doc);
     const ok = v(doc) as boolean;
