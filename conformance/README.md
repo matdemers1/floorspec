@@ -330,7 +330,10 @@ documents, whose operations and clear openings, floors, ceilings and slabs a bat
 `setProperty`, `unsetProperty` and `addElement`, `moveRoom` moving a vaulted ceiling's ridge
 (`composites/068-move-room-moves-its-vault`), roofs added, edited and removed
 (`primitives/068` to `078`), and stairs - added, edited, removed, and removed with the levels they
-join (`primitives/079-add-a-stair` and the tests after it). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+join (`primitives/079-add-a-stair` and the tests after it), and materials and finishes - textures
+and wall finishes edited, the FLR-P-8 exit demo as one batch (`primitives/089-tile-photo-on-the-backsplash`
+and the tests after it), removals a finish or a map blocks, and a split wall cutting its regions
+(`normalization/025-split-wall-cuts-its-regions`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
 exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape, and may also add
 to Core 0.3's `roofs` and `stairs`: its suite is checked against its own `schema/ops/0.3/`, and its tests cover
