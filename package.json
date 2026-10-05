@@ -11,6 +11,10 @@
     "statements": "tsx tools/extract-statements.ts",
     "coverage": "tsx conformance/coverage.ts",
     "schema:check": "tsx tools/check-schema.ts",
+    "packs": "tsx tools/build-pack.ts",
+    "packs:check": "tsx tools/build-pack.ts --check",
+    "lint:rules": "tsx tools/lint-rules.ts",
+    "coverage:matrix": "tsx tools/coverage-matrix.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tools/*.test.ts",
     "check": "pnpm statements && pnpm schema:check && pnpm coverage"

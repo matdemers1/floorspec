@@ -1,0 +1,24 @@
+{
+  "$comment": "The publishers' free public viewers a rule's citation.link may point at (rules/CONTRIBUTING.md, `viewer-host` in tools/lint-rules.ts). A link only: nothing in this repository fetches from these hosts, and lint fails any script that names one (FLR-REQ-106). Adding a host is the maintainers' decision, in a pull request of its own.",
+  "viewers": [
+    {
+      "host": "codes.iccsafe.org",
+      "publisher": "International Code Council",
+      "codes": ["IBC", "IECC", "IFC", "IFGC", "IMC", "IPC", "IPSDC", "IRC", "ISPSC"],
+      "note": "ICC Digital Codes: the free read-only view of the I-Codes"
+    },
+    {
+      "host": "link.nfpa.org",
+      "publisher": "National Fire Protection Association",
+      "codes": ["NEC", "NFPA-70", "NFPA-72", "NFPA-54", "NFPA-58", "NFPA-101"],
+      "note": "NFPA free access: the read-only view of NFPA codes and standards"
+    },
+    {
+      "host": "epubs.iapmo.org",
+      "publisher": "IAPMO",
+      "codes": ["UMC", "UPC", "USEC", "USPSHTC"],
+      "note": "IAPMO's free read-only view of its codes"
+    }
+  ],
+  "synthetic": ["example.org", "example.com"]
+}
