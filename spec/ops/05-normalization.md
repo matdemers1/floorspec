@@ -21,7 +21,9 @@ removed.
 
 Two edges that now connect the same two junctions, or an edge whose start and end are now the
 same junction, are left as they are — and validation rejects the batch (Core 5.2.1, 5.2.2).
-Normalization never decides that a wall drawn on top of another was meant to replace it.
+Normalization never decides that a wall drawn on top of another was meant to replace it, so it
+never merges two walls into one. A redirected wall still starts and ends where it did, so nothing
+hosted on it moves (2.7).
 
 An applier MUST merge coincident junctions as this section defines, before 5.2. {#FS-OPS-5.1.1 MUST}
 
@@ -51,6 +53,15 @@ as it is. A level that breaks it is made planar, as a whole, by **snap rounding*
    location line of the projection of the piece's start, computed exactly and rounded once, ties
    to even. An opening that no piece contains straddles a new junction: the batch is rejected
    with `FS-OPS-009`.
+6. **Hosted elements.** An extension element whose `host` is a `wallFace` host on a split wall,
+   with an integer `offset`, moves to the piece whose interval contains its offset, where a
+   piece's interval `[s, e)` is taken half-open — so an element exactly at a new junction goes to
+   the piece that starts there — except that the last piece's includes its end. Its `host.wall`
+   becomes that piece and its `offset` becomes `offset − s`, computed exactly and rounded once,
+   ties to even; its `side` and `height` do not change, since every piece runs the same way and
+   keeps the wall's base and top. An element that no piece contains — its offset negative or
+   past the wall's end — stays on the first piece, unchanged, for validation to judge (Core
+   §13.3.1, 13.3.2). A hosted element is a point, so unlike an opening it never straddles.
 
 Snap rounding moves no point of any edge by more than one base unit, and its result does not
 depend on the order of edges or on any implementation detail. It creates junctions only where none
@@ -63,6 +74,12 @@ exist, so it never makes two junctions coincide.
 > so an edit elsewhere — a rename, a finish — leaves such a near miss exactly as it is.
 
 An applier MUST planarize exactly the levels this section names, as this section defines, and MUST reject the batch with `FS-OPS-009` when an opening straddles a junction it inserts. {#FS-OPS-5.2.1 MUST}
+
+An applier MUST move every extension element hosted on the face of a split wall exactly as step 6 defines. {#FS-OPS-5.2.2 MUST}
+So a wall drawn across a run of outlets splits the run between the two pieces, and every outlet
+stays where it was: exactly, when the crossing is at an integer point of the original location
+line, as it is wherever axis-aligned walls cross; otherwise within the rounding that moved the
+pieces' ends.
 
 ## 5.3 Join cleanup
 

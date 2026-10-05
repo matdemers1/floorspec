@@ -50,12 +50,17 @@ An applier MUST expand moveWall as this section defines, and MUST reject it with
 { "op": "moveRoom", "room": "Bath", "by": "1' 6\" west" }
 ```
 
-Moves every junction on the room's outer cycle, and its anchor, by the vector `by`:
+Moves every junction on the room's outer cycle, its anchor, and what stands on its floor or hangs
+from its ceiling, by the vector `by`:
 
 1. `moveJunction` of each junction on the room's outer cycle, by ID;
-2. `setProperty` of the room's `/anchor`.
+2. `setProperty` of the room's `/anchor`;
+3. `setProperty` of `/host/position` of every extension element whose `host` is a `surface` host
+   on the room with an integer point `position` — its position plus `by` — by ID.
 
-Walls that connect the room to the rest of the plan stretch; neighbouring rooms change shape.
+Walls that connect the room to the rest of the plan stretch; neighbouring rooms change shape. The
+openings in the room's walls, and the extension elements on their faces, follow the walls (2.7);
+the bath and the vanity on the floor move with step 3.
 
 An applier MUST expand moveRoom as this section defines. {#FS-OPS-4.3.1 MUST}
 
@@ -143,15 +148,16 @@ then `toward`. The new offset is not checked here: an opening moved past its wal
 its start, makes the result invalid, and the batch is rejected with the Core diagnostics of the
 result (1.2.3): `FS-INV-302` past the end (Core §7.3), `FS-SCH-001` for a negative offset (Core §7.1).
 
-An applier MUST expand addOpening and moveOpening with `at` as this section defines, and MUST reject an addOpening, or a moveOpening with `at`, whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.1 MUST}
+An applier MUST expand addOpening and moveOpening with `at` as this section defines, and MUST reject an addOpening, or a moveOpening with `at`, whose width resolves from neither member nor fill with `FS-OPS-003`. {#FS-OPS-4.5.3 MUST}
 
 An applier MUST expand a moveOpening with `by` as this section defines, MUST reject it with `FS-OPS-003`, naming the opening, when the opening has no integer `offset` in the working copy, and MUST reject it with `FS-OPS-008`, naming the wall, when `toward` is a direction perpendicular to the opening's wall. {#FS-OPS-4.5.2 MUST}
 
-## 4.6 addRoom, setRoomFinish
+## 4.6 addRoom, setRoomFinish, setRoomBrief
 
 `addRoom` takes `level`, `at` (a point) and optionally `id`, `name`, `function`, the three
-finishes, `extensions` and `extras`, and expands to `addElement` into `rooms` with `anchor` set to
-`at` and the other members as given. Drawing walls makes
+finishes, `brief` (a program item, 3.3), `extensions` and `extras`, and expands to `addElement`
+into `rooms` with `anchor` set to `at`, `brief` set to the item's ID, and the other members as
+given; the references are resolved in the order `level`, `at`, `brief`. Drawing walls makes
 faces; `addRoom` names one.
 
 `setRoomFinish` takes `room`, `surface` (`"wall"`, `"floor"` or `"ceiling"`) and `material`, and
@@ -159,17 +165,32 @@ expands to `setProperty` of `/wallFinish`, `/floorFinish` or `/ceilingFinish`.
 
 An applier MUST expand addRoom and setRoomFinish as this section defines. {#FS-OPS-4.6.1 MUST}
 
+```json
+{ "op": "setRoomBrief", "room": "Den", "item": "Study" }
+```
+
+`setRoomBrief` takes `room` and `item`, a program item (3.3) — here, a plain string is an item's
+ID or name — resolved in that order, and expands to `setProperty` of the room's `/brief` to the
+item's ID: the room is now the one that fulfils that item (Core §11.3). A room that should fulfil
+none has its `brief` removed with `unsetProperty`.
+
+An applier MUST expand setRoomBrief as this section defines. {#FS-OPS-4.6.2 MUST}
+
 ## 4.7 removeWall
 
 ```json
 { "op": "removeWall", "wall": "wall between Kitchen and Dining", "keep": "Kitchen" }
 ```
 
-Removes a wall and the openings in it. If the wall has a different room's face on each side, the
-two rooms are about to become one, and `keep` must name the one that survives:
+Removes a wall and the openings in it, and the extension elements on its faces. If the wall has a
+different room's face on each side, the two rooms are about to become one, and `keep` must name
+the one that survives:
 
-1. `removeElement` of the room not kept, when there are two;
-2. `removeElement` of the wall, with `cascade: true`.
+1. when there are two rooms, `setProperty` of `/host/room` to the room kept, for every extension
+   element whose `host` is a `surface` host on the room not kept, by ID — what stood in the
+   dining room now stands in the kitchen that absorbed it;
+2. `removeElement` of the room not kept, when there are two;
+3. `removeElement` of the wall, with `cascade: true`.
 
 An applier MUST expand removeWall as this section defines, and MUST reject it with `FS-OPS-008` when the wall has rooms on both sides and `keep` does not name one of them. {#FS-OPS-4.7.1 MUST}
 
@@ -199,3 +220,69 @@ operation expands to `addElement` into `levels`, under `id` or a minted ID (1.5)
 (Core §1.8) — is decided when the batch is validated.
 
 An applier MUST expand addLevel as this section defines, and MUST reject it with `FS-OPS-003` when `building` names no building, when `above` or `below` names no level, or when the level it names lacks an integer `elevation` or an integer `height`. {#FS-OPS-4.8.1 MUST}
+
+## 4.9 addProgramItem
+
+```json
+{ "op": "addProgramItem", "id": "BED", "function": "sleeping", "name": "Bedroom", "count": 3, "minArea": "11 m2", "level": "L2" }
+```
+
+Members: `function`; optionally `id`, `name`, `count`, `targetArea` and `minArea` (areas, 3.6),
+`level` (a level), `extensions` and `extras`. The references are resolved in the order
+`targetArea`, `minArea`, `level`. Expands to `addElement` into `items` (2.1), under `id` or a
+minted ID (1.5), of the item: `function` and `count` as given, the areas as integers, `level` as
+the level's ID, and `name`, `extensions` and `extras` as given. Whether the item is valid — its
+function a room function, its count at least one (Core §11.1) — is decided when the batch is
+validated.
+
+A brief is drawn as a bubble diagram with this and three other operations: `addProgramItem` for
+each bubble, `setAdjacency` (2.6) for each line between two, `addRoom` with `brief` or
+`setRoomBrief` (4.6) when a room is drawn for one — and `setProperty` of an item to change it.
+
+An applier MUST expand addProgramItem as this section defines. {#FS-OPS-4.9.1 MUST}
+
+## 4.10 placeElement and moveElement
+
+```json
+{ "op": "placeElement", "extension": "FS_electrical", "collection": "devices",
+  "host": { "mode": "wallFace", "wall": "north wall of Kitchen", "toward": "Kitchen", "at": "2' from start", "height": "12\"" },
+  "element": { "fallback": { "box": { "min": [0, -45720, 0], "max": [25400, 45720, 114300] } }, "device": "receptacle" } }
+{ "op": "moveElement", "element": "X4", "host": { "mode": "surface", "room": "Bath", "surface": "floor", "at": "3' east of J2" } }
+```
+
+`placeElement` adds an extension element placed on a host; `moveElement` places an existing one
+on a host — another wall, the other face, another room or level, or the same host at a new
+position. Both take a **host reference**: a host (Core §13.3) written with the reference grammar,
+in one of three modes:
+
+| `mode` | Members | Resolves to |
+|---|---|---|
+| `"wallFace"` | `wall` (a wall); exactly one of `side` (`"left"` or `"right"`) and `toward` (a room); `at` (a position along the wall, 3.5); `height` (a length) | `{ "mode": "wallFace", "wall", "side", "offset", "height" }` |
+| `"surface"` | `room` (a room); `surface` (`"floor"` or `"ceiling"`); `at` (a point); optionally `rotation` | `{ "mode": "surface", "room", "surface", "position", "rotation"? }` |
+| `"free"` | `level` (a level); `at` (a point); optionally `rotation` | `{ "mode": "free", "level", "position", "rotation"? }` |
+
+A wall-face host's `toward` chooses the face that looks into that room: `"left"` when the room's
+face is the face on the wall's left and not on its right, `"right"` the other way round — as
+`moveWall`'s `toward` chooses a direction (4.2). Its `at` is resolved with `w = 0`, because a
+hosted element is placed by a point: `"centered"` is the middle of the wall, `"2' from end"` two
+feet before its end. `rotation` is an angle in microdegrees (Core §2.4), taken as given. The
+host's **level** is its wall's or its room's `level` in the working copy, or a free host's
+`level`. The members are resolved in the order the table lists them.
+
+`placeElement` takes `extension` (an extension name), `collection` (one of its collection names),
+`host`, `element` (an object) and optionally `id`. It expands to `addElement` with that
+`extension` and `collection`, under `id` or a minted ID (1.5), of `element` with `host` set to the
+resolved host and `fallback.level` set to the host's level — creating `fallback` as `{ "level" }`
+when the element has none, and leaving a `fallback` that is not an object as it is, for validation
+to reject. Everything else in `element` is taken as given: the box, the
+extension's own members, `name`, `clearances`, `extras`.
+
+`moveElement` takes `element` (an extension element, 3.3) and `host`, resolved in that order, and
+expands to `setProperty` of the element's `/host` to the resolved host, then of its
+`/fallback/level` to the host's level.
+
+An applier MUST expand placeElement and moveElement as this section defines, MUST reject either with `FS-OPS-008`, naming the wall, when a wall-face host's `toward` names a room whose face is not on exactly one side of the wall, and MUST reject either with `FS-OPS-003`, naming the wall or the room, when the host's wall or room has no `level` in the working copy. {#FS-OPS-4.10.1 MUST}
+
+Whether the element is valid — its host's offset on the wall (Core §13.3.2), its height below the
+wall's top (13.3.3), its position inside the room (13.3.4), the extension declared (Core §1.6.3)
+— is decided when the batch is validated.
