@@ -1,0 +1,65 @@
+{
+  "name": "Horizontal sliding window, 60 x 36 in",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/window-slider-60x36.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "window-slider-60x36",
+  "kind": "windowType",
+  "collection": "types",
+  "materials": [],
+  "summary": {
+    "unit": "60 in x 36 in",
+    "roughOpening": "60 1/2 in x 36 1/2 in",
+    "sill": "46 in",
+    "clearOpening": "27 in x 32 in (generic)"
+  },
+  "element": {
+    "clearOpening": {
+      "area": 913274044416,
+      "height": 1040384,
+      "width": 877824
+    },
+    "height": 1186688,
+    "kind": "windowType",
+    "name": "Horizontal sliding window, 60 x 36 in",
+    "operation": "horizontalSlider",
+    "sill": 1495552,
+    "source": {
+      "item": "window-slider-60x36",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    },
+    "width": 1966976
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "window-slider-60x36",
+      "element": {
+        "clearOpening": {
+          "area": 913274044416,
+          "height": 1040384,
+          "width": 877824
+        },
+        "height": 1186688,
+        "kind": "windowType",
+        "name": "Horizontal sliding window, 60 x 36 in",
+        "operation": "horizontalSlider",
+        "sill": 1495552,
+        "source": {
+          "item": "window-slider-60x36",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        },
+        "width": 1966976
+      }
+    }
+  ]
+}

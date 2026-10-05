@@ -1,0 +1,110 @@
+{
+  "name": "8 in CMU wall, furred and finished with gypsum inside",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/wall-cmu-8-furred.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "wall-cmu-8-furred",
+  "kind": "wallType",
+  "collection": "types",
+  "materials": [
+    "concrete-masonry-unit",
+    "gypsum-board"
+  ],
+  "summary": {
+    "layers": "8 in nominal CMU (7 5/8 in actual); 3/4 in furring space; 1/2 in gypsum board",
+    "thickness": "8 7/8 in"
+  },
+  "element": {
+    "kind": "wallType",
+    "layers": [
+      {
+        "function": "core",
+        "material": "concrete-masonry-unit",
+        "thickness": 247904
+      },
+      {
+        "function": "airGap",
+        "thickness": 24384
+      },
+      {
+        "function": "finish",
+        "material": "gypsum-board",
+        "thickness": 16256
+      }
+    ],
+    "name": "8 in CMU wall, furred and finished with gypsum inside",
+    "source": {
+      "item": "wall-cmu-8-furred",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    }
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "concrete-masonry-unit",
+      "element": {
+        "color": "#a6a49e",
+        "name": "Concrete masonry units",
+        "roughness": 950,
+        "source": {
+          "item": "concrete-masonry-unit",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "materials",
+      "id": "gypsum-board",
+      "element": {
+        "color": "#efede8",
+        "name": "Gypsum board, painted",
+        "roughness": 900,
+        "source": {
+          "item": "gypsum-board",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    },
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "wall-cmu-8-furred",
+      "element": {
+        "kind": "wallType",
+        "layers": [
+          {
+            "function": "core",
+            "material": "concrete-masonry-unit",
+            "thickness": 247904
+          },
+          {
+            "function": "airGap",
+            "thickness": 24384
+          },
+          {
+            "function": "finish",
+            "material": "gypsum-board",
+            "thickness": 16256
+          }
+        ],
+        "name": "8 in CMU wall, furred and finished with gypsum inside",
+        "source": {
+          "item": "wall-cmu-8-furred",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        }
+      }
+    }
+  ]
+}

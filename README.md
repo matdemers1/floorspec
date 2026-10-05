@@ -19,11 +19,12 @@ interoperably.
 - **Conformance** — every mandatory statement has at least one test under [`conformance/`](conformance/)
 - **Extensions** — `FS_` official, `EXT_` multi-implementer, vendor prefixes; see [`registry/`](registry/)
 - **Rule packs** — CC BY 4.0 data with citations, never code text; see [`rules/`](rules/)
+- **Type library** — a non-normative starter library of common US wall, door and window types, versioned and published by URI; see [`library/us-starter/`](library/us-starter/)
 
 Published at **https://d3cloud.io/floorspec**. Reference implementation: [D3 Floorspec](https://github.com/matdemers1/d3-floorspec).
 
 ## Licence
 
-Spec text and rule packs: CC BY 4.0 ([LICENSE-SPEC](LICENSE-SPEC)). Schemas, conformance suite and tooling: Apache-2.0 ([LICENSE](LICENSE)). The FS_furniture starter library (`registry/FS_furniture/library/`): CC0 1.0.
+Spec text and rule packs: CC BY 4.0 ([LICENSE-SPEC](LICENSE-SPEC)). Schemas, conformance suite and tooling: Apache-2.0 ([LICENSE](LICENSE)). The FS_furniture starter library (`registry/FS_furniture/library/`) and the US starter type library (`library/us-starter/`): CC0 1.0.
 
 Floorspec findings are advisory. They are not a plan review, and the authority having jurisdiction decides.

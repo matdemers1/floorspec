@@ -1,0 +1,55 @@
+{
+  "name": "Fixed window, 72 x 48 in",
+  "library": "https://d3cloud.io/floorspec/library/us-starter",
+  "version": "0.1.0",
+  "uri": "https://d3cloud.io/floorspec/library/us-starter/0.1.0/items/window-fixed-72x48.json",
+  "floorspec": "0.3",
+  "status": "non-normative",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "description": "Common US wall, door and window types and the materials their layers use, as Floorspec Core 0.3 types and materials ready to embed: a document copies each one it uses into its own types and materials collections, with its source, and never refers to the library by URL (Core 8.1). Lengths are integers in base units of 1/1280 mm (one inch is 32,512). Generic values only: no manufacturer's data, no building-code text or table. Written by tools/us-library.ts; a published version never changes.",
+  "clearOpenings": "generic, replace with your product's declared values: every clearOpening in this library is the library's own generic deduction from the nominal size for the operation (README), not a manufacturer's declared value; Core 8.4 makes a clear opening the value a product's maker declares, so a project replaces it with its product's, on the type or on the opening (Core 7.2), before relying on it.",
+  "item": "window-fixed-72x48",
+  "kind": "windowType",
+  "collection": "types",
+  "materials": [],
+  "summary": {
+    "unit": "72 in x 48 in",
+    "roughOpening": "72 1/2 in x 48 1/2 in",
+    "sill": "34 in",
+    "clearOpening": "none: a fixed window does not open"
+  },
+  "element": {
+    "height": 1576832,
+    "kind": "windowType",
+    "name": "Fixed window, 72 x 48 in",
+    "operation": "fixed",
+    "sill": 1105408,
+    "source": {
+      "item": "window-fixed-72x48",
+      "library": "https://d3cloud.io/floorspec/library/us-starter",
+      "version": "0.1.0"
+    },
+    "width": 2357120
+  },
+  "embed": [
+    {
+      "op": "addElement",
+      "collection": "types",
+      "id": "window-fixed-72x48",
+      "element": {
+        "height": 1576832,
+        "kind": "windowType",
+        "name": "Fixed window, 72 x 48 in",
+        "operation": "fixed",
+        "sill": 1105408,
+        "source": {
+          "item": "window-fixed-72x48",
+          "library": "https://d3cloud.io/floorspec/library/us-starter",
+          "version": "0.1.0"
+        },
+        "width": 2357120
+      }
+    }
+  ]
+}

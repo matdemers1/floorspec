@@ -50,6 +50,8 @@ jobs:
         run: pnpm coverage
       - name: The FS_furniture starter library is exactly what its generator writes
         run: pnpm library:check
+      - name: The US starter type library is exactly what its generator writes, and every published version matches its SHA256SUMS
+        run: pnpm library:us:check
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage
