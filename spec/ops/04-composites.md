@@ -53,19 +53,27 @@ faces are not the faces of this wall's level — is not beside the wall, and get
 { "op": "moveRoom", "room": "Bath", "by": "1' 6\" west" }
 ```
 
-Moves every junction on the room's outer cycle, its anchor, and what stands on its floor or hangs
-from its ceiling, by the vector `by`:
+Moves every junction on the room's outer cycle, its anchor, its vaulted ceiling's ridge, and what
+stands on its floor or hangs from its ceiling, by the vector `by`:
 
 1. `moveJunction` of each junction on the room's outer cycle, by ID;
 2. `setProperty` of the room's `/anchor`;
-3. `setProperty` of `/host/position` of every extension element whose `host` is a `surface` host
+3. when the room's ceiling is vaulted (Core §15.3) and its `ridge` is two integer points,
+   `setProperty` of the room's `/ceiling/ridge` to both points plus `by`;
+4. `setProperty` of `/host/position` of every extension element whose `host` is a `surface` host
    on the room with an integer point `position` — its position plus `by` — by ID.
 
 Walls that connect the room to the rest of the plan stretch; neighbouring rooms change shape. The
 openings in the room's walls, and the extension elements on their faces, follow the walls (2.7);
-the bath and the vanity on the floor move with step 3.
+the room's floor and ceiling are its room polygon, so they follow too (Core §15); a vault's ridge
+is a plan point, as a host's position is, and moves with step 3; the bath and the vanity on the
+floor move with step 4.
 
 An applier MUST expand moveRoom as this section defines. {#FS-OPS-4.3.1 MUST}
+
+An applier MUST move a vaulted ceiling's ridge with its room, as step 3 defines, and MUST NOT change any other member of the room's `ceiling` or `floor`. {#FS-OPS-4.3.2 MUST}
+Only `moveRoom` moves a ridge: an edit that moves one wall, or resizes the room, reshapes its
+floor and ceiling — they are its room polygon — and leaves the ridge where it is.
 
 ## 4.4 resizeRoom
 

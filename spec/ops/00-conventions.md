@@ -68,22 +68,28 @@ holds every 0.2 test on the same documents, as well as the new ones.
 What 0.3 adds:
 
 - **Core 0.3 documents**: A and the result are validated as Core 0.3 validates (0.2), so a door
-  or window type's `operation` and `clearOpening`, and an opening's own `clearOpening` (Core
-  §7.1, §8.4), are members a batch can set and unset like any other (2.3), and the result is
-  judged by Core 0.3's invariants — a clear opening larger than its opening or its type, or an
-  area where none may be, rejects the batch with the Core diagnostic (1.2.3);
+  or window type's `operation` and `clearOpening`, an opening's own `clearOpening` (Core
+  §7.1, §8.4), a level's `floorThickness` and `ceilingHeight`, a room's `floor` and `ceiling` and a
+  slab's `purpose` (Core §1.8, §6.7, §15) are members a batch can set and unset like any other
+  (2.3), and the result is judged by Core 0.3's invariants — a clear opening larger than its
+  opening or its type, or an area where none may be, a ceiling not above its floor, a vault
+  without a ridge line, or a tray whose border does not fit its room, rejects the batch with the
+  Core diagnostic (1.2.3);
+- `moveRoom` moves a vaulted ceiling's ridge with the room (4.3, `FS-OPS-4.3.2`): the ridge is a
+  plan point, which nothing else moves;
 - a batch may make a 0.2 document declare `"0.3"` with `setProperty` of `$document`
   `/floorspec`, as a 0.2 batch could make a 0.1 document declare `"0.2"`;
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
   (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test.
 
-Ops 0.3 adds no operation and changes no member, so its requests have exactly the shape of Ops
-0.2's: they match `schema/ops/0.2/request.schema.json`, and Ops 0.3 has no request schema of its
+Ops 0.3 adds no operation and changes no member of a request, so its requests have exactly the
+shape of Ops 0.2's: they match `schema/ops/0.2/request.schema.json`, and Ops 0.3 has no request schema of its
 own (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
-rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`. No
-statement of 0.2 changed its meaning, so 0.3 retires none; where a table it refers to has grown,
-the statement applies to what was added too.
+rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`: a
+0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did. No statement of
+0.2 changed its meaning, so 0.3 retires none; where a table or a list it refers to has grown — the
+steps of `moveRoom` among them — the statement applies to what was added too.
 
 **From 0.1 to 0.2.** Ops 0.2 was a new draft, not an edit of 0.1. The text of Ops 0.1 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`3bf4f35` in the

@@ -244,8 +244,9 @@ document. A test gives it a document A and an apply request, and says what it mu
 holds every Ops 0.2 test on the same documents (Ops 0.3 retires no statement), the five tests that
 pin what the text says as the oracle does - declared after 0.2 was published, and so first
 published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
-documents, whose operations and clear openings a batch edits with `setProperty` and
-`unsetProperty`. **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+documents, whose operations and clear openings, floors, ceilings and slabs a batch edits with
+`setProperty`, `unsetProperty` and `addElement`, and `moveRoom` moving a vaulted ceiling's ridge
+(`composites/068-move-room-moves-its-vault`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
 exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape: it has no request
 schema of its own, and its suite is checked against `schema/ops/0.2/`.
