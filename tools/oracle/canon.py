@@ -1,7 +1,7 @@
 """Canonical form (9.2) and content hash (9.3).
 
 Step 1 omits constant defaults, innermost first. The table of constant defaults below is
-transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11, 15 and 17; typed properties (8.2) and
+transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11, 15, 17 and 18; typed properties (8.2) and
 members whose default is derived are never omitted, and the content of extension data - including
 Core 0.2's extension elements - and extras is never touched. Core 0.2 also writes a declaration
 object without `schema` as its version string (12.1). None of the 0.2 rules can apply to a 0.1
@@ -44,6 +44,23 @@ def _copy(v):
     return v
 
 
+def _omit_finishes(wall: dict) -> None:
+    """18.5 (Core 0.3): a face's `regions` [], a face {} and `finishes` {} are constant defaults; a
+    face's `material` defaults to its room's or its layer's - derived, never omitted."""
+    f = wall.get('finishes')
+    if not isinstance(f, dict):
+        return
+    for side in ('left', 'right'):
+        face = f.get(side)
+        if isinstance(face, dict):
+            if face.get('regions') == []:
+                del face['regions']
+            if not face:
+                del f[side]
+    if not f:
+        del wall['finishes']
+
+
 def omit_defaults(doc: dict) -> dict:
     """Step 1 of 9.2 on a valid document. Returns a new document."""
     d = _copy(doc)
@@ -66,6 +83,7 @@ def omit_defaults(doc: dict) -> dict:
         if isinstance(top, dict) and 'level' in top and _is_int(top.get('offset'), 0):
             del top['offset']                           # top.offset: constant 0
         # `top` itself defaults to "absent: follows the level's height" - derived, never omitted
+        _omit_finishes(e)                               # 18.5 (Core 0.3)
     for e in d.get('openings', {}).values():
         _drop_common(e)
         if e.get('hinge') == 'start':
@@ -114,6 +132,14 @@ def omit_defaults(doc: dict) -> dict:
     for c in ('buildings', 'levels', 'separators', 'types', 'materials', 'assets'):
         for e in d.get(c, {}).values():
             _drop_common(e)
+    for e in d.get('materials', {}).values():           # 18.2 (Core 0.3)
+        tex = e.get('texture')
+        if isinstance(tex, dict):
+            if tex.get('offset') == [0, 0] and all(_is_int(x, 0) for x in tex['offset']):
+                del tex['offset']                       # offset: constant [0, 0]
+            if _is_int(tex.get('rotation'), 0):
+                del tex['rotation']                     # rotation: constant 0
+            # metallic and roughness default to their map's value: derived, never omitted
     for e in d.get('stairs', {}).values():              # 17.1, 17.2 (Core 0.3)
         _drop_common(e)
         if _is_int(e.get('rotation'), 0):               # rotation: constant 0

@@ -19,6 +19,7 @@ from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
 from . import floors, roofs, stairs
+from . import finishes
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -156,6 +157,7 @@ def references(d: dict):
             for layer in e.get('layers', []):
                 if 'material' in layer:
                     out.append((coll, eid, layer['material'], 'materials', None))
+    out.extend((c, eid, v, target, None) for c, eid, v, target in finishes.references(d))   # 18.2, 18.5 (0.3)
     return out
 
 
@@ -653,14 +655,17 @@ def opening_in_join(doc: Doc, oid) -> bool:
 
 # ------------------------------------------------------------------------------ the pipeline
 
-def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None):
+def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None, extensions=None, package=None):
     """Returns (result, canonical bytes or None, notes).
 
     ``extensions`` is the official extensions this run implements (tools/oracle/ext: name ->
     module), or None for a core-only reader - every Core suite. When it is given, the run is a
     reader of those extensions: they pass FS-DOC-002, each is evaluated after the Core invariants
     as its specification's 1.2 says, and the derived values gain `extensions`, the derived values of
-    each extension evaluated (empty when none is)."""
+    each extension evaluated (empty when none is).
+
+    ``package`` is the files of the document's package (Core 0.3, 18.4) - path -> bytes - when the
+    run is a package validator, or None for a validator that is not given them."""
     implemented = {} if extensions is None else extensions
     notes = []
     known = None
@@ -715,6 +720,9 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
             ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
             ds.extend(roofs.invariants(doc, diag))
             ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
+            ds.extend(finishes.invariants(doc, no_top, diag))               # 18.2, 18.5
+            if package is not None:                                         # 18.4: a package validator
+                ds.extend(finishes.package_invariants(doc, package, diag))
         if reader.v02:
             ds.extend(program_invariants(value, diag))
             ds.extend(extension_tier(value, known))
@@ -742,6 +750,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         ds.extend(roofs.lints(doc, diag))
         derived.update(stairs.derive(doc))
         ds.extend(stairs.lints(doc, diag))
+        derived.update(finishes.derive(doc))                                # 18.6
     if extensions is not None:
         from .ext import official as ext
         eds, derived['extensions'] = ext.finish(ext_ctxs)
