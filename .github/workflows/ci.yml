@@ -8,6 +8,8 @@ name: CI
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
 # result's resolved echo and inverse → the suites being exactly what their author scripts declare →
 # the published drafts (Core 0.1, Ops 0.1) being exactly as published.
+# The rule packs (rules/, FLR-T-6.3): schemas, the rule-text lint, assembly into the evaluator's pack
+# object, every fixture evaluated by the oracle, and the coverage matrices - all as committed.
 # A MUST without a test, a test naming an unknown or retired statement, an expected value the oracle
 # does not reproduce, or a change to a published schema or suite fails the build.
 #
@@ -78,3 +80,22 @@ jobs:
         run: |
           git diff --exit-code e687d44 -- schema/core/0.1 conformance/core/0.1
           git diff --exit-code 3bf4f35 -- schema/ops/0.1 conformance/ops/0.1
+
+  packs:
+    needs: spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - run: pnpm install --frozen-lockfile
+      - name: Every rule pack builds, lints clean, passes its fixtures under the oracle, and its generated files and coverage matrices are as committed
+        run: pnpm packs:check
+        env:
+          FLOORSPEC_PYTHON: python
