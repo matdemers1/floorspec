@@ -376,7 +376,16 @@ numbers; the 0.1, 0.2 and 0.3 suites are published and do not change.
 
 The Ops suites test an **applier** (Ops §0.2): software that applies a batch of operations to a
 document. A test gives it a document A and an apply request, and says what it must return.
-**Ops 0.3** (`ops/0.3/`) is the suite of the current text and the one `pnpm coverage` gates; it
+**Ops 0.4** (`ops/0.4/`) is the suite of the current text and the one `pnpm coverage` gates. It
+holds every Ops 0.3 test on the same documents - Ops 0.4 applies to Core 0.3, 0.2 and 0.1 documents
+exactly as Ops 0.3 did, with a Core 0.4 reader - with `document-other-version` declaring `"0.5"`, and,
+after them in each group, the tests of what 0.4 adds: Core 0.4 documents, a stair's `minHeadroom` and a
+winder stair's `newel` set and unset, the upgrade of a 0.3 document to 0.4 as one batch
+(`transactions/…-upgrade-to-0.4`), and batches rejected with FS-INV-905 and FS-INV-906. Its requests
+match `schema/ops/0.3/`: Ops 0.4 has no request schema of its own. Its tests are declared in
+`tools/oracle/ops_author04.py`, which carries every 0.3 declaration forward.
+
+**Ops 0.3** (`ops/0.3/`) is the suite of the 0.3 text, kept as it was published at `8a99d02`; it
 holds every Ops 0.2 test on the same documents (Ops 0.3 retires one statement, below), the five tests that
 pin what the text says as the oracle does - declared after 0.2 was published, and so first
 published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
@@ -399,12 +408,13 @@ to Core 0.3's `roofs` and `stairs`: its suite is checked against its own `schema
 
 ```text
 conformance/
-  ops/0.3/<group>/<NNN-slug>/
+  ops/0.4/<group>/<NNN-slug>/
     test.json        what the test is and which FS-OPS statements it covers
     input.json       document A, byte for byte - valid, except in tests that expect FS-OPS-002
     request.json     the apply request (1.1): { "batch": [ … ], "context"?: { "locks"?, "retired"? } }
     expected.json    what a conformant applier returns
     output.json      B's canonical form (Core 9.2), byte for byte - present exactly when the batch commits
+  ops/0.3/…          the Ops 0.3 suite, as published; unchanged
   ops/0.2/…          the Ops 0.2 suite, as published; unchanged
   ops/0.1/…          the Ops 0.1 suite, as published; unchanged
 ```
@@ -457,7 +467,7 @@ committed batch - exactly output.json's bytes and the expected members above.
 
 `python3.13 -m tools.oracle.regenerate` recomputes every Ops test from input.json and
 request.json with the oracle's applier (`tools/oracle/ops/`) - `ops/0.1` as Ops 0.1 applies it,
-`ops/0.2` as Ops 0.2 does, `ops/0.3` as Ops 0.3 does - cross-checks `status` and
+`ops/0.2` as Ops 0.2 does, `ops/0.3` as Ops 0.3 does, `ops/0.4` as Ops 0.4 does - cross-checks `status` and
 `diagnostics` (written by hand, never rewritten), and compares `hash`, `created`, `removed`,
 `resolved`, `inverse` and output.json (which `--write` rewrites). For every committed test it
 also checks what the specification promises of any result: B is in canonical form (1.3.1);

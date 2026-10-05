@@ -1,9 +1,9 @@
 # 0. Conventions
 
-> [!warning] Floorspec Ops 0.3 — Draft
-> This is a working draft with no compatibility promise. It operates on Floorspec Core 0.3
-> documents — and, because a Core 0.3 reader reads 0.2 and 0.1 documents (Core §1.2.6), on Core
-> 0.2 and 0.1 documents too. Floorspec Ops is versioned independently of Core (FLR-ADR-008), and stays 0.x
+> [!warning] Floorspec Ops 0.4 — Draft
+> This is a working draft with no compatibility promise. It operates on Floorspec Core 0.4
+> documents — and, because a Core 0.4 reader reads 0.3, 0.2 and 0.1 documents (Core §1.2.8), on Core
+> 0.3, 0.2 and 0.1 documents too. Floorspec Ops is versioned independently of Core (FLR-ADR-008), and stays 0.x
 > until the 1.0 criteria are met (FLR-ADR-017).
 
 Floorspec Core says what a building *is*. Floorspec Ops says how one **changes**: a small set of
@@ -19,26 +19,27 @@ same way, to the byte.
 The key words `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT` and `MAY` are used as in Floorspec Core
 §0.1, and every normative statement ends with a tag `{#FS-OPS-<chapter>.<section>.<n> LEVEL}`.
 An identifier is never reused, including after the statement it named is retired (0.4).
-Every `MUST` and `MUST NOT` is exercised by the conformance suite in `conformance/ops/0.3/`.
+Every `MUST` and `MUST NOT` is exercised by the conformance suite in `conformance/ops/0.4/`.
 
 ## 0.2 Conformance
 
 An **applier** is software that applies a batch of operations to a Floorspec Core document. It is
 the only conformance class of Floorspec Ops. An applier implements named drafts of Ops, as a Core
 reader implements named drafts of Core: a request does not name one, so a binding — an editor's
-API, an MCP server, a CLI — says which it implements. What tells an Ops 0.3 applier from an Ops
-0.2 one is the documents it accepts: one that implements 0.3 applies a batch to a document that
-declares `"0.3"`, and one that implements only 0.2 rejects that document with `FS-OPS-002`
-(1.2.1), since a Core 0.2 validator does not implement 0.3 (Core §1.2.2).
+API, an MCP server, a CLI — says which it implements. What tells an Ops 0.4 applier from an Ops
+0.3 one is the documents it accepts: one that implements 0.4 applies a batch to a document that
+declares `"0.4"`, and one that implements only 0.3 rejects that document with `FS-OPS-002`
+(1.2.1), since a Core 0.3 validator does not implement 0.4 (Core §1.2.2) — as an Ops 0.3 applier
+is told from an Ops 0.2 one by the documents that declare `"0.3"`.
 
 An applier is tested by giving it a document A and a batch, and comparing what it returns — a
 committed document B in canonical form, or a rejection with diagnostics — with the expected
 result.
 
 Terms from Floorspec Core keep their meanings: collection, junction, edge, face, room polygon,
-host, canonical form, content hash, diagnostic. A document is **valid** when a Core 0.3 validator
-reports it valid (Core §10.1) — which, for a document that declares `"0.1"` or `"0.2"`, is exactly
-when a validator of that draft does (Core §1.2.6). The validator has the known extensions (Core §12.2) the
+host, canonical form, content hash, diagnostic. A document is **valid** when a Core 0.4 validator
+reports it valid (Core §10.1) — which, for a document that declares `"0.1"`, `"0.2"` or `"0.3"`, is
+exactly when a validator of that draft does (Core §1.2.8). The validator has the known extensions (Core §12.2) the
 applier is configured with; the conformance suite configures none.
 
 ## 0.3 Elements
@@ -47,18 +48,40 @@ In this specification an **element** is any of the three kinds of thing that hav
 document's one space of IDs (Core §3.1.3):
 
 - an element of one of Core's fifteen collections (Core §1.4) — eleven, and Core 0.3's `roofs`,
-  `stairs`, `optionSets` and `options`;
+  `stairs`, `optionSets` and `options`, which Core 0.4 keeps;
 - a **program item** (Core §11.1), in the program's `items`;
 - an **extension element** (Core §12.5), in a collection of an extension's top-level data.
 
 Everything this specification says of an element — that an operation addresses it by ID, that
 `removeElement` removes it, that a lock names it, that `created` and `removed` list it — says it
 of program items and extension elements too, unless a sentence names the kinds it means.
-Program items and extension elements exist only in a document that declares `"0.2"` or `"0.3"`:
+Program items and extension elements exist only in a document that declares `"0.2"`, `"0.3"` or `"0.4"`:
 in one that declares `"0.1"` the program is not a member and top-level extension data is opaque
 (Core §1.2.6). Which a working copy declares is read from the working copy as it stands.
 
 ## 0.4 Changes from earlier drafts
+
+**From 0.3 to 0.4.** Ops 0.4 is a new draft, not an edit of 0.3. The text of Ops 0.3 stays
+published, unchanged, at its own URLs, built from the commit that pinned it (`8a99d02` in the
+standard's repository); its schema is at `/floorspec/schema/ops/0.3/` and its suite at
+`conformance/ops/0.3/`, and neither changes. This draft's suite is at `conformance/ops/0.4/`, which
+holds every 0.3 test on the same documents, as well as the new ones.
+
+What 0.4 adds is **Core 0.4 documents**: A and the result are validated as Core 0.4 validates
+(0.2), so a stair's `minHeadroom` and a winder stair's `newel` (Core §17.1, §17.2) are members a batch
+can set and unset like any other (2.3), the result is judged by Core 0.4's invariants — a newel that
+reaches the walkline (`FS-INV-905`) or a tread that turns through no angle, or a spiral's through half
+a turn or more (`FS-INV-906`), rejects the batch with the Core diagnostic (1.2.3) — and a batch may
+make a 0.3 document declare `"0.4"` with `setProperty` of `$document` `/floorspec`, which is the
+whole of Core's step from 0.3 to 0.4 (Core §20.7). A winder or spiral stair's steps, walkline,
+goings and headroom are derived values (Core §17.7), which no operation edits.
+
+Ops 0.4 adds no operation and no member of a request, so it has no request schema of its own: its
+requests match `schema/ops/0.3/request.schema.json`, and `FS-OPS-1.1.3` keeps its ID and its
+meaning. Applied to a document that declares `"0.3"`, `"0.2"` or `"0.1"`, a request commits or is
+rejected exactly as it was under Ops 0.3, unless its batch makes the document declare `"0.4"` or
+gives it a member 0.4 adds: a Core 0.4 validator reads those documents as a Core 0.3 validator does,
+and decides their validity alike. No statement is retired.
 
 **From 0.2 to 0.3.** Ops 0.3 is a new draft, not an edit of 0.2. The text of Ops 0.2 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`6f9bc07` in the

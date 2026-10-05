@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
  * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2,
- * 0.3 and 0.4), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3), whose rejections are
+ * 0.3 and 0.4), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3, which Ops 0.4's requests match), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -27,17 +27,17 @@ export const REGISTRY_ID = 'https://d3cloud.io/floorspec/schema/registry/0.1/ext
 export const registrySchemaDir = join(import.meta.dirname, '..', 'schema', 'registry', '0.1');
 
 /** The Ops drafts this repository publishes, oldest first. */
-export const OPS_VERSIONS = ['0.1', '0.2', '0.3'] as const;
+export const OPS_VERSIONS = ['0.1', '0.2', '0.3', '0.4'] as const;
 export type OpsVersion = (typeof OPS_VERSIONS)[number];
 /** The draft the spec text in spec/ops/ is. */
-export const CURRENT_OPS: OpsVersion = '0.3';
+export const CURRENT_OPS: OpsVersion = '0.4';
 /** The Core draft each Ops draft operates on: its document A is valid under that draft's reader. */
-export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
+export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3', '0.4': '0.4' };
 /** The Ops request schemas, schema/ops/<v>/, oldest first. */
 export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
-/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4). */
-export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
+/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4); Ops 0.4 has none of its own and matches 0.3's. */
+export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3', '0.4': '0.3' };
 
 export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
 export const opsRootId = (v: OpsSchemaVersion) => `${opsSchemaBase(v)}request.schema.json`;

@@ -960,7 +960,7 @@ def _places_02(a: dict, b: dict, profile: Profile):
     """Ops 0.2, 1.6 step 2: the extension collections of A and B (by extension, then collection
     name), then the thirteen collections and the program's items in INVERSE_ORDER_02."""
     exts = sorted({(EXT, x, c) for d in (a, b) for x, c, _ in ext_collections(d, profile)})
-    order = INVERSE_ORDER_03 if profile.version == '0.3' else INVERSE_ORDER_02
+    order = INVERSE_ORDER_03 if profile.v03 else INVERSE_ORDER_02
     return exts + [(c,) for c in order]
 
 

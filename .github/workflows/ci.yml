@@ -1,13 +1,13 @@
 name: CI
 
 # The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against every
-# suite (Core 0.1, 0.2, 0.3 and 0.4 documents; Ops 0.1, 0.2 and 0.3 requests; Rules 0.1 requests, packs, profiles
-# and reports) → MUST coverage of the current drafts (FS-CORE 0.4, FS-OPS 0.3, FS-RULES 0.1) and of
+# suite (Core 0.1, 0.2, 0.3 and 0.4 documents; Ops 0.1, 0.2, 0.3 and 0.4 requests; Rules 0.1 requests, packs, profiles
+# and reports) → MUST coverage of the current drafts (FS-CORE 0.4, FS-OPS 0.4, FS-RULES 0.1) and of
 # every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV, FS-FURN, FS-STRC) → the independent
 # oracle reproducing every expected output of the Core and Ops suites, of every extension suite
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
 # result's resolved echo and inverse → the suites being exactly what their author scripts declare →
-# the published drafts (Core 0.1, 0.2 and 0.3, Ops 0.1 and 0.2, the registry entry schema 0.1) being
+# the published drafts (Core 0.1, 0.2 and 0.3, Ops 0.1, 0.2 and 0.3, the registry entry schema 0.1) being
 # exactly as published.
 # The rule packs (rules/, FLR-T-6.3): schemas, the rule-text lint, assembly into the evaluator's pack
 # object, every fixture evaluated by the oracle, and the coverage matrices - all as committed.
@@ -44,9 +44,9 @@ jobs:
       - run: pnpm test
       - name: Normative statements are tagged correctly
         run: pnpm statements
-      - name: The schemas agree with every suite (Core 0.1, 0.2, 0.3 and 0.4 documents, Ops 0.1, 0.2 and 0.3 requests, the extensions' data, Rules 0.1)
+      - name: The schemas agree with every suite (Core 0.1, 0.2, 0.3 and 0.4 documents, Ops 0.1, 0.2, 0.3 and 0.4 requests, the extensions' data, Rules 0.1)
         run: pnpm schema:check
-      - name: Every MUST of Core 0.4, Ops 0.3, Rules 0.1 and every extension has a conformance test
+      - name: Every MUST of Core 0.4, Ops 0.4, Rules 0.1 and every extension has a conformance test
         run: pnpm coverage
       - name: The FS_furniture starter library is exactly what its generator writes
         run: pnpm library:check
@@ -69,7 +69,7 @@ jobs:
           python-version: '3.13'
       - name: Oracle unit tests
         run: python -m unittest discover -s tools/oracle -p 'test_*.py'
-      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Core 0.4, Ops 0.1, Ops 0.2, Ops 0.3, extension, Rules 0.1 and migration suites
+      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Core 0.4, Ops 0.1, Ops 0.2, Ops 0.3, Ops 0.4, extension, Rules 0.1 and migration suites
         run: python -m tools.oracle.regenerate
       - name: Every suite is exactly what its author script declares
         run: |
@@ -80,18 +80,19 @@ jobs:
           python -m tools.oracle.ops_author
           python -m tools.oracle.ops_author02
           python -m tools.oracle.ops_author03
+          python -m tools.oracle.ops_author04
           python -m tools.oracle.ext_author
           python -m tools.oracle.rules_author
           python -m tools.oracle.migrate_author
           python -m tools.oracle.migrate_author04
           git diff --exit-code -- conformance
           test -z "$(git status --porcelain -- conformance)"
-      - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35, Core 0.2, Ops 0.2 and the registry entry schema as published at 6f9bc07, Core 0.3 and its migration suite as published at 8a99d02)
+      - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35, Core 0.2, Ops 0.2 and the registry entry schema as published at 6f9bc07, Core 0.3, its migration suite and Ops 0.3 as published at 8a99d02)
         run: |
           git diff --exit-code e687d44 -- schema/core/0.1 conformance/core/0.1
           git diff --exit-code 3bf4f35 -- schema/ops/0.1 conformance/ops/0.1
           git diff --exit-code 6f9bc07 -- schema/core/0.2 conformance/core/0.2 schema/ops/0.2 conformance/ops/0.2 schema/registry/0.1
-          git diff --exit-code 8a99d02 -- schema/core/0.3 conformance/core/0.3 conformance/migration/0.3
+          git diff --exit-code 8a99d02 -- schema/core/0.3 conformance/core/0.3 conformance/migration/0.3 schema/ops/0.3 conformance/ops/0.3
 
   packs:
     needs: spec
