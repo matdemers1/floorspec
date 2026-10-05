@@ -5,16 +5,17 @@
  * ID a test names exists. Fails the build otherwise. Writes build/coverage.json and
  * build/coverage.md, which the spec site publishes.
  *
- * The spec text in spec/core/ is one draft (CURRENT_CORE, 0.2), and the text in spec/ops/ is one
- * draft (CURRENT_OPS, 0.2), so each is gated against that draft's suite alone:
- * conformance/core/0.2/ and conformance/ops/0.2/. Earlier drafts' suites stay as they were
+ * The spec text in spec/core/ is one draft (CURRENT_CORE, 0.2), the text in spec/ops/ one draft
+ * (CURRENT_OPS, 0.2) and the text in spec/rules/ one draft (CURRENT_RULES, 0.1), so each is gated
+ * against that draft's suite alone: conformance/core/0.2/, conformance/ops/0.2/ and
+ * conformance/rules/0.1/. Earlier drafts' suites stay as they were
  * published, gated by the text of their own pinned commit; here they are only checked to name
  * statement IDs that exist now or that a later draft retired (spec/core/00-conventions.md, 0.6;
  * spec/ops/00-conventions.md, 0.4), so that a retired ID is never reused for something else.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { CORE_VERSIONS, CURRENT_CORE, CURRENT_OPS, OPS_VERSIONS } from '../tools/schema.ts';
+import { CORE_VERSIONS, CURRENT_CORE, CURRENT_OPS, CURRENT_RULES, OPS_VERSIONS, RULES_VERSIONS } from '../tools/schema.ts';
 import { extensionSpecs, extract, extractExtension, MANDATORY, retired, type Statement } from '../tools/statements.ts';
 
 const root = join(import.meta.dirname, '..');
@@ -56,12 +57,13 @@ for (const spec of ['core', 'ops', 'rules'] as const) {
   const drafts: Record<string, { current: string; versions: readonly string[]; section: string }> = {
     core: { current: CURRENT_CORE, versions: CORE_VERSIONS, section: '0.6' },
     ops: { current: CURRENT_OPS, versions: OPS_VERSIONS, section: '0.4' },
+    rules: { current: CURRENT_RULES, versions: RULES_VERSIONS, section: '0.8' },
   };
   const draft = drafts[spec];
   const suiteDir = draft ? join(root, 'conformance', spec, draft.current) : join(root, 'conformance', spec);
   const cases = tests(suiteDir);
   if (draft) {
-    const name = spec === 'core' ? 'Core' : 'Ops';
+    const name = { core: 'Core', ops: 'Ops', rules: 'Rules' }[spec];
     const gone = retired(root, spec);
     for (const id of gone)
       if (byId.has(id)) {
