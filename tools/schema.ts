@@ -333,3 +333,79 @@ export function checkOpsSuite(suite: string, validateRequest = requestValidator(
   }
   return result;
 }
+
+/**
+ * The official and registered extensions that have a schema of their own: registry/<NAME>/ holds
+ * the registry entry (extension.json) and the schema (`*.schema.json`) whose `$id` is the entry's
+ * `schema` URL. Their suites are conformance/ext/<NAME>/<version>/.
+ */
+export interface ExtensionSchema {
+  name: string;
+  version: string;
+  dir: string;
+  entry: Record<string, Json>;
+  files: SchemaFile[];
+}
+
+export function extensionSchemas(root = join(import.meta.dirname, '..')): ExtensionSchema[] {
+  const dir = join(root, 'registry');
+  if (!existsSync(dir)) return [];
+  const out: ExtensionSchema[] = [];
+  for (const name of readdirSync(dir).sort()) {
+    const d = join(dir, name);
+    if (!statSync(d).isDirectory() || !existsSync(join(d, 'extension.json'))) continue;
+    const entry = JSON.parse(readFileSync(join(d, 'extension.json'), 'utf8')) as Record<string, Json>;
+    out.push({ name, version: String(entry.version), dir: d, entry, files: loadSchemaFiles(d) });
+  }
+  return out;
+}
+
+/** Every test directory (one holding test.json) under a suite. */
+export function testDirs(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const out: string[] = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const p = join(dir, entry);
+    if (statSync(p).isDirectory()) out.push(...testDirs(p));
+    else if (entry === 'test.json') out.push(dir);
+  }
+  return out;
+}
+
+/**
+ * Checks an extension's schema against its suite: the schema rejects the extension's top-level
+ * data exactly in the tests that expect `[FS-<CODE>-SCH-001]` alone, and accepts it in every valid
+ * test that derives the extension's values (where the extension was evaluated). An Ops test's
+ * request must match the Ops 0.2 request schema.
+ */
+export function checkExtensionSuite(suite: string, name: string, code: string, validateData: ValidateFunction,
+  validateRequest: ValidateFunction, base = suite): SuiteResult {
+  const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
+  for (const dir of testDirs(suite)) {
+    const rel = relative(base, dir) || '.';
+    const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8')) as {
+      valid?: boolean; diagnostics?: { code?: unknown }[]; derived?: { extensions?: Record<string, unknown> };
+    };
+    const codes = (expected.diagnostics ?? []).map((d) => String(d.code));
+    if (existsSync(join(dir, 'request.json'))) {
+      const request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), validateRequest);
+      if (!request.valid) result.problems.push(`${rel}: the Ops 0.2 request schema rejects request.json:\n    ${formatErrors(request.errors).join('\n    ')}`);
+      result.checked++;
+      continue;
+    }
+    const mustReject = codes.length === 1 && codes[0] === `FS-${code}-SCH-001`;
+    const evaluated = expected.valid === true && expected.derived?.extensions !== undefined && name in expected.derived.extensions;
+    if (!mustReject && !evaluated) {
+      result.skipped++;
+      continue;
+    }
+    const doc = parseForSchema(readFileSync(join(dir, 'input.json'), 'utf8')) as { extensions?: Record<string, unknown> };
+    const data = doc.extensions?.[name] ?? {};
+    const valid = validateData(data) as boolean;
+    result.checked++;
+    if (mustReject && valid) result.problems.push(`${rel}: expects [FS-${code}-SCH-001], but the ${name} schema accepts its data`);
+    if (evaluated && !valid)
+      result.problems.push(`${rel}: ${name} is evaluated and the test is valid, but the ${name} schema rejects its data:\n    ${formatErrors(validateData.errors ?? []).join('\n    ')}`);
+  }
+  return result;
+}

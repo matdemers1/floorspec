@@ -14,6 +14,9 @@
  *      matches the Core schema of the draft that Ops draft operates on - Ops 0.1's documents
  *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's).
  *
+ *   5. every extension in registry/ - its entry, its schema, and its suite (conformance/ext/), as
+ *      checkExtensionSuite says.
+ *
  *   pnpm schema:check
  */
 import { join } from 'node:path';
@@ -28,6 +31,8 @@ import {
   registrySchemaDir,
   versionedValidator,
   defaults,
+  checkExtensionSuite,
+  extensionSchemas,
   formatErrors,
   loadSchemaFiles,
   OPS_CORE,
@@ -38,6 +43,7 @@ import {
   undefinedRequired,
   type SchemaFile,
 } from './schema.ts';
+import { extensionSpecs } from './statements.ts';
 
 const root = join(import.meta.dirname, '..');
 const problems: string[] = [];
@@ -101,6 +107,33 @@ for (const v of OPS_VERSIONS) {
   const ops = checkOpsSuite(join(root, 'conformance', 'ops', v), requestValidator(opsAjv[v], v), core, root);
   problems.push(...ops.problems);
   console.log(`schema: ops/${v}: ${ops.checked} conformance request${ops.checked === 1 ? '' : 's'} checked against the request schema`);
+}
+
+// 5. Every extension in registry/ (registry/<NAME>/): its entry matches the registry entry schema,
+// its schema compiles and is the one the entry names, and its suite (conformance/ext/<NAME>/<v>/)
+// agrees with it - documents with Core 0.2's schema, registry.json with the entry schema, the
+// extension's data with its own schema, Ops requests with Ops 0.2's.
+const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, x.code]));
+for (const x of extensionSchemas(root)) {
+  if (!registry(x.entry)) problems.push(`registry/${x.name}/extension.json does not match the registry entry schema:\n    ${formatErrors(registry.errors ?? []).join('\n    ')}`);
+  const own = x.files.find((f) => f.id === x.entry.schema);
+  if (!own) {
+    problems.push(`registry/${x.name}: no schema file has the $id ${String(x.entry.schema)} that its entry names`);
+    continue;
+  }
+  const ajv = compile(`registry/${x.name}`, x.files);
+  const validateData = ajv.getSchema(own.id)!;
+  const suiteDir = join(root, 'conformance', 'ext', x.name, x.version);
+  const docs = checkSuite(suiteDir, versionedValidator(cores), root, registry);
+  problems.push(...docs.problems);
+  const code = CODES[x.name];
+  if (!code) {
+    problems.push(`registry/${x.name}: has no spec.md, so its statement and diagnostic code is not known`);
+    continue;
+  }
+  const data = checkExtensionSuite(suiteDir, x.name, code, validateData, requestValidator(opsAjv['0.2'], '0.2'), root);
+  problems.push(...data.problems);
+  console.log(`schema: ${x.name} ${x.version}: ${docs.checked} documents checked against Core's schema, ${data.checked} against the extension's or Ops's`);
 }
 
 if (problems.length) fail();

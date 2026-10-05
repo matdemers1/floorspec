@@ -54,3 +54,26 @@ test('SHALL is not a Floorspec keyword', () => {
   const r = spec('# 1. Model\n\n## 1.2 Members\n\nReaders SHALL apply defaults. {#FS-CORE-1.2.1 MUST}\n');
   assert.ok(r.problems.some((p) => /not a Floorspec keyword/.test(p.message)));
 });
+
+test('extension specifications are found in registry/, each in its own ID space', async () => {
+  const { extensionSpecs } = await import('./statements.ts');
+  const r = extensionSpecs(join(import.meta.dirname, '..'));
+  assert.deepEqual(r.problems, []);
+  assert.deepEqual(
+    r.specs.map((s) => [s.name, s.code, s.version]),
+    [['FS_electrical', 'ELEC', '0.1.0'], ['FS_lowvoltage', 'LOWV', '0.1.0'], ['FS_mechanical', 'MECH', '0.1.0'], ['FS_plumbing', 'PLMB', '0.1.0']],
+  );
+});
+
+test('two extension specifications may not share a statement code', async () => {
+  const { extensionSpecs } = await import('./statements.ts');
+  const root = mkdtempSync(join(tmpdir(), 'fs-'));
+  for (const name of ['EXT_a', 'EXT_b']) {
+    mkdirSync(join(root, 'registry', name), { recursive: true });
+    writeFileSync(join(root, 'registry', name, 'extension.json'), JSON.stringify({ name, version: '0.1.0' }));
+    writeFileSync(join(root, 'registry', name, 'spec.md'), '# 1. X\n\n## 1.1 Y\n\nA MUST b. {#FS-XA-1.1.1 MUST}\n');
+  }
+  const r = extensionSpecs(root);
+  assert.equal(r.specs.length, 1);
+  assert.match(r.problems[0]!.message, /already the statement code/);
+});

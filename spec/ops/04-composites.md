@@ -32,7 +32,8 @@ An applier MUST expand drawWall and drawSeparator as this section defines. {#FS-
 { "op": "moveWall", "wall": "east wall of Kitchen", "by": "2'", "toward": "Dining" }
 ```
 
-Moves a wall sideways, keeping its direction. `by` is a length; positive is towards the wall's
+Moves a wall sideways, keeping its direction. `wall` is a wall (3.3) — never a separator, which
+counts as no match there. `by` is a length; positive is towards the wall's
 left (exterior) side. With `toward: <room>`, the sign of `by` is instead chosen so the wall moves
 into that room's face. The displacement is `by` times the wall's unit left normal, rounded once
 per coordinate, ties to even; then:
@@ -43,6 +44,8 @@ per coordinate, ties to even; then:
 The walls meeting it at those junctions stretch or shrink to follow.
 
 An applier MUST expand moveWall as this section defines, and MUST reject it with `FS-OPS-008`, naming the wall, when `toward` names a room whose face is not on exactly one side of the wall. {#FS-OPS-4.2.1 MUST}
+A room whose face is on neither side — one elsewhere on the level, or on another level, whose
+faces are not the faces of this wall's level — is not beside the wall, and gets `FS-OPS-008` too.
 
 ## 4.3 moveRoom
 
@@ -282,6 +285,7 @@ expands to `setProperty` of the element's `/host` to the resolved host, then of 
 `/fallback/level` to the host's level.
 
 An applier MUST expand placeElement and moveElement as this section defines, MUST reject either with `FS-OPS-008`, naming the wall, when a wall-face host's `toward` names a room whose face is not on exactly one side of the wall, and MUST reject either with `FS-OPS-003`, naming the wall or the room, when the host's wall or room has no `level` in the working copy. {#FS-OPS-4.10.1 MUST}
+As for `moveWall` (4.2), a room on another level than the wall's is not beside it.
 
 Whether the element is valid — its host's offset on the wall (Core §13.3.2), its height below the
 wall's top (13.3.3), its position inside the room (13.3.4), the extension declared (Core §1.6.3)

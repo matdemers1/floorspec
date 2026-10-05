@@ -8,7 +8,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { extract, MANDATORY, type Statement } from './statements.ts';
+import { extensionSpecs, extract, extractExtension, MANDATORY, type Statement } from './statements.ts';
 
 const root = join(import.meta.dirname, '..');
 const specs = (['core', 'ops', 'rules'] as const).filter((s) =>
@@ -24,6 +24,19 @@ for (const spec of specs) {
   all.push(...statements);
   const mandatory = statements.filter((s) => MANDATORY.includes(s.level)).length;
   console.log(`FS-${spec.toUpperCase()}: ${statements.length} statements, ${mandatory} mandatory`);
+}
+
+// The extensions' own specifications (registry/<NAME>/spec.md), each in its own ID space.
+const exts = extensionSpecs(root);
+for (const p of exts.problems) console.error(`${p.file}:${p.line}: ${p.message}`);
+failed ||= exts.problems.length > 0;
+for (const ext of exts.specs) {
+  const { statements, problems } = extractExtension(root, ext);
+  for (const p of problems) console.error(`${p.file}:${p.line}: ${p.message}`);
+  failed ||= problems.length > 0;
+  all.push(...statements);
+  const mandatory = statements.filter((s) => MANDATORY.includes(s.level)).length;
+  console.log(`FS-${ext.code} (${ext.name} ${ext.version}): ${statements.length} statements, ${mandatory} mandatory`);
 }
 
 if (process.argv.includes('--list'))

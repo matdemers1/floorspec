@@ -75,10 +75,16 @@ Wherever an operation takes an element, it accepts an ID or a **selector**:
 selectors; `<item>` is a program item's ID or `name`. `<side>` is `north`, `south`, `east` or
 `west`.
 
+A **room member** — `moveRoom`'s, `resizeRoom`'s, `setRoomFinish`'s and `setRoomBrief`'s `room`,
+`moveWall`'s `toward`, `removeWall`'s `keep`, and a host reference's `room` and `toward` (4.10) —
+and `<room>` inside a selector are read only as a plain string: an ID or a room name, never one of
+the keyword forms of this table. `"north wall of Hall"` there names the room whose ID or name it is,
+if there is one, and is never read as the Hall's north wall.
+
 Keywords (`north`, `wall`, `separator`, `of`, `between`, `and`, `start`, `end`, `item`, `brief`,
 and in 3.2 and 3.5 `from`, `toward`, `centered`) are matched ignoring case, with one or more
-spaces or tabs between words. Names are compared with Unicode case folding. A string that has one
-of the keyword forms above is read only as that form; any other string is an ID, a room name, or
+spaces or tabs between words. Names are compared with Unicode case folding. Outside a room member
+(below), a string that has one of the keyword forms above is read only as that form; any other string is an ID, a room name, or
 both — and every element it names that way is a match, so a string that is one element's ID and
 another room's name matches both. Where the member expects a program item — an adjacency
 primitive's `a` and `b`, `addRoom`'s `brief`, `setRoomBrief`'s `item` — such a string also

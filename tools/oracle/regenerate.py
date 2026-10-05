@@ -1,5 +1,5 @@
-"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2 -
-against the oracle.
+"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2, and
+every official extension's suite (conformance/ext/<NAME>/<version>/) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
@@ -56,7 +56,9 @@ def reader_for(path: str):
     return reader, registry
 
 
-def verify(path: str, write: bool) -> list[str]:
+def verify(path: str, write: bool, extensions=None) -> list[str]:
+    """One Core-format test. ``extensions``: the official extensions the reader implements (an
+    extension suite's tests), or None for a core-only reader (the Core suites)."""
     rel = os.path.relpath(path, ROOT)
     errors = []
     try:
@@ -69,7 +71,9 @@ def verify(path: str, write: bool) -> list[str]:
     with open(os.path.join(path, 'input.json'), 'rb') as f:
         data = f.read()
     reader, registry = reader_for(path)
-    result, canonical, notes = check(data, reader, registry)
+    if extensions is not None:
+        reader = READER_02
+    result, canonical, notes = check(data, reader, registry, extensions)
     exp_path = os.path.join(path, 'expected.json')
     try:
         with open(exp_path, encoding='utf-8') as f:
@@ -109,12 +113,42 @@ def verify(path: str, write: bool) -> list[str]:
             errors.append('canonical.json differs from the oracle' if canonical is not None and on_disk is not None
                           else 'canonical.json must exist exactly when the document is valid')
     if canonical is not None:
-        again, canonical2, _ = check(canonical, reader, registry)
+        again, canonical2, _ = check(canonical, reader, registry, extensions)
         if not again['valid'] or canonical2 != canonical:
             errors.append('the canonical form does not canonicalize to itself')
         elif again.get('hash') != result.get('hash') or again.get('derived') != result.get('derived'):
             errors.append('the canonical form derives different values or hash (9.2.2)')
     return [f'{rel}: {e}' for e in errors]
+
+
+EXT_ROOT = os.path.join(ROOT, 'conformance', 'ext')
+
+
+def ext_suites():
+    """(extension name, suite directory) of every extension suite, conformance/ext/<NAME>/<version>/."""
+    if not os.path.isdir(EXT_ROOT):
+        return []
+    return [(name, os.path.join(EXT_ROOT, name, v)) for name in sorted(os.listdir(EXT_ROOT))
+            for v in sorted(os.listdir(os.path.join(EXT_ROOT, name)))]
+
+
+def verify_ext(name: str, suite: str, write: bool):
+    """An extension suite, run by an implementation of that one extension: its Core-format tests as
+    verify() checks them, its Ops tests (those with a request.json) as the Ops 0.2 suite's are, by an
+    applier whose validator implements the extension and has the test's known extensions."""
+    from .ext import official
+    from .ops.suite import verify as verify_op
+    from .ops.version import OPS_02
+    implemented = official.implemented(name)
+    dirs = list(test_dirs(suite))
+    errors = []
+    for d in dirs:
+        if os.path.exists(os.path.join(d, 'request.json')):
+            _, registry = reader_for(d)
+            errors.extend(verify_op(d, write, OPS_02.configured(registry, implemented)))
+        else:
+            errors.extend(verify(d, write, implemented))
+    return len(dirs), errors
 
 
 def main(argv) -> int:
@@ -132,12 +166,19 @@ def main(argv) -> int:
         n, errors = verify_ops(write, version)
         ops_counts[version] = (n, len(errors))
         ops_errors.extend(errors)
+    ext_counts = {}
+    for name, suite in ext_suites():
+        n, errors = verify_ext(name, suite, write)
+        ext_counts[f'{name} {os.path.basename(suite)}'] = (n, len(errors))
+        ops_errors.extend(errors)
     for e in all_errors + ops_errors:
         print(e)
     for version, (n, k) in counts.items():
         print(f'Core {version}: {n} tests, {k} differences from the oracle')
     for version, (n, k) in ops_counts.items():
         print(f'Ops {version}: {n} tests, {k} differences from the oracle')
+    for label, (n, k) in ext_counts.items():
+        print(f'{label}: {n} tests, {k} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
 
 

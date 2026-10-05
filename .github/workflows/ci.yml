@@ -2,9 +2,11 @@ name: CI
 
 # The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against every
 # suite (Core 0.1 and 0.2 documents; Ops 0.1 and 0.2 requests) → MUST coverage of the current drafts
-# (FS-CORE 0.2, FS-OPS 0.2) → the independent oracle reproducing every expected output of all four
-# suites, and every committed Ops result's resolved echo and inverse → the suites being exactly what
-# their author scripts declare → the published drafts (Core 0.1, Ops 0.1) being exactly as published.
+# (FS-CORE 0.2, FS-OPS 0.2) and of every extension specification in registry/ (FS-ELEC, FS-PLMB,
+# FS-MECH, FS-LOWV) → the independent oracle reproducing every expected output of the four Core and
+# Ops suites and of every extension suite (conformance/ext/), and every committed Ops result's
+# resolved echo and inverse → the suites being exactly what their author scripts declare → the
+# published drafts (Core 0.1, Ops 0.1) being exactly as published.
 # A MUST without a test, a test naming an unknown or retired statement, an expected value the oracle
 # does not reproduce, or a change to a published schema or suite fails the build.
 #
@@ -38,9 +40,9 @@ jobs:
       - run: pnpm test
       - name: Normative statements are tagged correctly
         run: pnpm statements
-      - name: The schemas agree with every suite (Core 0.1 and 0.2 documents, Ops 0.1 and 0.2 requests)
+      - name: The schemas agree with every suite (Core 0.1 and 0.2 documents, Ops 0.1 and 0.2 requests, the extensions' data)
         run: pnpm schema:check
-      - name: Every MUST of Core 0.2 and Ops 0.2 has a conformance test
+      - name: Every MUST of Core 0.2, Ops 0.2 and every extension has a conformance test
         run: pnpm coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -59,7 +61,7 @@ jobs:
           python-version: '3.13'
       - name: Oracle unit tests
         run: python -m unittest discover -s tools/oracle -p 'test_*.py'
-      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Ops 0.1 and Ops 0.2 suites
+      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Ops 0.1, Ops 0.2 and extension suites
         run: python -m tools.oracle.regenerate
       - name: Every suite is exactly what its author script declares
         run: |
@@ -67,6 +69,7 @@ jobs:
           python -m tools.oracle.author02
           python -m tools.oracle.ops_author
           python -m tools.oracle.ops_author02
+          python -m tools.oracle.ext_author
           git diff --exit-code -- conformance
           test -z "$(git status --porcelain -- conformance)"
       - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35)

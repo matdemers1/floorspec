@@ -17,4 +17,6 @@ Modules:
     derive      face lines, corner sequences, face ends, joins, fills, elevations, faces, rings,
                 anchors, areas and openings (chapters 5-7)
     validate    the tiers and the order of evaluation of chapter 10, and the lints
+    ext         the official extensions (registry/), each written from its own specification:
+                FS_electrical, FS_plumbing, FS_mechanical and FS_lowvoltage 0.1.0
 """

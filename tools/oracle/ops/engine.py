@@ -27,7 +27,6 @@ from fractions import Fraction
 from .. import canon, plane
 from ..jsonparse import Malformed, parse
 from ..surd import Surd
-from ..validate import check as core_check
 from .errors import OpsError, Rejected, esc
 from .faces import LevelFaces, coll, is_point
 from .normalize import OpsStraddle, effective_width, normalize
@@ -1007,7 +1006,7 @@ def apply(a_bytes: bytes, request, profile: Profile = OPS_01) -> tuple[dict, byt
 
 def _apply(a_bytes, request, profile: Profile):
     req = _parse_request(request, profile)
-    a_result, a_canonical, _ = core_check(a_bytes, profile.reader)  # step 1
+    a_result, a_canonical, _ = profile.validate(a_bytes)  # step 1
     if not a_result['valid']:
         raise OpsError('FS-OPS-002', [], None, ', '.join(d['code'] for d in a_result['diagnostics']))
     a, _ = parse(a_bytes)
@@ -1022,7 +1021,7 @@ def _apply(a_bytes, request, profile: Profile):
         normalize(tx.wc, tx.in_a_junctions, tx.mint, profile)       # step 5
     except OpsStraddle as s:
         raise Rejected([e.diagnostic() for e in s.errors])
-    b_result, b_canonical, _ = core_check(dumps_doc(tx.wc), profile.reader)  # step 6
+    b_result, b_canonical, _ = profile.validate(dumps_doc(tx.wc))  # step 6
     if not b_result['valid']:
         raise Rejected([d for d in b_result['diagnostics'] if d['severity'] == 'error'])
     a_c = canon.omit_defaults(a)

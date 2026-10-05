@@ -214,3 +214,68 @@ export function extract(root: string, spec: 'core' | 'ops' | 'rules'): { stateme
   }
   return { statements, problems };
 }
+
+/**
+ * An official or registered extension's specification: `registry/<NAME>/spec.md`, beside its
+ * registry entry `registry/<NAME>/extension.json`. Its statements are tagged in the extension's own
+ * ID space (`{#FS-ELEC-3.1.1 MUST}`), read from its tags: every tag in the file must use one code,
+ * which no other specification uses. Its suite is `conformance/ext/<NAME>/<version>/`.
+ */
+export interface ExtensionSpec {
+  name: string;
+  version: string;
+  code: string;
+  file: string;
+  suite: string;
+}
+
+const RESERVED_CODES = new Set(['CORE', 'OPS', 'RULES']);
+
+/** Every extension in registry/ that has a spec.md, sorted by name. */
+export function extensionSpecs(root: string): { specs: ExtensionSpec[]; problems: Problem[] } {
+  const dir = join(root, 'registry');
+  const specs: ExtensionSpec[] = [];
+  const problems: Problem[] = [];
+  if (!existsSync(dir)) return { specs, problems };
+  const codes = new Map<string, string>();
+  for (const name of readdirSync(dir).sort()) {
+    const path = join(dir, name, 'spec.md');
+    if (!existsSync(path)) continue;
+    const file = relative(root, path);
+    const entryPath = join(dir, name, 'extension.json');
+    if (!existsSync(entryPath)) {
+      problems.push({ file, line: 1, message: `registry/${name} has a spec.md but no extension.json` });
+      continue;
+    }
+    const entry = JSON.parse(readFileSync(entryPath, 'utf8')) as { name?: unknown; version?: unknown };
+    if (entry.name !== name || typeof entry.version !== 'string') {
+      problems.push({ file, line: 1, message: `registry/${name}/extension.json must name ${name} and give a version` });
+      continue;
+    }
+    const tags = [...readFileSync(path, 'utf8').matchAll(TAG)].map((t) => t[2]!);
+    const code = tags[0];
+    if (!code) {
+      problems.push({ file, line: 1, message: `${file} has no tagged statement` });
+      continue;
+    }
+    if (RESERVED_CODES.has(code) || codes.has(code)) {
+      problems.push({ file, line: 1, message: `FS-${code} is already the statement code of ${codes.get(code) ?? 'a Floorspec specification'}` });
+      continue;
+    }
+    codes.set(code, name);
+    specs.push({ name, version: entry.version, code, file: path, suite: join(root, 'conformance', 'ext', name, entry.version) });
+  }
+  return { specs, problems };
+}
+
+/** Every statement of one extension's specification. */
+export function extractExtension(root: string, ext: ExtensionSpec): { statements: Statement[]; problems: Problem[] } {
+  const r = parseFile(ext.file, root, ext.code);
+  const seen = new Map<string, Statement>();
+  for (const s of r.statements) {
+    const prior = seen.get(s.id);
+    if (prior) r.problems.push({ file: s.file, line: s.line, message: `${s.id} is already used at ${prior.file}:${prior.line}` });
+    else seen.set(s.id, s);
+  }
+  return r;
+}
