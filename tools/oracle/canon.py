@@ -1,9 +1,11 @@
 """Canonical form (9.2) and content hash (9.3).
 
 Step 1 omits constant defaults, innermost first. The table of constant defaults below is
-transcribed from the member tables of chapters 1, 5, 6 and 7; typed properties (8.2) and members
-whose default is derived are never omitted, and the content of extension data and extras is never
-touched.
+transcribed from the member tables of chapters 1, 5, 6, 7, 8 and 11; typed properties (8.2) and
+members whose default is derived are never omitted, and the content of extension data - including
+Core 0.2's extension elements - and extras is never touched. Core 0.2 also writes a declaration
+object without `schema` as its version string (12.1). None of the 0.2 rules can apply to a 0.1
+document, so one canonicalizer serves both drafts.
 
 Step 2 writes ``JSON.stringify(sorted, null, 2)`` plus a line feed. The content hash is SHA-256
 over the RFC 8785 (JCS) serialization of the step-1 document.
@@ -81,6 +83,29 @@ def omit_defaults(doc: dict) -> dict:
     for c in ('buildings', 'levels', 'separators', 'types', 'materials', 'assets'):
         for e in d.get(c, {}).values():
             _drop_common(e)
+    for e in d.get('types', {}).values():
+        if _is_empty_obj(e.get('clearances')):         # 8.4: clearances {} (Core 0.2)
+            del e['clearances']
+    program = d.get('program')
+    if isinstance(program, dict):                       # 11.1, 11.2 (Core 0.2)
+        for it in program.get('items', {}).values():
+            _drop_common(it)
+            if _is_int(it.get('count'), 1):
+                del it['count']
+        for a in program.get('adjacency', []):
+            if _is_int(a.get('weight'), 5):
+                del a['weight']
+        if _is_empty_obj(program.get('items')):
+            del program['items']
+        if program.get('adjacency') == []:
+            del program['adjacency']
+        if not program:
+            del d['program']
+    used = d.get('extensionsUsed')
+    if isinstance(used, dict):                          # 12.1: { "version": v } is written v
+        for k, v in list(used.items()):
+            if isinstance(v, dict) and set(v) == {'version'}:
+                used[k] = v['version']
     if isinstance(d.get('project'), dict) and _is_empty_obj(d['project'].get('extras')):
         del d['project']['extras']
     site = d.get('site')

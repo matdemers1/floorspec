@@ -7,8 +7,11 @@ import json
 
 ORDER = ['valid', 'diagnostics', 'hash', 'derived', 'code', 'severity', 'elements',
          'walls', 'junctionFills', 'rooms', 'unanchored', 'openings',
+         'program', 'fallbacks', 'placements', 'clearances', 'clearanceOverlaps',
          'startRight', 'endRight', 'endLeft', 'startLeft', 'baseElevation', 'topElevation',
-         'level', 'outer', 'holes', 'area', 'start', 'end', 'sillElevation', 'headElevation']
+         'level', 'outer', 'holes', 'area', 'start', 'end', 'sillElevation', 'headElevation',
+         'items', 'adjacency', 'countMet', 'minAreaMet', 'targetAreaMet', 'a', 'b', 'kind', 'adjacent', 'connected',
+         'extension', 'collection', 'purpose', 'footprint', 'bottom', 'top', 'point', 'facing']
 
 
 def _key(k):
