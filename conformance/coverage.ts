@@ -3,10 +3,17 @@
  * (MUST / MUST NOT) has at least one conformance test whose test.json `covers` names it, and every
  * ID a test names exists. Fails the build otherwise. Writes build/coverage.json and
  * build/coverage.md, which the spec site publishes.
+ *
+ * The spec text in spec/core/ is one draft (CURRENT_CORE, 0.2), so it is gated against that
+ * draft's suite alone, conformance/core/0.2/. Earlier drafts' suites stay as they were published,
+ * gated by the text of their own pinned commit; here they are only checked to name statement IDs
+ * that exist now or that a later draft retired (00-conventions.md, 0.6), so that a retired ID is
+ * never reused for something else.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { extract, MANDATORY, type Statement } from '../tools/statements.ts';
+import { CORE_VERSIONS, CURRENT_CORE } from '../tools/schema.ts';
+import { extract, MANDATORY, retired, type Statement } from '../tools/statements.ts';
 
 const root = join(import.meta.dirname, '..');
 
@@ -44,7 +51,23 @@ for (const spec of ['core', 'ops', 'rules'] as const) {
     failed = true;
   }
   const byId = new Map<string, Statement>(statements.map((s) => [s.id, s]));
-  const cases = tests(join(root, 'conformance', spec));
+  const suiteDir = spec === 'core' ? join(root, 'conformance', 'core', CURRENT_CORE) : join(root, 'conformance', spec);
+  const cases = tests(suiteDir);
+  if (spec === 'core') {
+    const gone = retired(root);
+    for (const id of gone)
+      if (byId.has(id)) {
+        console.error(`spec/core: ${id} is retired (00-conventions.md, 0.6) and must not be used again`);
+        failed = true;
+      }
+    for (const v of CORE_VERSIONS.filter((x) => x !== CURRENT_CORE))
+      for (const t of tests(join(root, 'conformance', 'core', v)))
+        for (const id of t.covers)
+          if (!byId.has(id) && !gone.has(id)) {
+            console.error(`${t.path}: covers ${id}, which is neither a statement of Core ${CURRENT_CORE} nor retired`);
+            failed = true;
+          }
+  }
   const coveredBy = new Map<string, string[]>();
   for (const t of cases)
     for (const id of t.covers) {
@@ -61,7 +84,7 @@ for (const spec of ['core', 'ops', 'rules'] as const) {
   failed ||= uncovered.length > 0;
 
   const pct = mandatory.length ? Math.floor((100 * (mandatory.length - uncovered.length)) / mandatory.length) : 100;
-  console.log(`FS-${spec.toUpperCase()}: ${mandatory.length - uncovered.length}/${mandatory.length} mandatory statements covered (${pct}%) by ${cases.length} tests`);
+  console.log(`FS-${spec.toUpperCase()}${spec === 'core' ? ` ${CURRENT_CORE}` : ''}: ${mandatory.length - uncovered.length}/${mandatory.length} mandatory statements covered (${pct}%) by ${cases.length} tests`);
   report[spec] = {
     tests: cases.length,
     statements: statements.map((s) => ({ id: s.id, level: s.level, section: s.section, tests: coveredBy.get(s.id) ?? [] })),
