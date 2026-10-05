@@ -6,7 +6,7 @@ from __future__ import annotations
 from .common import Context, check_ids, load_schema
 
 NAME, VERSION, CODE = 'FS_electrical', '0.1.0', 'ELEC'
-CORE = ('0.2', '0.3')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
+CORE = ('0.2', '0.3', '0.4')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
 SCHEMA = load_schema(NAME, 'electrical')
 SEVERITY = {'FS-ELEC-LINT-001': 'warning', 'FS-ELEC-LINT-002': 'info', 'FS-ELEC-LINT-003': 'warning',
             'FS-ELEC-LINT-004': 'warning', 'FS-ELEC-LINT-005': 'info', 'FS-ELEC-LINT-006': 'warning',

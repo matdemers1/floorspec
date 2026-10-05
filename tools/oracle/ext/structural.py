@@ -14,7 +14,7 @@ from math import isqrt
 from .common import Context, load_schema
 
 NAME, VERSION, CODE = 'FS_structural', '0.1.0', 'STRC'
-CORE = ('0.2', '0.3')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
+CORE = ('0.2', '0.3', '0.4')                  # the Core drafts whose documents it is evaluated for (1.1, 1.2)
 SCHEMA = load_schema(NAME, 'structural')
 SEVERITY = {'FS-STRC-LINT-001': 'warning', 'FS-STRC-LINT-002': 'warning', 'FS-STRC-LINT-003': 'warning',
             'FS-STRC-LINT-004': 'warning', 'FS-STRC-LINT-005': 'warning', 'FS-STRC-LINT-006': 'info'}

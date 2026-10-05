@@ -158,7 +158,7 @@ def verify_ext(name: str, suite: str, write: bool):
     extension and has the test's known extensions."""
     from .ext import official
     from .ops.suite import verify as verify_op
-    from .ops.version import OPS_02, OPS_03
+    from .ops.version import OPS_02, OPS_03, OPS_04
     implemented = official.implemented(name)
     dirs = list(test_dirs(suite))
     errors = []
@@ -166,7 +166,8 @@ def verify_ext(name: str, suite: str, write: bool):
         if os.path.exists(os.path.join(d, 'request.json')):
             _, registry = reader_for(d)
             with open(os.path.join(d, 'input.json'), 'rb') as f:
-                profile = OPS_03 if ext_reader(f.read()).v03 else OPS_02
+                reader = ext_reader(f.read())
+                profile = OPS_04 if reader.v04 else OPS_03 if reader.v03 else OPS_02
             errors.extend(verify_op(d, write, profile.configured(registry, implemented)))
         else:
             errors.extend(verify(d, write, implemented))

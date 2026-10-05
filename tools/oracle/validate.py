@@ -44,13 +44,15 @@ IMPLEMENTED_VERSIONS = READER_01.versions
 
 def ext_reader(data: bytes) -> Reader:
     """The Core reader an extension suite's test is read by (conformance/README.md): of the Core draft
-    the document declares - Core 0.3 for a document declaring "0.3", Core 0.2 for every other."""
+    the document declares - Core 0.3 or 0.4 for a document declaring "0.3" or "0.4", Core 0.2 for every
+    other."""
     import json
     try:
         value = json.loads(data)
     except ValueError:
         return READER_02
-    return READER_03 if isinstance(value, dict) and value.get('floorspec') == '0.3' else READER_02
+    declared = value.get('floorspec') if isinstance(value, dict) else None
+    return {'0.3': READER_03, '0.4': READER_04}.get(declared, READER_02)
 IMPLEMENTED_EXTENSIONS: set[str] = set()   # a core-only reader
 
 SEVERITY = {
