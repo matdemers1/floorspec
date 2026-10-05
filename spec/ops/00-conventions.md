@@ -162,7 +162,7 @@ Statements whose meaning changed in 0.2 were given new IDs, and their old IDs ar
 
 | Retired | Replaced by | Why |
 |---|---|---|
-| `FS-OPS-1.1.1` | `FS-OPS-1.1.2` | a request has the shape `schema/ops/0.2` gives it |
+| `FS-OPS-1.1.1` | `FS-OPS-1.1.3` | a request has the shape the schema of the draft it targets gives it; in 0.2 that was `FS-OPS-1.1.2`, which 0.3 retired in turn |
 | `FS-OPS-4.5.1` | `FS-OPS-4.5.3` | `moveOpening` also moves by a length (4.5.2), which needs no width |
 
 Every other statement of 0.1 keeps its ID and its meaning; where a table or a list it refers to

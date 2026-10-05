@@ -5,10 +5,11 @@
  * ID a test names exists. Fails the build otherwise. Writes build/coverage.json and
  * build/coverage.md, which the spec site publishes.
  *
- * The spec text in spec/core/ is one draft (CURRENT_CORE, 0.2), the text in spec/ops/ one draft
- * (CURRENT_OPS, 0.2) and the text in spec/rules/ one draft (CURRENT_RULES, 0.1), so each is gated
- * against that draft's suite alone: conformance/core/0.2/, conformance/ops/0.2/ and
- * conformance/rules/0.1/. Earlier drafts' suites stay as they were
+ * The spec text in spec/core/ is one draft (CURRENT_CORE, in tools/schema.ts), the text in spec/ops/
+ * one draft (CURRENT_OPS) and the text in spec/rules/ one draft (CURRENT_RULES), so each is gated
+ * against that draft's suites alone: conformance/core/<CURRENT_CORE>/ with Core's migration suite
+ * conformance/migration/<CURRENT_CORE>/, conformance/ops/<CURRENT_OPS>/ and
+ * conformance/rules/<CURRENT_RULES>/. Earlier drafts' suites stay as they were
  * published, gated by the text of their own pinned commit; here they are only checked to name
  * statement IDs that exist now or that a later draft retired (spec/core/00-conventions.md, 0.6;
  * spec/ops/00-conventions.md, 0.4), so that a retired ID is never reused for something else.
