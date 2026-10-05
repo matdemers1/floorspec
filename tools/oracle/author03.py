@@ -16,6 +16,7 @@ and canonical forms come from the oracle. Afterwards, `python3.13 -m tools.oracl
 re-verifies the suite from the files alone. Add new tests at the end of their group's section.
 """
 import copy
+import json
 import os
 import re
 import sys
@@ -1446,6 +1447,35 @@ n('examples', 'kitchen-options', 'The Phase 8 exit demo\'s house: kitchen option
   'open to the dining room with a window over the sink, each with its fridge and the clearance its door needs; and a '
   'deck, or none. The primary design is derived; `options` sets A and B side by side - each one\'s rooms and their '
   'areas, and what in the common plan changes between them.', ['19.6.1', '19.6.3', '19.5.1'], d)
+
+# The three-room house of examples/001, built from the US starter library (library/us-starter/0.1.0): its
+# hand-written wall, door and window types replaced by the library's, embedded with their materials and their
+# source exactly as the library publishes them, and its openings filled by them.
+house = json.loads(next(tc for tc in BASE if tc['slug'] == 'three-room-house')['raw'])
+house['project'] = {'name': 'Three-room house, from the US starter library'}
+house.pop('extras')
+LIBRARY_TYPES = {'EXT26': 'wall-2x6-exterior-fibre-cement', 'INT24': 'wall-2x4-interior',
+                 'D36': 'door-exterior-swing-36x80', 'D32': 'door-interior-swing-32x80'}
+for w in house['walls'].values():
+    w['type'] = LIBRARY_TYPES[w['type']]
+for oid, fill in {'FD': 'door-exterior-swing-36x80', 'BD': 'door-interior-swing-32x80', 'LW1': 'window-double-hung-36x60',
+                  'LW2': 'window-fixed-72x48', 'KW': 'window-slider-48x36', 'BW': 'window-casement-30x60'}.items():
+    house['openings'][oid]['fill'] = fill
+del house['openings']['LW2']['width']                 # the picture window is the library's 72 x 48 fixed window
+del house['openings']['BW']['swing']                  # a window has no swing
+house['types'] = {}
+house['materials'] = {k: v for k, v in house['materials'].items() if k in ('PAINT', 'OAK', 'TILE')}
+house = us_library.embed(house, 'wall-2x6-exterior-fibre-cement', 'wall-2x4-interior', 'door-exterior-swing-36x80',
+                         'door-interior-swing-32x80', 'window-double-hung-36x60', 'window-fixed-72x48',
+                         'window-slider-48x36', 'window-casement-30x60')
+n('examples', 'three-room-house-from-the-library', 'The three-room house of examples/001, built from the US starter '
+  'library 0.1.0 (library/us-starter): 2x6 exterior walls with fibre-cement siding and 2x4 partitions, a 36-inch '
+  'exterior door and a 32-inch interior door, a double-hung, a fixed picture, a sliding and a casement window. Every '
+  'type and every material its layers use is embedded exactly as the library publishes it, with its source, so the '
+  'document is complete on its own: the walls are as thick as the library\'s layers, each door and window is its '
+  'rough opening at the library\'s sill, and each clear opening is the library\'s generic declared value - a fixed '
+  'window has none. The room finishes stay the project\'s own materials.',
+  ['8.1.3', '8.2.1', '7.4.2', '13.5.2', '9.2.1', '9.3.1'], house)
 
 NEW = list(TESTS)
 del TESTS[:]

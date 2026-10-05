@@ -52,7 +52,11 @@ Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `
 `clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs), `roofs`
 (chapter 16), `stairs` (chapter 17), `materials` (chapter 18: materials, textures, the package and
 finishes) and `options` (chapter 19). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
-Phase 1 exit demo.
+Phase 1 exit demo, and in Core 0.3 `examples/003-three-room-house-from-the-library` is the same house built from the
+US starter type library (`library/us-starter/`), every type and material embedded exactly as the library publishes
+it, with its `source` (Core 8.1). The `types` tests from `049-library-types-with-source` on use the library too, and
+so do Ops 0.3's `primitives/113-embed-a-library-type` and `114-embed-a-library-type-twice`, which apply an item's
+published embed batch.
 
 ## test.json
 
