@@ -136,7 +136,7 @@
     },
     "pitch": {
       "title": "Pitch",
-      "description": "2.5, 15.3: a slope as a pair of positive integers { \"rise\": r, \"run\": n } — r up for every n across. Both MUST be integers from 1 to 2^53 − 1 (FS-CORE-15.2.1).",
+      "description": "2.5, 15.3, 16.1: a slope as a pair of positive integers { \"rise\": r, \"run\": n } — r up for every n across. Both MUST be integers from 1 to 2^53 − 1 (FS-CORE-15.2.1, FS-CORE-16.1.1).",
       "type": "object",
       "required": [
         "rise",

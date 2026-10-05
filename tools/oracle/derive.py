@@ -38,7 +38,7 @@ class Doc:
     def __init__(self, d: dict):
         self.d = d
         for c in ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
-                  'slabs', 'types', 'materials', 'assets'):
+                  'slabs', 'types', 'materials', 'assets', 'roofs'):
             setattr(self, c, d.get(c, {}))
         self.items = d.get('program', {}).get('items', {})
         self.ext_elements = ext_elements(d)
