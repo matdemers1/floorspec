@@ -48,10 +48,13 @@ A reader that implements this draft MUST also read a document that declares `"0.
 The members 0.2 added are the top-level `program` (11.1), a room's `brief` (11.3), the
 declaration object in `extensionsUsed` (12.1), a door or window type's `clearances` (13.5) and the
 `collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
-type's `operation` and `clearOpening` (8.4) and an opening's `clearOpening` (7.1). Each is
-optional, and its absence means what a document of an earlier draft means without it: an empty
-program, a room that fulfils no program item, a version string, no clearances, extension data
-that core does not look inside, an operation that is not declared and no declared clear opening.
+type's `operation` and `clearOpening` (8.4), an opening's `clearOpening` (7.1), a level's
+`floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2) and a slab's
+`purpose` (6.7). Each is optional, and its absence means what a document of an earlier draft means
+without it: an empty program, a room that fulfils no program item, a version string, no
+clearances, extension data that core does not look inside, an operation that is not declared, no
+declared clear opening, a floor at its level's elevation with no declared thickness, a flat
+ceiling at its level's height, and a slab whose purpose is not stated.
 So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
 configured with the same known extensions (12.2), is valid under 0.3 with the same diagnostics,
 the same derived values, the same canonical form and the same content hash; and a document valid
@@ -59,7 +62,11 @@ under 0.1, read by a validator configured with no known extensions, is valid und
 same diagnostics, the same derived values (with nothing derived for a program, hosts, clearances
 or clear openings), the same canonical form and the same content hash — except for circulation
 (chapter 14), which needs no new member: it is derived for the document's rooms, and its lints
-are reported when the plan has doors but no way in. In a 0.1 document, top-level extension data is
+are reported when the plan has doors but no way in. Floors, ceilings and slabs (chapter 15) need
+no new member either: a reader of this draft derives them for a document of any draft, from the
+defaults — so a valid 0.2 or 0.1 document read as 0.3 also derives its rooms' floors and ceilings
+and its slabs' bounding geometry, and every value its own draft derives is unchanged, the
+placements of `surface` hosts included (15.6). In a 0.1 document, top-level extension data is
 opaque, as 0.1 says, even where it has a member named `collections`. Core 0.1's schema rejects
 every member 0.2 and 0.3 add, and Core 0.2's every member 0.3 adds, so a document that declares
 `"0.1"` or `"0.2"` and uses one is invalid (`FS-SCH-001`).
@@ -227,6 +234,10 @@ A `latitude` MUST lie in [−90,000,000, 90,000,000] and a `longitude` in (−18
 | `building` | reference to a building | — (always present) | the building the level is in |
 | `elevation` | length | — (always present) | the level's datum: the height of its finished floor above project zero |
 | `height` | length | — (always present) | floor-to-floor height: the default top of the level's walls (5.9) |
+| `floorThickness` | length | absent: not declared | the thickness of its rooms' floors, unless a room's `floor` says otherwise (15.1) |
+| `ceilingHeight` | length | absent: its `height` | the height of its rooms' ceilings above its elevation, unless a room's `ceiling` says otherwise (15.2) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A level's `height` MUST be greater than zero. {#FS-CORE-1.8.3 MUST}
+
+A level's `floorThickness` and `ceilingHeight`, when present, MUST be greater than zero. {#FS-CORE-1.8.4 MUST}

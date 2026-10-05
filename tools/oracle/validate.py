@@ -18,6 +18,7 @@ from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, r
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
+from . import floors
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -26,7 +27,7 @@ class Reader:
     def __init__(self, versions):
         self.versions = frozenset(versions)
         self.v02 = '0.2' in self.versions           # what 0.2 adds: program, extensions, hosting, circulation
-        self.v03 = '0.3' in self.versions           # what 0.3 adds: operation and clear openings
+        self.v03 = '0.3' in self.versions           # what 0.3 adds: operation, clear openings, floors, ceilings, slabs
         self.newest = max(self.versions)
 
 
@@ -702,6 +703,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         ds.extend(opening_tier(doc, no_top))
         if reader.v03:
             ds.extend(clear_opening_tier(doc))
+            ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
         if reader.v02:
             ds.extend(program_invariants(value, diag))
             ds.extend(extension_tier(value, known))
@@ -723,6 +725,8 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         ds.extend(program_lints(doc, diag))
         ds.extend(circulation_lints(doc, diag))
         derived.update(derive_02(doc))
+    if reader.v03:
+        derived.update(floors.derive(doc))
     if extensions is not None:
         from .ext import official as ext
         eds, derived['extensions'] = ext.finish(ext_ctxs)

@@ -102,3 +102,83 @@ test('core 0.3, 8.4.3: clear openings', () => {
   accepts(p((d) => (d.types.D.clearOpening = { width: 2 * 900 * MM, height: 1 })));
   accepts(p((d) => (d.types.G.clearOpening.area = 560 * MM * 1050 * MM + 1)));
 });
+
+// Chapter 15: floors, ceilings and slabs
+function rooms(): Record<string, any> {
+  return {
+    floorspec: '0.3',
+    project: { name: 'Rooms' },
+    buildings: { B1: {} },
+    levels: { L1: { building: 'B1', elevation: 0, height: 3456000, floorThickness: 384000, ceilingHeight: 3072000 } },
+    rooms: {
+      R1: { level: 'L1', anchor: [0, 0], floor: { offset: -192000, thickness: 256000 }, ceiling: { kind: 'flat', height: 2944000 } },
+      R2: { level: 'L1', anchor: [1, 0], ceiling: { kind: 'tray', border: 384000, depth: 256000 } },
+      R3: { level: 'L1', anchor: [2, 0], ceiling: { kind: 'vaulted', height: 4000000, ridge: [[0, 0], [1, 0]], pitch: { rise: 6, run: 12 }, slopes: 'left' } },
+    },
+    slabs: { S1: { level: 'L1', boundary: [[0, 0], [1, 0], [1, 1]], thickness: 1, purpose: 'patio' } },
+  };
+}
+const r = (mut: (d: Record<string, any>) => void) => {
+  const d = rooms();
+  mut(d);
+  return d;
+};
+
+test('core 0.3, chapter 15: a document with every floor, ceiling and slab member is valid', () => accepts(rooms()));
+
+test('core 0.3, 1.8.4: a level\'s floor thickness and ceiling height are greater than zero', () => {
+  rejects(r((d) => (d.levels.L1.floorThickness = 0)));
+  rejects(r((d) => (d.levels.L1.ceilingHeight = -1)));
+  rejects(r((d) => (d.levels.L1.ceilingHeight = 1.5)));
+  const level02 = { floorspec: '0.2', project: { name: 'x' }, buildings: { B1: {} }, levels: { L1: { building: 'B1', elevation: 0, height: 1 } } };
+  accepts(level02, reader);
+  rejects({ ...level02, levels: { L1: { ...level02.levels.L1, floorThickness: 1 } } }, reader);
+});
+
+test('core 0.3, 15.1.1: a floor has an offset of any sign and a positive thickness, nothing else', () => {
+  accepts(r((d) => (d.rooms.R1.floor = {})));
+  accepts(r((d) => (d.rooms.R1.floor = { offset: 192000 })));
+  rejects(r((d) => (d.rooms.R1.floor.thickness = 0)));
+  rejects(r((d) => (d.rooms.R1.floor.finish = 'M1')));
+  rejects(r((d) => (d.rooms.R1.floor = 0)));
+});
+
+test('core 0.3, 15.2.1: a ceiling is exactly one of three forms', () => {
+  accepts(r((d) => (d.rooms.R1.ceiling = { kind: 'flat' })));
+  accepts(r((d) => (d.rooms.R3.ceiling.slopes = 'both')));
+  accepts(r((d) => delete d.rooms.R3.ceiling.height));
+  rejects(r((d) => (d.rooms.R1.ceiling = { kind: 'dome' })));
+  rejects(r((d) => (d.rooms.R1.ceiling = { height: 1 })));
+  rejects(r((d) => (d.rooms.R1.ceiling.height = 0)));
+  rejects(r((d) => (d.rooms.R1.ceiling.border = 1)));
+  rejects(r((d) => delete d.rooms.R2.ceiling.depth));
+  rejects(r((d) => (d.rooms.R2.ceiling.border = 0)));
+  rejects(r((d) => (d.rooms.R2.ceiling.depth = -5)));
+  rejects(r((d) => (d.rooms.R2.ceiling.ridge = [[0, 0], [1, 0]])));
+  rejects(r((d) => delete d.rooms.R3.ceiling.pitch));
+  rejects(r((d) => delete d.rooms.R3.ceiling.ridge));
+  rejects(r((d) => (d.rooms.R3.ceiling.ridge = [[0, 0]])));
+  rejects(r((d) => (d.rooms.R3.ceiling.ridge = [[0, 0], [1, 0], [2, 0]])));
+  rejects(r((d) => (d.rooms.R3.ceiling.pitch = { rise: 0, run: 12 })));
+  rejects(r((d) => (d.rooms.R3.ceiling.pitch = { rise: 6 })));
+  rejects(r((d) => (d.rooms.R3.ceiling.slopes = 'up')));
+  rejects(r((d) => (d.rooms.R1.ceiling.slopes = 'both')));
+  // two equal ridge points are an invariant (15.3.1), not the schema's
+  accepts(r((d) => (d.rooms.R3.ceiling.ridge = [[0, 0], [0, 0]])));
+});
+
+test('core 0.3, 6.7.2: a slab\'s purpose is a term of 6.7', () => {
+  for (const p of ['patio', 'deck', 'porch', 'stoop', 'landing', 'balcony', 'garage', 'walkway', 'driveway', 'equipmentPad', 'other'])
+    accepts(r((d) => (d.slabs.S1.purpose = p)));
+  rejects(r((d) => (d.slabs.S1.purpose = 'Patio')));
+  rejects(r((d) => (d.slabs.S1.purpose = 'pool')));
+});
+
+test('core 0.3, chapter 15: the constant defaults are a floor {}, its offset 0, a flat ceiling and a vault\'s two slopes', () => {
+  const found = new Map([...defaults(files)].map(([where, d]) => [where, JSON.stringify(d.value)]));
+  assert.equal(found.get('room.schema.json#/properties/floor'), '{}');
+  assert.equal(found.get('room.schema.json#/$defs/floor/properties/offset'), '0');
+  assert.equal(found.get('room.schema.json#/properties/ceiling'), '{"kind":"flat"}');
+  assert.equal(found.get('room.schema.json#/$defs/ceiling/oneOf/2/properties/slopes'), '"both"');
+  for (const [where] of found) assert.ok(!/floorThickness|ceilingHeight|thickness|\/height|purpose/.test(where) || where.includes('positiveLength'), where);
+});

@@ -8,7 +8,8 @@ required; lengths are JSON integers (no fraction, no exponent - the parser keeps
 from 1) within 2^53 - 1.
 
 And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
-`clearOpening` (8.4.2, 8.4.3).
+`clearOpening` (8.4.2, 8.4.3); a level's `floorThickness` and `ceilingHeight` (1.8.4), a room's
+`floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -39,6 +40,8 @@ TOP_LEVEL = {'floorspec', 'project', 'site', 'buildings', 'levels', 'junctions',
 PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
 DOOR_OPERATIONS = ('swing', 'doubleSwing', 'doubleActing', 'bypassSlide', 'pocket', 'surfaceSlide', 'bifold',
                    'overhead', 'cased')                                                       # 8.4 (0.3)
+SLAB_PURPOSES = ('patio', 'deck', 'porch', 'stoop', 'landing', 'balcony', 'garage', 'walkway', 'driveway',
+                 'equipmentPad', 'other')                                                     # 6.7 (0.3)
 WINDOW_OPERATIONS = ('fixed', 'casement', 'awning', 'hopper', 'singleHung', 'doubleHung', 'horizontalSlider',
                      'tiltTurn', 'pivot')
 
@@ -181,9 +184,10 @@ class _Checker:
 
     def level(self, v, path):
         if self.obj(v, path):
-            self.members(v, path, {'building': self.ref, 'elevation': self.length,
-                                   'height': self.positive, **self.common()},
-                         ('building', 'elevation', 'height'))
+            allowed = {'building': self.ref, 'elevation': self.length, 'height': self.positive, **self.common()}
+            if self.v03:
+                allowed.update(floorThickness=self.positive, ceilingHeight=self.positive)
+            self.members(v, path, allowed, ('building', 'elevation', 'height'))
 
     def join(self, v, path):
         if not self.obj(v, path):
@@ -279,7 +283,41 @@ class _Checker:
                    **self.common()}
         if self.v02:
             allowed['brief'] = self.ref
+        if self.v03:
+            allowed.update(floor=self.floor, ceiling=self.ceiling)
         self.members(v, path, allowed, ('level', 'anchor'))
+
+    # ---- Core 0.3: chapter 15
+    def floor(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'offset': self.length, 'thickness': self.positive})
+
+    def pitch(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'rise': self.integer(1, MAX_LEN), 'run': self.integer(1, MAX_LEN)}, ('rise', 'run'))
+
+    def ridge(self, v, path):
+        if not isinstance(v, list) or len(v) != 2:
+            self.bad(path, 'a ridge is two points')
+            return
+        for i, p in enumerate(v):
+            self.point(p, f'{path}/{i}')
+
+    def ceiling(self, v, path):
+        if not self.obj(v, path):
+            return
+        kind = v.get('kind')
+        if kind == 'flat':
+            self.members(v, path, {'kind': self.any_value, 'height': self.positive}, ('kind',))
+        elif kind == 'tray':
+            self.members(v, path, {'kind': self.any_value, 'height': self.positive, 'border': self.positive,
+                                   'depth': self.positive}, ('kind', 'border', 'depth'))
+        elif kind == 'vaulted':
+            self.members(v, path, {'kind': self.any_value, 'height': self.positive, 'ridge': self.ridge,
+                                   'pitch': self.pitch, 'slopes': self.enum('both', 'left', 'right')},
+                         ('kind', 'ridge', 'pitch'))
+        else:
+            self.bad(path, 'bad ceiling kind')
 
     # ---- Core 0.2: chapters 11-13
     def integer(self, lo, hi):
@@ -403,9 +441,11 @@ class _Checker:
 
     def slab(self, v, path):
         if self.obj(v, path):
-            self.members(v, path, {'level': self.ref, 'boundary': self.polygon, 'thickness': self.positive,
-                                   'offset': self.length, 'material': self.ref, **self.common()},
-                         ('level', 'boundary', 'thickness'))
+            allowed = {'level': self.ref, 'boundary': self.polygon, 'thickness': self.positive,
+                       'offset': self.length, 'material': self.ref, **self.common()}
+            if self.v03:
+                allowed['purpose'] = self.enum(*SLAB_PURPOSES)
+            self.members(v, path, allowed, ('level', 'boundary', 'thickness'))
 
     def type_(self, v, path):
         if not self.obj(v, path):

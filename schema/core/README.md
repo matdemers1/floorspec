@@ -8,20 +8,20 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
 Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
 are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
-copied, with four changed; the table lists 0.3's.
+copied, with seven changed; the table lists 0.3's.
 
 | File | Describes | Spec |
 |---|---|---|
 | `floorspec.schema.json` | the document: its members and its collections | 1.1, 1.2, 1.6, 1.7 |
 | `defs.schema.json` | length, positive and non-negative length, angle, point, polygon, ID, reference, extension name, `extensions`, `extras`, `name` | 1.4, 1.6, 1.7, 2.1, 2.4, 2.6, 3.1, 3.2 |
 | `project.schema.json`, `site.schema.json` | the project and its site | 1.8 |
-| `building.schema.json`, `level.schema.json` | buildings and levels | 1.8 |
+| `building.schema.json`, `level.schema.json` | buildings and levels, with a level's floor thickness and ceiling height (0.3) | 1.8 |
 | `junction.schema.json` | junctions and their join overrides | 5.1, 5.8 |
 | `wall.schema.json`, `separator.schema.json` | walls (with `base` and `top`) and separators | 5.2, 5.9 |
 | `layer.schema.json` | a layer and a `layers` array | 4.3, 8.3 |
 | `opening.schema.json` | openings, with their own clear opening (0.3) | 7.1 |
-| `room.schema.json` | rooms and room functions | 4.1, 4.2, 6.5 |
-| `slab.schema.json` | slabs | 6.7 |
+| `room.schema.json` | rooms and room functions, with a room's floor and its flat, tray or vaulted ceiling (0.3) | 4.1, 4.2, 6.5, 15.1, 15.2 |
+| `slab.schema.json` | slabs, with their purpose (0.3) | 6.7 |
 | `type.schema.json` | wall, door and window types, discriminated by `kind`; a door's or window's operation and clear opening (0.3) | 8.1, 8.3, 8.4 |
 | `material.schema.json`, `asset.schema.json` | materials and assets | 8.5, 8.6 |
 | `program.schema.json` | the program, its items and adjacencies (0.2) | 11.1, 11.2 |
@@ -34,7 +34,10 @@ copied, with four changed; the table lists 0.3's.
 `httpsUri`; `room.schema.json` gains `brief`, and `type.schema.json` gains `clearances` on door and
 window types. In 0.3, `defs.schema.json` gains `clearOpening` and `doorClearOpening`,
 `type.schema.json` gains `operation` and `clearOpening` on door and window types,
-`opening.schema.json` gains `clearOpening`, and `floorspec.schema.json` declares `"0.3"`.
+`opening.schema.json` gains `clearOpening`, and `floorspec.schema.json` declares `"0.3"`; for
+floors, ceilings and slabs (chapter 15), `defs.schema.json` gains `pitch`, `level.schema.json`
+gains `floorThickness` and `ceilingHeight`, `room.schema.json` gains `floor` and `ceiling`, and
+`slab.schema.json` gains `purpose`.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at
@@ -102,8 +105,11 @@ expected diagnostics have no `FS-CFG-`, `FS-JSON-` or `FS-DOC-` code: the schema
 input when the expected diagnostics are exactly `[FS-SCH-001]`, and accept it otherwise. Every
 `registry.json` of the 0.2 and 0.3 suites must match the registry entry schema, unless its test expects
 `FS-CFG-001`. `tools/check-schema-02.test.ts` pins 0.2's new defaults and edges, and
-`tools/check-schema-03.test.ts` 0.3's — none of whose new members has a default: an absent
-operation is not declared, and a clear opening is a typed property (8.2).
+`tools/check-schema-03.test.ts` 0.3's. Of the members 0.3 adds, only these have constant defaults:
+a room's `floor` (`{}`) and its `offset` (`0`), a room's `ceiling` (`{ "kind": "flat" }`) and a
+vault's `slopes` (`"both"`). An absent operation is not declared, a clear opening is a typed
+property (8.2), and a level's `floorThickness` and `ceilingHeight`, a floor's `thickness` and a
+ceiling's `height` have derived defaults (15.1, 15.2), so none of them carries a `default`.
 
 Extension elements are extension data, which the canonical form never changes (9.2), so
 `host.schema.json`, `fallback.schema.json`, `clearance.schema.json` and `extension.schema.json`
