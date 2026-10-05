@@ -71,6 +71,7 @@ mechanical, low-voltage, structural, furniture — ship as first-party `FS_` ext
 | [`FS_mechanical`](FS_mechanical/spec.md) | 0.1.0 | Release Candidate | heating, cooling and ventilation equipment, air terminals, exhaust, gas appliances and gas sources, with fuel and combustion air | `FS-MECH-` |
 | [`FS_lowvoltage`](FS_lowvoltage/spec.md) | 0.1.0 | Release Candidate | data, coax, phone and fibre outlets, doorbells, security devices, speakers, and the head-ends they are run to | `FS-LOWV-` |
 | [`FS_furniture`](FS_furniture/spec.md) | 0.1.0 | Release Candidate | furniture, appliances and casework, each with a glTF model, a plan symbol and clearance envelopes — a refrigerator's door swing, the access beside a bed — with a starter library ([`library/`](FS_furniture/library/), CC0 1.0) | `FS-FURN-` |
+| [`FS_structural`](FS_structural/spec.md) | 0.1.0 | Draft | bearing and shear flags, framing (material, system, member size, spacing), floor spans and headers, recorded on walls, openings, slabs, rooms' floors and roofs for handoff to an engineer — never a structural design or a check of one | `FS-STRC-` |
 
 The four building systems list one implementation, D3 Floorspec's engine. The conformance oracle in
 `tools/oracle/ext/` implements all five too, but it is written by the same project and is not an

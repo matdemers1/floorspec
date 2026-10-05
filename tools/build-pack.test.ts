@@ -22,7 +22,7 @@ test('each fixture is a request for the built pack under a profile adopting the 
   const req = c.request as { packs: { name: string }[]; profile: { adopts: unknown[] } };
   assert.equal(req.packs[0]!.name, 'example');
   assert.deepEqual(req.profile.adopts, [{ code: 'TEST-ELEC', edition: '2026' }]);
-  assert.deepEqual(c.registry.map((e) => (e as { name: string }).name), ['FS_electrical', 'FS_furniture', 'FS_lowvoltage', 'FS_mechanical', 'FS_plumbing']);
+  assert.deepEqual(c.registry.map((e) => (e as { name: string }).name), ['FS_electrical', 'FS_furniture', 'FS_lowvoltage', 'FS_mechanical', 'FS_plumbing', 'FS_structural']);
 });
 
 test('pass: evaluated, with a subject, and no finding', () => {

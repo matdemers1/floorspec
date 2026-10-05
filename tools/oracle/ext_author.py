@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage and FS_furniture 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture and FS_structural 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -23,7 +23,10 @@ enclosure - and breaks one rule of it. FS_furniture's start from its own: the Ph
 (flat() below) - a kitchen with a refrigerator, a range, a dishwasher, cabinets and a dining table
 with its chairs, a bedroom with a bed, a nightstand and a wardrobe, and a laundry with a washer and a
 dryer - every item from the starter library (registry/FS_furniture/library/), its model and symbol
-the library's own files. Every expected diagnostic is written by hand and cross-checked against the
+the library's own files. FS_structural's start from the Phase 10 framed house (framed() below) - the
+demo house's plan with bearing and shear walls, studs, headers, floor joists, a slab on grade and a
+deck, recorded on the walls, openings, rooms and slab themselves, since FS_structural adds no kind
+of element. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -1225,6 +1228,429 @@ O(FURN, 'place-a-refrigerator-in-option-b', 'Kitchen options A and B in a Core 0
                             APP(B)['X16']))
 
 
+# ============================================================================= FS_structural
+
+STRC = 'FS_structural'
+CODE[STRC] = 'STRC'
+IN = 32512                                # an inch, 25.4 mm
+EXT_T, INT_T = 13 * IN // 2, 9 * IN // 2  # 6 1/2" exterior and 4 1/2" interior walls
+
+
+def member(designation, w_in2, d_in4):
+    """A member of `designation`, its actual width and depth given in half and quarter inches."""
+    return {'designation': designation, 'width': w_in2 * IN // 2, 'depth': d_in4 * IN // 4}
+
+
+TWO_BY = {4: member('2x4', 3, 14), 6: member('2x6', 3, 22), 8: member('2x8', 3, 29), 10: member('2x10', 3, 37),
+          12: member('2x12', 3, 45)}
+OC16, OC24 = 16 * IN, 24 * IN
+
+
+def studs(n, spacing=OC16, material='wood'):
+    return {'material': material, 'system': 'studs', 'member': copy.deepcopy(TWO_BY[n]), 'spacing': spacing}
+
+
+def joists(n, spacing=OC16, material='wood'):
+    return {'material': material, 'system': 'joists', 'member': copy.deepcopy(TWO_BY[n]), 'spacing': spacing}
+
+
+def header(n, plies=2, material='wood'):
+    return {'material': material, 'member': copy.deepcopy(TWO_BY[n]), 'plies': plies}
+
+
+def SW(s, e, t, **data):
+    w = {'level': 'L1', 'start': s, 'end': e, 'type': t}
+    if data:
+        w['extensions'] = {STRC: data}
+    return w
+
+
+def framed():
+    """The Phase 10 framed house: the Phase 5 demo house's plan, 20' x 12', on L1, drawn clockwise
+    (see demo()), with 6 1/2" exterior walls (EXT: 2x6 studs and their sheathing and drywall) and
+    4 1/2" interior walls (INT: 2x4 studs), and its structure recorded for handoff:
+
+    - every exterior wall bears, framed with 2x6 studs at 16"; W1, W2 and W4 are also shear walls;
+    - W8 and W9, the interior line at 12', bear the floor joists' middle, framed with 2x4 studs at
+      16"; W10, between the Bath and the Utility room, is non-bearing, 2x4 studs at 24";
+    - a door O1 in the south wall W7, 3' wide and 80" high, under a two-ply 2x10 header; a window O2
+      in the north wall W2, 4' wide and 48" high on a 36" sill, under a two-ply 2x10 header that is
+      flagged for an engineer; a door O4 from the Kitchen to the Utility room in the bearing W8, under
+      a two-ply 2x6 header; and a door O3 from the Utility room to the Bath in the non-bearing W10,
+      with no header;
+    - the Kitchen's floor (R1), 2x10 joists at 16" spanning east-west, from W1 to the interior line;
+      the Bath's floor (R2) a concrete slab on grade;
+    - a deck S1 south of the house, 8' x 7', on 2x8 joists at 16" spanning north-south, with a
+      recorded clear span of 6' (a beam the record does not model carries its south end)."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Phase 10 framed house'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'types': {'EXT': {'kind': 'wallType', 'layers': [{'thickness': EXT_T, 'function': 'core'}]},
+                  'INT': {'kind': 'wallType', 'layers': [{'thickness': INT_T, 'function': 'core'}]}},
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 12 * FT), 'J3': J(12 * FT, 12 * FT), 'J4': J(20 * FT, 12 * FT),
+                      'J5': J(20 * FT, 0), 'J6': J(12 * FT, 0), 'J7': J(12 * FT, 6 * FT), 'J8': J(20 * FT, 6 * FT)},
+        'walls': {
+            'W1': SW('J1', 'J2', 'EXT', bearing=True, shear=True, framing=studs(6)),
+            'W2': SW('J2', 'J3', 'EXT', bearing=True, shear=True, framing=studs(6)),
+            'W3': SW('J3', 'J4', 'EXT', bearing=True, framing=studs(6)),
+            'W4': SW('J4', 'J8', 'EXT', bearing=True, shear=True, framing=studs(6)),
+            'W5': SW('J8', 'J5', 'EXT', bearing=True, framing=studs(6)),
+            'W6': SW('J5', 'J6', 'EXT', bearing=True, framing=studs(6)),
+            'W7': SW('J6', 'J1', 'EXT', bearing=True, framing=studs(6)),
+            'W8': SW('J6', 'J7', 'INT', bearing=True, framing=studs(4)),
+            'W9': SW('J7', 'J3', 'INT', bearing=True, framing=studs(4)),
+            'W10': SW('J7', 'J8', 'INT', bearing=False, framing=studs(4, OC24))},
+        'openings': {
+            'O1': {'wall': 'W7', 'offset': 3 * FT, 'width': 3 * FT, 'height': 80 * IN, 'name': 'Back door',
+                   'extensions': {STRC: {'header': header(10)}}},
+            'O2': {'wall': 'W2', 'offset': 4 * FT, 'width': 4 * FT, 'height': 48 * IN, 'sill': 36 * IN, 'name': 'Kitchen window',
+                   'extensions': {STRC: {'header': header(10), 'needsEngineer': True,
+                                         'note': 'Widening this window is planned: the header is to be sized by an engineer.'}}},
+            'O3': {'wall': 'W10', 'offset': 2 * FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Bath door'},
+            'O4': {'wall': 'W8', 'offset': FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Utility door',
+                   'extensions': {STRC: {'header': header(6)}}}},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 6 * FT], 'name': 'Kitchen', 'function': 'kitchen',
+                         'extensions': {STRC: {'floor': {'framing': joists(10), 'span': {'direction': [1, 0]}}}}},
+                  'R2': {'level': 'L1', 'anchor': [16 * FT, 9 * FT], 'name': 'Bath', 'function': 'bath',
+                         'extensions': {STRC: {'floor': {'framing': {'material': 'concrete', 'system': 'solid'}}}}},
+                  'R3': {'level': 'L1', 'anchor': [16 * FT, 3 * FT], 'name': 'Utility', 'function': 'mechanical'}},
+        'slabs': {'S1': {'level': 'L1', 'boundary': [[2 * FT, -8 * FT], [10 * FT, -8 * FT], [10 * FT, -FT], [2 * FT, -FT]],
+                         'thickness': 3 * IN // 2, 'name': 'Deck',
+                         'extensions': {STRC: {'framing': joists(8), 'span': {'direction': [0, 1], 'length': 6 * FT}}}}},
+        'extensionsUsed': {STRC: '0.1.0'},
+    }
+    return d
+
+
+def sedit(fn):
+    """The Phase 10 framed house, changed by fn(d) in place."""
+    d = framed()
+    fn(d)
+    return d
+
+
+def SD(d, c, eid):
+    """The FS_structural data on an element, created when missing."""
+    return d[c][eid].setdefault('extensions', {}).setdefault(STRC, {})
+
+
+S = lambda *a, **k: V(STRC, *a, **k)    # noqa: E731
+SDER = derived_of(STRC)
+KITCHEN_EW = 12 * FT - EXT_T // 2 - INT_T // 2                 # W1's east face to the interior line's west face
+KITCHEN_NS = 12 * FT - EXT_T                                   # W7's north face to W2's south face
+LEVEL_L1 = {'bearing': ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9'], 'shear': ['W1', 'W2', 'W4'],
+            'openings': ['O1', 'O2', 'O4']}
+
+
+def check_strc(r):
+    x = r['derived']['extensions'][STRC]
+    ensure(x == {'levels': {'L1': LEVEL_L1},
+                 'spans': {'R1': {'direction': [1, 0], 'extent': KITCHEN_EW, 'span': KITCHEN_EW},
+                           'S1': {'direction': [0, 1], 'extent': 7 * FT, 'span': 6 * FT}},
+                 'needsEngineer': ['O2']}, x)
+
+
+def strc_derived(d, name=STRC, design=None):
+    """What an implementation of FS_structural that knows it derives for d."""
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(name)]).encode('utf-8'), official.implemented(name),
+                         None, design)
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][name]
+
+
+BAD = lambda d: SD(d, 'walls', 'W1').update(bearing='yes')                    # noqa: E731  the schema tier
+INVALID = lambda d: SD(d, 'walls', 'W10')['framing'].update(spacing=IN)       # noqa: E731  FS-STRC-INV-002
+INVALID_DIAG = [('FS-STRC-INV-002', ['W10'])]
+
+S('examples', 'p10-framed-house', 'The Phase 10 framed house, read by an implementation of FS_structural that knows it: '
+  'bearing and shear walls framed with 2x6 and 2x4 studs, a door and a window under two-ply 2x10 headers - the window '
+  'flagged for an engineer - a door in a non-bearing wall with no header, the Kitchen\'s 2x10 floor joists spanning '
+  'east-west, the Bath\'s slab on grade, and a deck on 2x8 joists with a recorded span. The document has no top-level '
+  'FS_structural data: all of it is on walls, openings, rooms and the slab. It is valid, reports nothing, and derives '
+  'the bearing and shear walls and the openings in bearing walls of L1, the Kitchen\'s span - its extent the clear '
+  'distance between W1\'s east face and the interior line\'s west face - and the deck\'s, whose recorded 6\' stands '
+  'for its 7\' extent, and what needs an engineer.',
+  ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '3.2.1', '5.1.1'], framed(), check=check_strc)
+S('examples', 'core-only-reader', 'The same house read with no known extensions: FS_structural is not evaluated, so '
+  'nothing of it is derived (`derived.extensions` is empty), and Core derives the walls, rooms and openings as it '
+  'would without the data (Core 1.6.9).', ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'], framed(), registry=None,
+  check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['openings']) == ['O1', 'O2', 'O3', 'O4'],
+                         r['derived']['extensions']))
+S('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of '
+  'FS_structural alone: only FS_structural is evaluated and derived.', ['1.2.1', '1.2.4'], framed(),
+  registry=[entry(x) for x in ALL + (STRC,)],
+  check=lambda r: ensure(list(r['derived']['extensions']) == [STRC], list(r['derived']['extensions'])))
+S('examples', 'empty-top-level-data', 'The house with an empty object as FS_structural\'s top-level data, which this '
+  'version gives no members: valid, and derived as without it.', ['1.3.1', '5.1.1'],
+  sedit(lambda d: d.update(extensions={STRC: {}})), check=check_strc)
+S('examples', 'a-framed-roof', 'The house as a Core 0.3 document with a roof over it, framed with 2x8 rafters at 24" '
+  '(Core 16): FS_structural\'s data on a roof is its framing, of the roof systems. Valid, and the derived values are '
+  'the 0.2 house\'s.', ['1.2.1', '1.3.2', '5.1.1'],
+  sedit(lambda d: d.update(floorspec='0.3', roofs={'RF1': {
+      'level': 'L1', 'footprint': [[-FT, -FT], [21 * FT, -FT], [21 * FT, 13 * FT], [-FT, 13 * FT]],
+      'pitch': {'rise': 6, 'run': 12},
+      'extensions': {STRC: {'framing': {'material': 'wood', 'system': 'rafters', 'member': TWO_BY[8], 'spacing': OC24},
+                            'needsEngineer': True}}}})),
+  check=lambda r: ensure(SDER(r)['needsEngineer'] == ['O2', 'RF1'] and SDER(r)['levels'] == {'L1': LEVEL_L1}, SDER(r)))
+
+S('activation', 'unknown-data-not-evaluated', 'W1\'s FS_structural data does not match the schema, but no extension '
+  'is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'], sedit(BAD), registry=None)
+S('activation', 'another-version-known', 'The document uses FS_structural at 0.2.0, which is known (a later entry), '
+  'but the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+  ['1.2.1'], sedit(lambda d: (BAD(d), d['extensionsUsed'].update({STRC: '0.2.0'}))), registry=[entry(STRC, '0.2.0')])
+S('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_structural is evaluated: W1\'s data '
+  'breaks the schema, FS-STRC-SCH-001.', ['1.2.1', '1.3.2'],
+  sedit(lambda d: (BAD(d), d['extensionsUsed'].update({STRC: '0.1'}))), [('FS-STRC-SCH-001', [])])
+S('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+  'FS_structural is evaluated.', ['1.2.1', '1.3.2'],
+  sedit(lambda d: (BAD(d), d['extensionsUsed'].update({STRC: {'version': '0.1.0', 'schema': entry(STRC)['schema']}}))),
+  [('FS-STRC-SCH-001', [])])
+S('activation', 'core-0.1-document', 'A document declaring "0.1" whose extension data is opaque (Core 1.2.4): '
+  'FS_structural is not evaluated, even though it is known.', ['1.2.1'],
+  {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {STRC: '0.1.0'}, 'extensions': {STRC: {'colour': 'red'}}})
+S('activation', 'core-0.3-document', 'The framed house declaring Core "0.3", a draft FS_structural 0.1.0 lists (1.1): '
+  'FS_structural is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], sedit(lambda d: d.update(floorspec='0.3')), check=check_strc)
+S('activation', 'core-0.3-invariants', 'The same "0.3" house with W10\'s studs closer than they are wide: '
+  'FS_structural is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.2.2'],
+  sedit(lambda d: (d.update(floorspec='0.3'), INVALID(d))), INVALID_DIAG)
+
+S('order', 'core-error-first', 'A Core invariant breaks - the door O3 runs past the end of W10, FS-INV-302 - and '
+  'so does FS_structural\'s schema: Core\'s error is reported, and FS_structural is not evaluated.', ['1.2.2'],
+  sedit(lambda d: (BAD(d), d['openings']['O3'].update(offset=7 * FT))), [('FS-INV-302', ['O3'])])
+S('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-STRC-SCH-001.',
+  ['1.2.2', '1.3.2'], sedit(lambda d: (BAD(d), INVALID(d))), [('FS-STRC-SCH-001', [])])
+S('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - O1 has no header in its bearing '
+  'wall: the document is invalid, so no lint is reported, FS_structural\'s or Core\'s.', ['1.2.2', '1.2.3'],
+  sedit(lambda d: (INVALID(d), d['openings']['O1'].pop('extensions'))), INVALID_DIAG)
+
+S('schema', 'top-level-data-not-an-object', 'FS_structural\'s top-level data is an array: Core allows any JSON there, '
+  'FS_structural\'s schema does not.', ['1.3.1'], sedit(lambda d: d.update(extensions={STRC: []})),
+  [('FS-STRC-SCH-001', [])])
+S('schema', 'top-level-data-with-a-member', 'FS_structural 0.1 gives its top-level data no members.', ['1.3.1'],
+  sedit(lambda d: d.update(extensions={STRC: {'defaults': {'bearing': True}}})), [('FS-STRC-SCH-001', [])])
+S('schema', 'bearing-not-a-boolean', 'W1\'s `bearing` is "yes": a flag is a boolean.', ['1.3.2'], sedit(BAD),
+  [('FS-STRC-SCH-001', [])])
+S('schema', 'wall-data-unknown-member', 'W1\'s data has a member a wall\'s data does not define.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'walls', 'W1').update(loadPath='roof')), [('FS-STRC-SCH-001', [])])
+S('schema', 'framing-without-a-system', 'A framing always says how it is built.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'walls', 'W1')['framing'].pop('system')), [('FS-STRC-SCH-001', [])])
+S('schema', 'wall-system-under-a-floor', '"studs" is a wall\'s system, not a floor\'s.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['framing'].update(system='studs')), [('FS-STRC-SCH-001', [])])
+S('schema', 'member-without-a-depth', 'A member always has its actual width and depth.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'walls', 'W2')['framing']['member'].pop('depth')), [('FS-STRC-SCH-001', [])])
+S('schema', 'length-with-a-fraction', 'A length written with a fraction is not an integer, even when it is a whole '
+  'number.', ['1.3.2'], None, [('FS-STRC-SCH-001', [])],
+  raw=(fmt(framed()) + '\n').replace('"spacing": 780288', '"spacing": 780288.0', 1).encode('utf-8'))
+S('schema', 'header-of-nine-plies', 'A header has 1 to 8 plies.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'openings', 'O1')['header'].update(plies=9)), [('FS-STRC-SCH-001', [])])
+S('schema', 'span-direction-of-three-numbers', 'A direction is two integers.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'slabs', 'S1')['span'].update(direction=[0, 1, 0])), [('FS-STRC-SCH-001', [])])
+S('schema', 'span-on-a-wall', 'A wall\'s data has no span.', ['1.3.2'],
+  sedit(lambda d: SD(d, 'walls', 'W1').update(span={'direction': [1, 0]})), [('FS-STRC-SCH-001', [])])
+S('schema', 'roof-system-on-a-roof', '"joists" is a floor\'s system, not a roof\'s (a Core 0.3 document).', ['1.3.2'],
+  sedit(lambda d: d.update(floorspec='0.3', roofs={'RF1': {
+      'level': 'L1', 'footprint': [[-FT, -FT], [21 * FT, -FT], [21 * FT, 13 * FT], [-FT, 13 * FT]],
+      'pitch': {'rise': 6, 'run': 12}, 'extensions': {STRC: {'framing': joists(8)}}}})),
+  [('FS-STRC-SCH-001', [])])
+S('schema', 'data-on-a-level', 'L1 carries FS_structural data, which this version defines on no level.', ['1.3.3'],
+  sedit(lambda d: d['levels']['L1'].update(extensions={STRC: {}})), [('FS-STRC-SCH-001', [])])
+S('schema', 'data-on-a-wall-type', 'The wall type EXT carries a framing: FS_structural 0.1 records framing on walls, '
+  'never on types.', ['1.3.3'], sedit(lambda d: d['types']['EXT'].update(extensions={STRC: {'framing': studs(6)}})),
+  [('FS-STRC-SCH-001', [])])
+S('schema', 'data-on-a-junction', 'A junction carries an FS_structural note.', ['1.3.3'],
+  sedit(lambda d: d['junctions']['J1'].update(extensions={STRC: {'note': 'Corner post'}})), [('FS-STRC-SCH-001', [])])
+
+S('invariants', 'solid-floor-with-a-spacing', 'The Bath\'s concrete slab on grade has a spacing.', ['2.2.1'],
+  sedit(lambda d: SD(d, 'rooms', 'R2')['floor']['framing'].update(spacing=OC16)), [('FS-STRC-INV-001', ['R2'])])
+S('invariants', 'panel-wall-with-a-member', 'W10 is built of panels, and has a member.', ['2.2.1'],
+  sedit(lambda d: SD(d, 'walls', 'W10')['framing'].update(system='panels')),
+  [('FS-STRC-INV-001', ['W10'])])
+S('invariants', 'panel-wall', 'W10 built of panels, with no member or spacing: valid.', ['2.2.1'],
+  sedit(lambda d: SD(d, 'walls', 'W10').update(framing={'material': 'wood', 'system': 'panels'})))
+S('invariants', 'spacing-less-than-width', 'W10\'s 2x4 studs, 1 1/2" wide, are 1" on centre.', ['2.2.2'],
+  sedit(INVALID), INVALID_DIAG)
+S('invariants', 'spacing-equal-to-width', 'The deck\'s joists 1 1/2" on centre, as wide as they are: side by side, a '
+  'built-up deck. Valid.', ['2.2.2'], sedit(lambda d: SD(d, 'slabs', 'S1')['framing'].update(spacing=3 * IN // 2)))
+S('invariants', 'masonry-studs', 'W1 framed with concrete masonry studs.', ['2.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W1')['framing'].update(material='concreteMasonry')), [('FS-STRC-INV-003', ['W1'])])
+S('invariants', 'concrete-joists', 'The Kitchen\'s floor on concrete joists.', ['2.2.3'],
+  sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['framing'].update(material='concrete')), [('FS-STRC-INV-003', ['R1'])])
+S('invariants', 'masonry-wall', 'W1 a solid concrete masonry wall: valid.', ['2.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W1').update(framing={'material': 'concreteMasonry', 'system': 'solid'})))
+S('invariants', 'steel-joists', 'The deck on cold-formed steel joists: valid.', ['2.2.3'],
+  sedit(lambda d: SD(d, 'slabs', 'S1')['framing'].update(material='coldFormedSteel')))
+S('invariants', 'span-direction-zero', 'The Kitchen\'s floor spans along [0, 0], which is no direction.', ['3.1.1'],
+  sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['span'].update(direction=[0, 0])), [('FS-STRC-INV-004', ['R1'])])
+S('invariants', 'slab-span-direction-zero', 'The deck spans along [0, 0], with a recorded length.', ['3.1.1'],
+  sedit(lambda d: SD(d, 'slabs', 'S1')['span'].update(direction=[0, 0])), [('FS-STRC-INV-004', ['S1'])])
+S('invariants', 'not-evaluated-for-masonry-studs', 'W1\'s concrete masonry studs are also 1" on centre: '
+  'FS-STRC-INV-003 only, and not FS-STRC-INV-002 (4.2).', ['4.2.1', '2.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W1')['framing'].update(material='concreteMasonry', spacing=IN)),
+  [('FS-STRC-INV-003', ['W1'])])
+S('invariants', 'not-evaluated-for-a-solid-floor', 'The Bath\'s slab on grade has a 2x10 member at 1": '
+  'FS-STRC-INV-001 only, and not FS-STRC-INV-002 (4.2).', ['4.2.1', '2.2.1'],
+  sedit(lambda d: SD(d, 'rooms', 'R2')['floor']['framing'].update(member=TWO_BY[10], spacing=IN)),
+  [('FS-STRC-INV-001', ['R2'])])
+S('invariants', 'every-one-once', 'Four framings break three rules at once, and the deck\'s span has no direction: '
+  'each is reported once, naming its element.', ['1.2.3', '2.2.1', '2.2.2', '2.2.3', '3.1.1'],
+  sedit(lambda d: (INVALID(d), SD(d, 'walls', 'W1')['framing'].update(material='masonry'),
+                   SD(d, 'rooms', 'R2')['floor']['framing'].update(spacing=OC16),
+                   SD(d, 'walls', 'W8')['framing'].update(spacing=IN),
+                   SD(d, 'slabs', 'S1')['span'].update(direction=[0, 0]))),
+  [('FS-STRC-INV-001', ['R2']), ('FS-STRC-INV-002', ['W10']), ('FS-STRC-INV-002', ['W8']),
+   ('FS-STRC-INV-003', ['W1']), ('FS-STRC-INV-004', ['S1'])])
+S('invariants', 'no-judgement-of-adequacy', 'A house framed as no engineer would accept: the Kitchen\'s floor on 2x4 '
+  'joists at 48" across its 11\'6 1/2", the deck on 2x4 joists at 48" with no span recorded, and the back door widened to '
+  '10\' under one 2x4 laid flat. FS_structural compares no member with a load, a span table or a code: the document '
+  'is valid, reports nothing, and derives only the values of chapter 5 - the spans as recorded and measured, and '
+  'nothing that says whether anything is adequate.', ['1.4.1', '1.4.2', '5.1.1'],
+  sedit(lambda d: (SD(d, 'rooms', 'R1')['floor'].update(framing=joists(4, 48 * IN)),
+                   SD(d, 'slabs', 'S1').update(framing=joists(4, 48 * IN), span={'direction': [0, 1]}),
+                   d['openings']['O1'].update(offset=FT, width=10 * FT),
+                   SD(d, 'openings', 'O1').update(header={'material': 'wood', 'member': TWO_BY[4]}))),
+  check=lambda r: ensure(SDER(r) == {'levels': {'L1': LEVEL_L1},
+                                     'spans': {'R1': {'direction': [1, 0], 'extent': KITCHEN_EW, 'span': KITCHEN_EW},
+                                               'S1': {'direction': [0, 1], 'extent': 7 * FT, 'span': 7 * FT}},
+                                     'needsEngineer': ['O2']}, SDER(r)))
+
+S('lints', 'opening-in-a-bearing-wall-without-a-header', 'The back door O1, in the bearing wall W7, has no header.',
+  ['1.2.3', '2.4.1'], sedit(lambda d: d['openings']['O1'].pop('extensions')), [('FS-STRC-LINT-001', ['O1', 'W7'])])
+S('lints', 'opening-in-a-wall-not-stated-to-bear', 'W10 does not say whether it bears, and its door O3 has no header: '
+  'no lint, since only a wall whose `bearing` is true asks for one.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W10').pop('bearing')))
+S('lints', 'header-wider-than-the-wall', 'O1\'s header has five plies of 2x10, 7 1/2" wide, in a 6 1/2" wall.',
+  ['1.2.3'], sedit(lambda d: SD(d, 'openings', 'O1')['header'].update(plies=5)), [('FS-STRC-LINT-002', ['O1', 'W7'])])
+S('lints', 'header-as-wide-as-the-wall', 'O1\'s header is a 6 1/2" wide member, exactly the wall\'s thickness: no '
+  'lint.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'openings', 'O1').update(header={'material': 'engineeredWood', 'member': {'width': EXT_T, 'depth': 12 * IN}})))
+S('lints', 'studs-deeper-than-the-wall', 'W10, 4 1/2" thick, is framed with 2x6 studs, 5 1/2" deep.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W10').update(framing=studs(6, OC24))), [('FS-STRC-LINT-003', ['W10'])])
+S('lints', 'header-that-does-not-fit', 'The window O2\'s head is at 84" in a wall 2700 mm high, which leaves '
+  '566.4 mm above it: a 24" (609.6 mm) deep glulam header does not fit.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'openings', 'O2').update(header={'material': 'engineeredWood', 'member': {'designation': '5-1/8 x 24 GLB', 'width': 41 * IN // 8, 'depth': 24 * IN}})),
+  [('FS-STRC-LINT-004', ['O2', 'W2'])])
+S('lints', 'header-that-just-fits', 'O2\'s header exactly 566.4 mm deep, the space above its head: no lint.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'openings', 'O2')['header']['member'].update(depth=H - 84 * IN)))
+S('lints', 'header-in-a-wall-with-its-own-height', 'W2 is 2300 mm high (its top unconnected, Core 5.9), and O2\'s '
+  '2x10 header, 9 1/4" deep, no longer fits in the 166.4 mm left above the window.', ['1.2.3'],
+  sedit(lambda d: d['walls']['W2'].update(top={'height': 2300 * MM})), [('FS-STRC-LINT-004', ['O2', 'W2'])])
+S('lints', 'span-longer-than-the-deck', 'The deck\'s recorded span is 8\', and it reaches only 7\' along its '
+  'direction.', ['1.2.3', '3.2.1'], sedit(lambda d: SD(d, 'slabs', 'S1')['span'].update(length=8 * FT)),
+  [('FS-STRC-LINT-005', ['S1'])])
+S('lints', 'span-as-long-as-the-room', 'The Kitchen\'s recorded span is exactly its extent: no lint; one unit more, '
+  'in the next test, is.', ['1.2.3', '3.2.1'],
+  sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['span'].update(length=KITCHEN_EW)),
+  check=lambda r: ensure(SDER(r)['spans']['R1'] == {'direction': [1, 0], 'extent': KITCHEN_EW, 'span': KITCHEN_EW}, SDER(r)))
+S('lints', 'span-one-unit-longer-than-the-room', 'The Kitchen\'s recorded span is its extent plus 1/1280 mm.',
+  ['1.2.3', '3.2.1'], sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['span'].update(length=KITCHEN_EW + 1)),
+  [('FS-STRC-LINT-005', ['R1'])])
+S('lints', 'bearing-wall-without-framing', 'W8 bears, and says nothing of how it is built.', ['1.2.3'],
+  sedit(lambda d: SD(d, 'walls', 'W8').pop('framing')), [('FS-STRC-LINT-006', ['W8'])])
+
+S('derived', 'span-on-the-diagonal', 'The deck spans along [1, 1], with no recorded length: its corners project on '
+  'the direction from -6\' to 9\', 15\' times the direction\'s length, so its extent is 15\' / sqrt 2 - 4138102.02... - '
+  'rounded once to 4138102.', ['3.2.1', '5.1.1'],
+  sedit(lambda d: SD(d, 'slabs', 'S1').update(span={'direction': [1, 1]})),
+  check=lambda r: ensure(SDER(r)['spans']['S1'] == {'direction': [1, 1], 'extent': 4138102, 'span': 4138102}, SDER(r)))
+S('derived', 'direction-length-does-not-matter', 'The Kitchen\'s span along [3, 0] and the Bath\'s floor along [0, -7]: '
+  'a direction\'s length changes nothing, and its sign changes nothing. The Kitchen reaches the same clear width as '
+  'along [1, 0]; the Bath, from W10\'s north face to W3\'s south face, 6\' less half of each wall.', ['3.2.1', '5.1.1'],
+  sedit(lambda d: (SD(d, 'rooms', 'R1')['floor']['span'].update(direction=[3, 0]),
+                   SD(d, 'rooms', 'R2')['floor'].update(span={'direction': [0, -7]}))),
+  check=lambda r: ensure(SDER(r)['spans'] == {
+      'R1': {'direction': [3, 0], 'extent': KITCHEN_EW, 'span': KITCHEN_EW},
+      'R2': {'direction': [0, -7], 'extent': 6 * FT - EXT_T // 2 - INT_T // 2, 'span': 6 * FT - EXT_T // 2 - INT_T // 2},
+      'S1': {'direction': [0, 1], 'extent': 7 * FT, 'span': 6 * FT}}, SDER(r)))
+S('derived', 'kitchen-spanning-north-south', 'The Kitchen\'s joists turned to span north-south: its extent is the '
+  'clear distance between W7\'s north face and W2\'s south face.', ['3.2.1', '5.1.1'],
+  sedit(lambda d: SD(d, 'rooms', 'R1')['floor']['span'].update(direction=[0, 1])),
+  check=lambda r: ensure(SDER(r)['spans']['R1'] == {'direction': [0, 1], 'extent': KITCHEN_NS, 'span': KITCHEN_NS}, SDER(r)))
+S('derived', 'flags-absent-and-false', 'W3 says nothing of bearing, W5 says it does not bear, and W10 says it is a '
+  'shear wall: `bearing` lists only the walls whose flag is true, the openings only those in them, and an absent '
+  'flag is never false. A second level L2, with no walls, has empty lists. W10 and the Kitchen are flagged for an '
+  'engineer.', ['5.1.1'],
+  sedit(lambda d: (SD(d, 'walls', 'W3').pop('bearing'), SD(d, 'walls', 'W5').update(bearing=False),
+                   SD(d, 'walls', 'W10').update(shear=True, needsEngineer=True), SD(d, 'rooms', 'R1').update(needsEngineer=True),
+                   d['levels'].update(L2={'building': 'B1', 'elevation': H, 'height': H}))),
+  check=lambda r: ensure(SDER(r)['levels'] == {
+      'L1': {'bearing': ['W1', 'W2', 'W4', 'W6', 'W7', 'W8', 'W9'], 'shear': ['W1', 'W10', 'W2', 'W4'], 'openings': ['O1', 'O2', 'O4']},
+      'L2': {'bearing': [], 'shear': [], 'openings': []}} and SDER(r)['needsEngineer'] == ['O2', 'R1', 'W10'], SDER(r)))
+S('derived', 'an-opening-in-a-bearing-wall', 'W10 is said to bear: its door O3 joins the openings in L1\'s bearing '
+  'walls, and has no header (FS-STRC-LINT-001).',
+  ['5.1.1', '1.2.3'], sedit(lambda d: SD(d, 'walls', 'W10').update(bearing=True)),
+  [('FS-STRC-LINT-001', ['O3', 'W10'])],
+  check=lambda r: ensure(SDER(r)['levels']['L1']['openings'] == ['O1', 'O2', 'O3', 'O4']
+                         and 'W10' in SDER(r)['levels']['L1']['bearing'], SDER(r)))
+
+
+def deck_options(d):
+    """Core 0.3 design options: the deck's option set OS1, with option A (OP1, the primary) keeping the
+    8' x 7' deck S1, and option B (OP2) a larger deck S2, 10' x 9', on 2x10 joists spanning east-west."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Deck'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    d['slabs']['S1']['option'] = 'OP1'
+    d['slabs']['S2'] = {'level': 'L1', 'boundary': [[FT, -10 * FT], [11 * FT, -10 * FT], [11 * FT, -FT], [FT, -FT]],
+                        'thickness': 3 * IN // 2, 'name': 'Larger deck', 'option': 'OP2',
+                        'extensions': {STRC: {'framing': joists(10), 'span': {'direction': [1, 0]}, 'needsEngineer': True}}}
+
+
+S('options', 'deck-option-a', 'Deck options A and B as Core 0.3 design options (Core 19): the 8\' x 7\' deck S1 is in A, '
+  'the primary, and a 10\' x 9\' deck S2 on 2x10 joists in B. FS_structural is evaluated in each checked design; the '
+  'primary design is derived, with S1\'s span and not S2\'s.', ['1.2.1', '1.2.4', '1.3.2', '5.1.1', 'FS-CORE-19.3.1'],
+  sedit(deck_options),
+  check=lambda r: ensure(sorted(SDER(r)['spans']) == ['R1', 'S1'] and SDER(r)['needsEngineer'] == ['O2'], SDER(r)))
+S('options', 'deck-option-b', 'The same document, deriving the design that chooses B (design.json): S2 spans 10\' '
+  'east-west, and it is flagged for an engineer.', ['1.2.4', '5.1.1', 'FS-CORE-19.3.1'], sedit(deck_options),
+  design={'OS1': 'OP2'},
+  check=lambda r: ensure(SDER(r)['spans']['S2'] == {'direction': [1, 0], 'extent': 10 * FT, 'span': 10 * FT}
+                         and 'S1' not in SDER(r)['spans'] and SDER(r)['needsEngineer'] == ['O2', 'S2'], SDER(r)))
+S('options', 'invariant-in-option-b', 'Option B\'s deck has joists closer than they are wide: FS_structural is '
+  'evaluated in each checked design, so FS-STRC-INV-002 is reported for option B\'s design, with `design`.',
+  ['1.2.1', '1.2.3', '2.2.2'],
+  sedit(lambda d: (deck_options(d), SD(d, 'slabs', 'S2')['framing'].update(spacing=IN))),
+  [('FS-STRC-INV-002', ['S2'], 'OP2')])
+S('options', 'lint-in-option-b', 'Option B\'s deck records a 12\' span across its 10\': the lint is reported for '
+  'option B\'s design, with `design`.', ['1.2.3', '3.2.1'],
+  sedit(lambda d: (deck_options(d), SD(d, 'slabs', 'S2')['span'].update(length=12 * FT))),
+  [('FS-STRC-LINT-005', ['S2'], 'OP2')])
+
+SO = lambda *a, **k: O(STRC, *a, **k)    # noqa: E731
+SO('mark-a-wall-bearing', 'setProperty of W10 /extensions/FS_structural/bearing: W10 now bears, by an applier that '
+   'implements FS_structural and knows it. Ops never judges a structure: the batch commits, and the result is valid, '
+   'with its door O3 now an opening in a bearing wall with no header (FS-STRC-LINT-001, 6.1.1 is the editor\'s to act '
+   'on).', ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'], framed(),
+   {'batch': [{'op': 'setProperty', 'id': 'W10', 'path': '/extensions/FS_structural/bearing', 'value': True}]},
+   check=lambda r, B: ensure(strc_derived(B)['levels']['L1']['openings'] == ['O1', 'O2', 'O3', 'O4'], strc_derived(B)))
+SO('add-a-header', 'setProperty of O3 /extensions/FS_structural/header, creating O3\'s extensions and its FS_structural '
+   'data on the way (Ops 2.3): a single 2x6 header over the utility door. It commits.', ['1.2.1', '1.3.2', 'FS-OPS-2.3.1'],
+   framed(), {'batch': [{'op': 'setProperty', 'id': 'O3', 'path': '/extensions/FS_structural/header',
+                         'value': {'material': 'wood', 'member': TWO_BY[6]}}]},
+   check=lambda r, B: ensure(B['openings']['O3']['extensions'] == {STRC: {'header': {'material': 'wood', 'member': TWO_BY[6]}}},
+                             B['openings']['O3']))
+SO('studs-closer-than-wide-is-rejected', 'Setting W1\'s stud spacing to 1": the result breaks 2.2.2, and an applier that '
+   'implements FS_structural and knows it rejects the batch (Ops 1.2.3) with FS-STRC-INV-002.',
+   ['2.2.2', '1.2.1', 'FS-OPS-1.2.3'], framed(),
+   {'batch': [{'op': 'setProperty', 'id': 'W1', 'path': '/extensions/FS_structural/framing/spacing', 'value': IN}]},
+   'rejected', [('FS-STRC-INV-002', ['W1'])])
+SO('data-on-a-level-is-rejected', 'Setting a note on L1: the result breaks 1.3.3, and the batch is rejected with '
+   'FS-STRC-SCH-001.', ['1.3.3', '1.2.1', 'FS-OPS-1.2.3'], framed(),
+   {'batch': [{'op': 'setProperty', 'id': 'L1', 'path': '/extensions/FS_structural', 'value': {'note': 'Check'}}]},
+   'rejected', [('FS-STRC-SCH-001', [])])
+SO('move-a-wall-and-the-span-follows', 'The Kitchen\'s west wall W1 moved 1\' west: nothing in FS_structural\'s data '
+   'changes, and the Kitchen\'s span, derived from its room polygon, is 1\' longer.', ['3.2.1', '5.1.1', 'FS-OPS-2.7.1',
+                                                                                       'FS-OPS-4.2.1'],
+   framed(), {'batch': [{'op': 'moveWall', 'wall': 'W1', 'by': "1'"}]},
+   check=lambda r, B: ensure(strc_derived(B)['spans']['R1']['extent'] == KITCHEN_EW + FT
+                             and B['walls']['W1']['extensions'] == framed()['walls']['W1']['extensions'], strc_derived(B)))
+SO('unset-a-flag', 'unsetProperty of W2 /extensions/FS_structural/shear: W2 no longer says whether it is a shear '
+   'wall, and leaves the shear walls.', ['1.2.1', 'FS-OPS-2.3.1'], framed(),
+   {'batch': [{'op': 'unsetProperty', 'id': 'W2', 'path': '/extensions/FS_structural/shear'}]},
+   check=lambda r, B: ensure(strc_derived(B)['levels']['L1']['shear'] == ['W1', 'W4'], strc_derived(B)))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -1325,7 +1751,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL:
+        for name in ALL + (STRC,):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

@@ -4,7 +4,7 @@ The Core schema tier is transcribed by hand (tools/oracle/schema.py). An extensi
 published file of its own (registry/<NAME>/*.schema.json), and the oracle reads that file: this is
 a small, independent interpreter of the keywords those files use - `$ref` (local `#/$defs/...`),
 `type`, `properties`, `required`, `additionalProperties`, `propertyNames`, `enum`, `minimum`,
-`maximum`, `minLength`, `maxLength`, `pattern`, `items`, `minItems`, `uniqueItems` - and it refuses
+`maximum`, `minLength`, `maxLength`, `pattern`, `items`, `minItems`, `maxItems`, `uniqueItems` - and it refuses
 a schema that uses any other keyword, so that a schema can never silently mean more than it checks.
 
 A JSON integer is a Python int that is not a bool (jsonparse keeps `1.0` a float, 2.1.1); a string's
@@ -18,7 +18,7 @@ import re
 
 ANNOTATIONS = {'$schema', '$id', '$comment', '$defs', 'title', 'description', 'default'}
 KEYWORDS = {'$ref', 'type', 'properties', 'required', 'additionalProperties', 'propertyNames', 'enum',
-            'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'items', 'minItems', 'uniqueItems'}
+            'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'items', 'minItems', 'maxItems', 'uniqueItems'}
 
 
 def _type_ok(v, t: str) -> bool:
@@ -89,6 +89,8 @@ class Schema:
         if isinstance(v, list):
             if 'minItems' in node and len(v) < node['minItems']:
                 out.append(f'{path}: fewer than {node["minItems"]} items')
+            if 'maxItems' in node and len(v) > node['maxItems']:
+                out.append(f'{path}: more than {node["maxItems"]} items')
             if node.get('uniqueItems') and any(_same(a, b) for i, a in enumerate(v) for b in v[i + 1:]):
                 out.append(f'{path}: items are not unique')
             if 'items' in node:

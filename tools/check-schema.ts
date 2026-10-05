@@ -144,8 +144,10 @@ for (const x of extensionSchemas(root)) {
     problems.push(`registry/${x.name}: has no spec.md, so its statement and diagnostic code is not known`);
     continue;
   }
+  // An extension with data on core elements (FS_structural) defines it at #/$defs/coreElements.
+  const onElements = (own.schema.$defs as Record<string, unknown> | undefined)?.coreElements ? ajv.getSchema(`${own.id}#/$defs/coreElements`) : undefined;
   const data = checkExtensionSuite(suiteDir, x.name, code, validateData, requestValidator(opsAjv['0.2'], '0.2'), root,
-    requestValidator(opsAjv['0.3'], '0.3'));
+    requestValidator(opsAjv['0.3'], '0.3'), onElements);
   problems.push(...data.problems);
   console.log(`schema: ${x.name} ${x.version}: ${docs.checked} documents checked against Core's schema, ${data.checked} against the extension's or Ops's`);
 }
