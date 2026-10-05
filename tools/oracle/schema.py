@@ -9,7 +9,8 @@ from 1) within 2^53 - 1.
 
 And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
 `clearOpening` (8.4.2, 8.4.3); a level's `floorThickness` and `ceilingHeight` (1.8.4), a room's
-`floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2). And stairs (17.1.1, 17.2.1).
+`floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2); and the `roofs` collection
+(16.1.1) and the `stairs` collection (17.1.1, 17.2.1).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -30,6 +31,7 @@ MEDIA_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-
 VERSION_RE = re.compile(r'[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?')                       # 1.6.7
 URI_RE = re.compile(r"https://(?:[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=-]|%[0-9A-Fa-f]{2})+")  # 8.6
 NAME_RE = re.compile(r'[a-z][A-Za-z0-9]*')                                                # 12.5, 13.5
+EDGE_RE = re.compile(r'0|[1-9][0-9]*')                                                    # 16.1 (0.3)
 
 ROOM_FUNCTIONS = {'unspecified', 'sleeping', 'bath', 'kitchen', 'living', 'dining', 'office',
                   'laundry', 'utility', 'storage', 'circulation', 'mechanical', 'garage', 'exterior'}
@@ -447,6 +449,32 @@ class _Checker:
                 allowed['purpose'] = self.enum(*SLAB_PURPOSES)
             self.members(v, path, allowed, ('level', 'boundary', 'thickness'))
 
+    # ---- Core 0.3: chapter 16
+    def roof(self, v, path):
+        if not self.obj(v, path):
+            return
+
+        def edges(x, p):
+            if not self.obj(x, p):
+                return
+            for k, e in x.items():
+                q = f'{p}/{k}'
+                if not EDGE_RE.fullmatch(k):
+                    self.bad(q, 'not an edge index')
+                if not self.obj(e, q):
+                    continue
+                self.members(e, q, {'gable': self.boolean, 'pitch': self.pitch, 'overhang': self.nonneg})
+                if e.get('gable') is True and 'pitch' in e:
+                    self.bad(q, 'a gable has no pitch')
+        self.members(v, path, {'level': self.ref, 'footprint': self.polygon, 'height': self.length,
+                               'pitch': self.pitch, 'overhang': self.nonneg, 'edges': edges,
+                               'thickness': self.positive, 'material': self.ref, **self.common()},
+                     ('level', 'footprint'))
+
+    def boolean(self, v, path):
+        if not isinstance(v, bool):
+            self.bad(path, 'not a boolean')
+
     # ---- Core 0.3: chapter 17
     def stair(self, v, path):
         if not self.obj(v, path):
@@ -610,6 +638,7 @@ class _Checker:
             'assets': self.collection(self.asset), 'extensionsUsed': ext_used,
             'extensionsRequired': ext_required, 'extensions': self.top_extensions, 'extras': self.any_obj,
             **({'program': self.program} if self.v02 else {}),
+            **({'roofs': self.collection(self.roof)} if self.v03 else {}),
             **({'stairs': self.collection(self.stair)} if self.v03 else {}),
         }, ('floorspec', 'project'))
 

@@ -1,6 +1,6 @@
 """Stairs (Core 0.3, chapter 17): the layout of a stair in its frame, its foot and head, its rise and
 riser count, the steps, run and walkline of a straight, L-shaped or U-shaped stair, its headroom, the
-stair invariants FS-INV-901 to FS-INV-904, the lint FS-LINT-901, and the derived `stairs`.
+stair invariants FS-INV-901 to FS-INV-904, the lint FS-LINT-016, and the derived `stairs`.
 
 A stair is laid out in its own frame (13.1): the origin is its `position` - the middle of its first
 nosing line - at the top of the floor at its foot, facing F(rotation), the direction the first flight
@@ -323,8 +323,8 @@ def invariants(doc: Doc, bad_levels, bad_rooms, diag):
 
 
 def lints(doc: Doc, diag):
-    """FS-LINT-901: a stair whose steps this draft does not derive."""
-    return [diag('FS-LINT-901', [sid]) for sid in sorted(doc.stairs) if form(doc.stairs[sid])['kind'] not in DERIVED_FORMS]
+    """FS-LINT-016: a stair whose steps this draft does not derive."""
+    return [diag('FS-LINT-016', [sid]) for sid in sorted(doc.stairs) if form(doc.stairs[sid])['kind'] not in DERIVED_FORMS]
 
 
 # ------------------------------------------------------------------------------ headroom (17.6)
@@ -530,9 +530,7 @@ def derive_one(doc: Doc, sid, graphs: dict) -> dict:
 
 
 def derive(doc: Doc) -> dict:
-    """{stairs} of a valid document that has a stair; {} for one that has none (17.4)."""
-    if not doc.stairs:
-        return {}
+    """{stairs} of a valid document (17.4): empty for one that has none."""
     graphs: dict = {}
     return {'stairs': {sid: derive_one(doc, sid, graphs) for sid in sorted(doc.stairs)}}
 

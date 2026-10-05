@@ -39,15 +39,18 @@ from .version import OPS_01, Profile
 PREFIX = {'buildings': 'B', 'levels': 'L', 'junctions': 'J', 'walls': 'W', 'separators': 'S',
           'openings': 'O', 'rooms': 'R', 'slabs': 'SL', 'types': 'T', 'materials': 'M', 'assets': 'A',
           ITEMS: 'P',                               # Ops 0.2: program items
-          'stairs': 'ST'}                           # Ops 0.3: stairs
+          'roofs': 'RF',                            # Ops 0.3: roofs (Core 16.1)
+          'stairs': 'ST'}                           # Ops 0.3: stairs (Core 17.1)
 EXT_PREFIX = 'X'                                    # Ops 0.2: every extension collection
 DOC_MEMBERS = ('floorspec', 'project', 'site', 'extensionsUsed', 'extensionsRequired', 'extensions', 'extras')
 DOC_MEMBERS_02 = DOC_MEMBERS + ('program',)
 INVERSE_ORDER = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', 'levels', 'buildings',
                  'types', 'materials', 'assets')
-# Ops 0.2, 1.6 step 2: extension elements first, program items before levels; Ops 0.3: stairs after slabs
-# (a document of an earlier draft has none, so its inverse is unchanged)
-INVERSE_ORDER_02 = ('openings', 'rooms', 'slabs', 'stairs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
+# Ops 0.2, 1.6 step 2: extension elements first, program items before levels
+INVERSE_ORDER_02 = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
+                    'buildings', 'types', 'materials', 'assets')
+# Ops 0.3: roofs after slabs, and stairs after roofs
+INVERSE_ORDER_03 = ('openings', 'rooms', 'slabs', 'roofs', 'stairs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
                     'buildings', 'types', 'materials', 'assets')
 WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top')
 COMMON = ('name', 'extensions', 'extras')     # Core 1.4: what every element may carry
@@ -198,7 +201,7 @@ class Transaction:
         if k == 'buildings':
             where('levels', lambda e: e.get('building') == eid)
         elif k == 'levels':
-            for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs'):
+            for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs', 'roofs'):
                 where(cc, lambda e: e.get('level') == eid)
             where('walls', lambda e: (isd(e.get('base')) and e['base'].get('level') == eid)
                   or (isd(e.get('top')) and e['top'].get('level') == eid))
@@ -223,6 +226,7 @@ class Transaction:
             where('walls', layered)
             where('rooms', lambda e: eid in (e.get('wallFinish'), e.get('floorFinish'), e.get('ceilingFinish')))
             where('slabs', lambda e: e.get('material') == eid)
+            where('roofs', lambda e: e.get('material') == eid)
         elif k == 'assets':
             where('materials', lambda e: isd(e.get('texture')) and e['texture'].get('asset') == eid)
             ext(self._fallback_is('asset', 'symbol', eid))
@@ -239,7 +243,7 @@ class Transaction:
         if k == 'buildings':
             where('levels', lambda e: e.get('building') == eid)
         elif k == 'levels':
-            for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs'):
+            for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs', 'roofs'):
                 where(cc, lambda e: e.get('level') == eid)
             out.extend(self._ext_where(lambda el: self._host_is('level', eid)(el) or self._fallback_is('level', eid)(el)))
             if self.P.v03:                                          # Ops 0.3: a stair from or to it
@@ -929,7 +933,8 @@ def _places_02(a: dict, b: dict, profile: Profile):
     """Ops 0.2, 1.6 step 2: the extension collections of A and B (by extension, then collection
     name), then the eleven collections and the program's items in INVERSE_ORDER_02."""
     exts = sorted({(EXT, x, c) for d in (a, b) for x, c, _ in ext_collections(d, profile)})
-    return exts + [(c,) for c in INVERSE_ORDER_02]
+    order = INVERSE_ORDER_03 if profile.version == '0.3' else INVERSE_ORDER_02
+    return exts + [(c,) for c in order]
 
 
 def _in(doc: dict, place, profile: Profile) -> dict:

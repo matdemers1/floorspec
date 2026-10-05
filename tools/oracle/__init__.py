@@ -17,6 +17,7 @@ Modules:
     derive      face lines, corner sequences, face ends, joins, fills, elevations, faces, rings,
                 anchors, areas and openings (chapters 5-7)
     floors      floors, flat, tray and vaulted ceilings, slabs and surface hosts on them (Core 0.3, chapter 15)
+    roofs       roofs: eave outlines, flat, shed and equal-pitch (straight-skeleton) surfaces (Core 0.3, chapter 16)
     stairs      stairs: layout, foot and head, rise and risers, steps, walkline and headroom (Core 0.3, chapter 17)
     validate    the tiers and the order of evaluation of chapter 10, and the lints
     ext         the official extensions (registry/), each written from its own specification:

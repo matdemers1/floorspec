@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
  * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2
- * and 0.3), Floorspec Ops's apply-request schemas (0.1 and 0.2; Ops 0.3 uses 0.2's), whose rejections are
+ * and 0.3), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -36,7 +36,7 @@ export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': 
 /** The Ops request schemas, schema/ops/<v>/, oldest first. */
 export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
-/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with Core 0.3's `stairs` among addElement's collections (Ops 0.4). */
+/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4). */
 export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
 
 export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;

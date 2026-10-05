@@ -31,12 +31,13 @@ from .version import OPS_01, Profile
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets')
-STAIRS = 'stairs'                                # Ops 0.3: the collection Core 0.3 adds (chapter 17)
+ROOFS = 'roofs'                                  # Ops 0.3: Core 0.3's twelfth collection (Core 16.1)
+STAIRS = 'stairs'                                # Ops 0.3: Core 0.3's thirteenth collection (Core 17.1)
 
 
 def collections(profile: Profile) -> tuple:
-    """The collections of Core 1.1 an applier of this draft adds elements to: Core 0.3's stairs too."""
-    return COLLECTIONS + (STAIRS,) if profile.v03 else COLLECTIONS
+    """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` and `stairs` too."""
+    return COLLECTIONS + ((ROOFS, STAIRS) if profile.version == '0.3' else ())
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them

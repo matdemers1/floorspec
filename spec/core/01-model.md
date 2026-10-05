@@ -18,6 +18,7 @@ optional site, the element collections, the program, the extension declarations 
 | `openings` | collection of Opening | `{}` | 7.1 |
 | `rooms` | collection of Room | `{}` | 6.5 |
 | `slabs` | collection of Slab | `{}` | 6.7 |
+| `roofs` | collection of Roof | `{}` | 16.1 |
 | `types` | collection of Type | `{}` | 8.1 |
 | `materials` | collection of Material | `{}` | 8.5 |
 | `assets` | collection of Asset | `{}` | 8.6 |
@@ -56,7 +57,9 @@ without it: an empty program, a room that fulfils no program item, a version str
 clearances, extension data that core does not look inside, an operation that is not declared, no
 declared clear opening, a floor at its level's elevation with no declared thickness, a flat
 ceiling at its level's height, a slab whose purpose is not stated, and no stairs.
-So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
+The `roofs` collection (chapter 16) is new in 0.3 too: its absence means no roof, and a reader of
+this draft derives an empty set of roofs for a document of any draft; so are `stairs` (chapter 17),
+of which it derives an empty set too. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
 configured with the same known extensions (12.2), is valid under 0.3 with the same diagnostics,
 the same derived values, the same canonical form and the same content hash; and a document valid
 under 0.1, read by a validator configured with no known extensions, is valid under 0.3 with the
@@ -67,9 +70,9 @@ are reported when the plan has doors but no way in. Floors, ceilings and slabs (
 no new member either: a reader of this draft derives them for a document of any draft, from the
 defaults — so a valid 0.2 or 0.1 document read as 0.3 also derives its rooms' floors and ceilings
 and its slabs' bounding geometry, and every value its own draft derives is unchanged, the
-placements of `surface` hosts included (15.6). In a 0.1 document, top-level extension data is
+placements of `surface` hosts included (15.6), and it has no roofs. In a 0.1 document, top-level extension data is
 opaque, as 0.1 says, even where it has a member named `collections`. Core 0.1's schema rejects
-every member 0.2 and 0.3 add, and Core 0.2's every member 0.3 adds, so a document that declares
+every member and collection 0.2 and 0.3 add, and Core 0.2's every one 0.3 adds, so a document that declares
 `"0.1"` or `"0.2"` and uses one is invalid (`FS-SCH-001`).
 
 > [!note] Versioning policy
@@ -88,7 +91,7 @@ reference; elements are never nested inside their level.
 
 ```text
 Project ─ Site (optional)
-   └─ Building (1..n) ─ Level (1..n) ◄── junctions, walls, separators, rooms, slabs (by "level")
+   └─ Building (1..n) ─ Level (1..n) ◄── junctions, walls, separators, rooms, slabs, roofs (by "level")
                                            openings (by their wall)
                                            stairs (by "level", and "to" a level above)
 ```

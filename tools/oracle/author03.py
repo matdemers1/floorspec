@@ -555,13 +555,231 @@ n('hosting', 'read-0.2-surface-hosts', 'A document declaring "0.2" with a light 
   'piece stands at its elevation, 0 - exactly where a reader of 0.2 places them; the room\'s floor and ceiling are '
   'there too.', ['15.6.1', '1.2.6', '13.4.1'], d)
 
+# =================================================================================== roofs (0.3): chapter 16
+# The standard room (above) under a roof: its walls' outer faces run from (-50 mm, -50 mm) to (4050 mm, 3050 mm), and
+# level L1 is 2700 mm high, so a roof that says nothing about its height has its eaves at 2700 mm.
+for tc in BASE:                                     # "roofs" is a collection of 0.3: another reserved name stands in
+    if tc['slug'] == 'reserved-top-level-member':
+        tc['inp'] = {('optionSets' if k == 'roofs' else k): v for k, v in tc['inp'].items()}
+        tc['description'] = tc['description'].replace('"roofs"', '"optionSets"')
+
+FP = [[-50 * MM, -50 * MM], [4050 * MM, -50 * MM], [4050 * MM, 3050 * MM], [-50 * MM, 3050 * MM]]
+SIX = {'rise': 6, 'run': 12}
+FT = 390144
+# An L-shaped house in feet: a 40' x 24' wing along X and a 24' x 24' wing along Y, its corner at the origin.
+L_FP = [[0, 0], [40 * FT, 0], [40 * FT, 24 * FT], [24 * FT, 24 * FT], [24 * FT, 48 * FT], [0, 48 * FT]]
+
+
+def rf(footprint=None, **members):
+    return {'level': 'L1', 'footprint': copy.deepcopy(footprint or FP), **members}
+
+
+def roof_doc(*roofs, levels=None, **extra):
+    """The standard room, declaring 0.3, with these roofs: RF1, RF2, ..."""
+    d = fdoc()
+    d['roofs'] = {f'RF{i}': r for i, r in enumerate(roofs, 1)}
+    if levels:
+        d['levels'].update(levels)
+    d.update(extra)
+    return d
+
+
+def gables(*indices, **edge):
+    return {str(i): {'gable': True, **edge} for i in indices}
+
+
+LINT15 = [('FS-LINT-015', ['RF1'])]
+n('roofs', 'hip-roof', 'A hip roof over the standard room: every edge of its footprint slopes at 6 in 12 and overhangs '
+  '300 mm, so its eave outline is 4700 mm by 3700 mm at the level\'s 2700 mm. Its ridge runs 1000 mm along the long '
+  'axis, 1850 mm from either long eave - 925 mm higher, at 3625 mm, its high - and four hips run from its ends to the '
+  'corners: two trapezoids and two triangles.', ['16.5.1', '16.4.1', '16.3.1', '16.2.2', '16.2.3', '16.1.2', '9.2.1'],
+  roof_doc(rf(pitch=SIX, overhang=300 * MM)))
+S = [[0, 0], [3 * FT, 0], [3 * FT, 3 * FT], [0, 3 * FT]]
+n('roofs', 'pyramid-roof', 'A hip roof on a square 12 feet across, at 12 in 12: its four hips meet at one point 6 feet '
+  'above its eaves, and it has no ridge. (A square footprint makes a pyramid.)', ['16.5.1', '16.4.1'],
+  roof_doc(rf([[0, 0], [12 * FT, 0], [12 * FT, 12 * FT], [0, 12 * FT]], pitch={'rise': 12, 'run': 12})))
+n('roofs', 'gable-roof', 'A gable roof: the room\'s short edges, 1 and 3, are gables, and its long edges slope at 6 in '
+  '12. The eaves overhang 300 mm and the gables, at the rake, 150 mm of their own: the ridge runs the whole length of '
+  'the outline, and each gable end is a triangle rising to it.', ['16.5.1', '16.4.1', '16.2.2', '16.3.1'],
+  roof_doc(rf(pitch=SIX, overhang=300 * MM, edges=gables(1, 3, overhang=150 * MM))))
+n('roofs', 'l-shaped-hip-roof', 'An L-shaped house, its wings 24 feet wide, under a hip roof at 6 in 12: from the '
+  'reflex corner a valley runs to where the ridges of the two wings meet, 12 feet in from three eaves, and hips run '
+  'from every other corner.', ['16.5.1', '16.4.1'], roof_doc(rf(L_FP, pitch=SIX)))
+n('roofs', 'l-shaped-gable-roof', 'The L-shaped house with both wing ends gabled: each ridge runs to its gable\'s '
+  'midpoint, a valley and a hip meet the ridges where they cross, and each gable end is a triangle 6 feet high.',
+  ['16.5.1', '16.4.1'], roof_doc(rf(L_FP, pitch=SIX, edges=gables(1, 4))))
+n('roofs', 'shed-roof', 'A shed roof: only the south edge, 0, slopes, at 2 in 12, and the other three are gables. The '
+  'roof is one plane rising north from the south eave, 3100 mm across the footprint, to 516.67 mm above the eave - '
+  '3216.67 mm, rounded once to a base unit - and its three gable ends follow it.', ['16.5.1', '16.4.1', '2.2.1'],
+  roof_doc(rf(pitch={'rise': 2, 'run': 12}, edges=gables(1, 2, 3))))
+PENT = [[0, 0], [4000 * MM, 0], [4000 * MM, 3000 * MM], [2000 * MM, 4000 * MM], [0, 3000 * MM]]
+n('roofs', 'shed-roof-on-an-oblique-edge', 'A shed roof over a five-sided footprint whose sloped edge is oblique - '
+  'from (4 m, 3 m) to (2 m, 4 m), falling north-east - with its other edges gables, the outline wholly on its inner '
+  'side: each vertex\'s elevation is its distance from the edge\'s line, an integer over the square root of 5 m², '
+  'times 6 / 12, exact and rounded once.', ['16.5.1', '16.4.1', '2.2.1'],
+  roof_doc(rf(PENT, pitch=SIX, edges=gables(0, 1, 3, 4))))
+n('roofs', 'shed-roof-outline-behind-its-edge', 'A shed roof whose sloped edge is the north edge of an L\'s short '
+  'wing, edge 2, with the long wing beyond its line: the plane would fall below its eave there. Its surface is not '
+  'derived - FS-LINT-015 - and the document is valid.', ['16.4.1', '10.2.1'],
+  roof_doc(rf(L_FP, pitch=SIX, edges=gables(0, 1, 3, 4, 5))), LINT15)
+n('roofs', 'flat-roof', 'A flat roof: no pitch anywhere, a 600 mm overhang all round, 300 mm thick. Its one face is '
+  'its eave outline at 2700 mm, its box reaches down by its thickness, and it has no gables and no lines.',
+  ['16.5.1', '16.4.1', '16.3.1', '16.2.1'], roof_doc(rf(overhang=600 * MM, thickness=300 * MM)))
+n('roofs', 'flat-roof-on-an-oblique-outline', 'A flat roof over the five-sided footprint, overhanging 500 mm: the '
+  'moved lines of its oblique edges have irrational positions, so the outline\'s vertices are exact corner points '
+  'rounded once - the apex moves up 500 mm times the square root of 5 over 2.', ['16.3.1', '16.5.1', '2.2.1'],
+  roof_doc(rf(PENT, overhang=500 * MM)))
+n('roofs', 'mixed-pitches', 'A hip roof whose south edge rises at 12 in 12 and the rest at 6 in 12: a roof of '
+  'unequal pitches needs the weighted straight skeleton, which this draft does not define. Its eave outline is '
+  'derived and its surface is not: FS-LINT-015, an informational lint, and the document is valid.',
+  ['16.4.1', '10.2.1', '10.1.1'], roof_doc(rf(pitch=SIX, edges={'0': {'pitch': {'rise': 12, 'run': 12}}})), LINT15)
+n('roofs', 'equal-pitches-as-ratios', 'Edge 0 pitched 1 in 2 under a roof pitched 6 in 12: the same pitch, compared as '
+  'ratios, so the hip roof is derived exactly as if every edge said 6 in 12.', ['16.4.1', '16.5.1'],
+  roof_doc(rf(pitch=SIX, overhang=300 * MM, edges={'0': {'pitch': {'rise': 1, 'run': 2}}})))
+n('roofs', 'hip-roof-on-an-oblique-outline', 'A hip roof on the five-sided footprint: an equal-pitch roof with an '
+  'oblique edge has skeleton nodes irrational in more than one radicand, and its surface is not derived in this draft. '
+  'FS-LINT-015.', ['16.4.1', '10.2.1'], roof_doc(rf(PENT, pitch=SIX)), LINT15)
+n('roofs', 'adjacent-gables', 'A rectangle with gables on edges 1 and 2, which meet at a corner: a gable\'s neighbours '
+  'must both be sloped. FS-LINT-015.', ['16.4.1'], roof_doc(rf(pitch=SIX, edges=gables(1, 2))), LINT15)
+U_FP = [[0, 0], [36 * FT, 0], [36 * FT, 30 * FT], [24 * FT, 30 * FT], [24 * FT, 12 * FT], [12 * FT, 12 * FT],
+        [12 * FT, 30 * FT], [0, 30 * FT]]
+n('roofs', 'gable-on-an-inner-face', 'A U-shaped house with a gable on the inner face of its west arm, edge 5: both '
+  'ends of that edge are reflex corners, so it is not the end of a wing. FS-LINT-015.', ['16.4.1'],
+  roof_doc(rf(U_FP, pitch=SIX, edges=gables(5))), LINT15)
+
+
+def g_fp(gap):
+    """A G-shaped house in feet: a west arm 10' wide whose north end, edge 8, faces the south eave of a top wing
+    `gap` feet away."""
+    return [[0, 0], [40 * FT, 0], [40 * FT, 40 * FT], [0, 40 * FT], [0, (20 + gap) * FT], [30 * FT, (20 + gap) * FT],
+            [30 * FT, 10 * FT], [10 * FT, 10 * FT], [10 * FT, 20 * FT], [0, 20 * FT]]
+
+
+n('roofs', 'gable-clearance-clear', 'A G-shaped house whose west arm, 10 feet wide, ends in a gable, edge 8, facing '
+  'the south eave of the top wing 5 feet away: the gable\'s clearance is 5 feet deep, and the eave lies on its far '
+  'side, not inside it, so the roof is derived.', ['16.4.1', '16.5.1'], roof_doc(rf(g_fp(5), pitch=SIX, edges=gables(8))))
+n('roofs', 'gable-clearance-blocked', 'The same house with the top wing 4 feet from the gable: its south eave is '
+  'inside the gable\'s clearance, and the roof is not derived. FS-LINT-015.', ['16.4.1'],
+  roof_doc(rf(g_fp(4), pitch=SIX, edges=gables(8))), LINT15)
+n('roofs', 'collinear-eaves-share-a-plane', 'A rectangle with a narrow bay, 2 feet square, pushed out of its south '
+  'side: the south eave is two collinear edges, 0 and 4, either side of the bay, facing the same way. Once the bay\'s '
+  'little hip closes, their faces meet, in one plane: the boundary between them, from the valleys\' meeting point to '
+  'the main ridge, is a seam and not a line, and each face is still its own edge\'s.', ['16.4.1', '16.5.1'],
+  roof_doc(rf([[0, 0], [14 * FT, 0], [14 * FT, -2 * FT], [16 * FT, -2 * FT], [16 * FT, 0], [30 * FT, 0],
+               [30 * FT, 20 * FT], [0, 20 * FT]], pitch=SIX)))
+n('roofs', 'notch-splits-the-wavefront', 'A rectangle with a notch cut into its north side: the notch\'s corners '
+  'are reflex, and their valleys reach the south eave\'s wavefront before the roof closes, splitting it in two. The '
+  'roof has two hipped halves joined by a ridge over the notch.', ['16.4.1', '16.5.1'],
+  roof_doc(rf([[0, 0], [20 * FT, 0], [20 * FT, 10 * FT], [11 * FT, 10 * FT], [11 * FT, 6 * FT], [9 * FT, 6 * FT],
+               [9 * FT, 10 * FT], [0, 10 * FT]], pitch=SIX)))
+n('roofs', 'clockwise-footprint', 'A gable roof with its footprint written clockwise: the outline is derived '
+  'counter-clockwise from its least vertex; the gables, its short ends, are edges 0 and 2 as it is written - west, '
+  'north, east, south - and every face and gable keeps its edge\'s index as written.',
+  ['16.5.1', '16.3.1'],
+  roof_doc(rf([[-50 * MM, -50 * MM], [-50 * MM, 3050 * MM], [4050 * MM, 3050 * MM], [4050 * MM, -50 * MM]],
+              pitch=SIX, overhang=300 * MM, edges=gables(0, 2))))
+n('roofs', 'unequal-overhangs', 'A hip roof that overhangs its south edge 900 mm and the rest 300 mm: the eave '
+  'outline is computed first, and the roof from it, so the ridge moves 300 mm south and every eave stays at 2700 mm.',
+  ['16.3.1', '16.5.1'], roof_doc(rf(pitch=SIX, overhang=300 * MM, edges={'0': {'overhang': 900 * MM}})))
+n('roofs', 'half-unit-ridge', 'A hip roof 5248000 by 3967999 base units at 7 in 12: its ridge lies on '
+  'y = 1983999.5, half a base unit off the grid, and rises 7/12 of 1983999.5 above the eave. Each is rounded once, '
+  'ties to even.', ['16.5.1', '2.2.1'],
+  roof_doc(rf([[0, 0], [4100 * MM, 0], [4100 * MM, 3967999], [0, 3967999]], pitch={'rise': 7, 'run': 12})))
+n('roofs', 'roof-height-and-level', 'A roof on a second level at 2700 mm with its eaves 2400 mm above it - its own '
+  'height, not the level\'s 2600 mm - and a hip roof at 6 in 12: eaves at 5100 mm.', ['16.3.1', '16.5.1'],
+  roof_doc(rf(level='L2', pitch=SIX, height=2400 * MM),
+           levels={'L2': {'building': 'B1', 'elevation': 2700 * MM, 'height': 2600 * MM}}))
+n('roofs', 'roof-material-and-thickness', 'A hip roof with a material - which counts as referred, so no unused-material '
+  'lint - and a thickness of 250 mm, which lowers its box\'s floor below its eave.', ['16.5.1'],
+  roof_doc(rf(pitch=SIX, thickness=250 * MM, material='SH'), materials={'SH': {'color': '#4a4a4a'}}))
+n('roofs', 'two-roofs', 'Two roofs: a gable roof over the room and a flat roof over a porch south of it. Each is '
+  'derived on its own.', ['16.5.1'],
+  roof_doc(rf(pitch=SIX, edges=gables(1, 3)),
+           rf([[0, -2000 * MM], [4000 * MM, -2000 * MM], [4000 * MM, -100 * MM], [0, -100 * MM]], height=2400 * MM)))
+n('roofs', 'defaults-omitted', 'A roof with its overhang 0, an edge whose gable is false and one that is empty, written '
+  'out: the canonical form omits each - and "edges", left empty - and keeps "height", whose default is derived.',
+  ['9.2.1', '16.5.1'], roof_doc(rf(pitch=SIX, overhang=0, height=2700 * MM, edges={'0': {'gable': False}, '2': {}})))
+n('roofs', 'edge-out-of-range', 'A roof on a four-edge footprint with an override for edge 4, which does not exist. '
+  'FS-INV-801.', ['16.1.2', '10.2.1'], roof_doc(rf(pitch=SIX, edges={'4': {'gable': True}})), [('FS-INV-801', ['RF1'])])
+n('roofs', 'flat-roof-with-a-sloped-edge', 'A roof with no pitch whose edge 0 has one: one edge slopes and three are '
+  'level. FS-INV-802.', ['16.2.1', '10.2.1'], roof_doc(rf(edges={'0': {'pitch': SIX}})), [('FS-INV-802', ['RF1'])])
+n('roofs', 'flat-roof-with-a-gable', 'A roof with no pitch and a gable: a gable is not level, so the roof is part flat. '
+  'FS-INV-802.', ['16.2.1'], roof_doc(rf(edges=gables(1))), [('FS-INV-802', ['RF1'])])
+n('roofs', 'every-edge-a-gable', 'A roof with a pitch whose every edge is a gable: no edge slopes. FS-INV-803.',
+  ['16.2.2', '10.2.1'], roof_doc(rf(pitch=SIX, edges=gables(0, 1, 2, 3))), [('FS-INV-803', ['RF1'])])
+n('roofs', 'collinear-edges', 'A footprint with a fifth vertex in the middle of its south edge: edges 0 and 1 are '
+  'collinear. FS-INV-804; FS-INV-805 is not evaluated for it, though its overhangs differ either side of the vertex.',
+  ['16.2.3', '10.2.1', '10.3.1'],
+  roof_doc(rf([[-50 * MM, -50 * MM], [2000 * MM, -50 * MM], [4050 * MM, -50 * MM], [4050 * MM, 3050 * MM],
+               [-50 * MM, 3050 * MM]], pitch=SIX, edges={'0': {'overhang': 300 * MM}})), [('FS-INV-804', ['RF1'])])
+n('roofs', 'overhang-closes-a-notch', 'The notched rectangle with a 2-foot overhang all round: the notch is 2 feet '
+  'wide, so its sides\' moved lines cross and its bottom edge runs backwards. FS-INV-805.', ['16.3.1', '10.2.1'],
+  roof_doc(rf([[0, 0], [20 * FT, 0], [20 * FT, 10 * FT], [11 * FT, 10 * FT], [11 * FT, 6 * FT], [9 * FT, 6 * FT],
+               [9 * FT, 10 * FT], [0, 10 * FT]], pitch=SIX, overhang=2 * FT)), [('FS-INV-805', ['RF1'])])
+n('roofs', 'overhang-fills-a-notch-exactly', 'The same notch with a 1-foot overhang: its bottom edge keeps no length, '
+  'and an edge with no length does not run its edge\'s way. FS-INV-805.', ['16.3.1'],
+  roof_doc(rf([[0, 0], [20 * FT, 0], [20 * FT, 10 * FT], [11 * FT, 10 * FT], [11 * FT, 6 * FT], [9 * FT, 6 * FT],
+               [9 * FT, 10 * FT], [0, 10 * FT]], pitch=SIX, overhang=FT)), [('FS-INV-805', ['RF1'])])
+n('roofs', 'overhangs-meet-across-a-gap', 'The G-shaped house with its top wing 4 feet from the west arm\'s end, '
+  'both overhanging that gap by 3 feet: every edge still runs its way, but the two moved eaves pass each other and the '
+  'eave outline crosses itself. FS-INV-805.', ['16.3.1'],
+  roof_doc(rf(g_fp(4), pitch=SIX, edges={'4': {'overhang': 3 * FT}, '8': {'overhang': 3 * FT}})),
+  [('FS-INV-805', ['RF1'])])
+n('roofs', 'footprint-crosses-itself', 'A roof whose footprint is a bow tie: an authored polygon is simple. '
+  'FS-INV-009 names the roof, and no other invariant is evaluated.', ['2.6.1', '10.2.1', '10.3.1'],
+  roof_doc(rf([[0, 0], [4000 * MM, 3000 * MM], [4000 * MM, 0], [0, 3000 * MM]], pitch=SIX)), [('FS-INV-009', ['RF1'])])
+n('roofs', 'roof-on-a-missing-level', 'A roof on a level that does not exist: FS-INV-002.', ['3.2.1', '10.2.1'],
+  roof_doc(rf(level='L9', pitch=SIX)), [('FS-INV-002', ['RF1'])])
+n('roofs', 'roof-with-a-missing-material', 'A roof whose material does not exist: FS-INV-002.', ['3.2.1'],
+  roof_doc(rf(pitch=SIX, material='NOPE')), [('FS-INV-002', ['RF1'])])
+n('roofs', 'reference-error-stops-roof-invariants', 'A roof on a missing level whose every edge is a gable: once a '
+  'reference invariant is reported, no other is evaluated, so only FS-INV-002.', ['10.3.1'],
+  roof_doc(rf(level='L9', pitch=SIX, edges=gables(0, 1, 2, 3))), [('FS-INV-002', ['RF1'])])
+n('roofs', 'roof-invariants-together', 'Three roofs: one with an edge out of range and every edge a gable, one part '
+  'flat, and one with collinear edges: each is reported, sorted by code.', ['10.2.1', '10.3.1', '16.1.2', '16.2.1',
+                                                                         '16.2.2', '16.2.3'],
+  roof_doc(rf(pitch=SIX, edges={**gables(0, 1, 2, 3), '7': {}}), rf(edges=gables(0)),
+           rf([[0, 0], [2000 * MM, 0], [4000 * MM, 0], [4000 * MM, 3000 * MM]], pitch=SIX)),
+  [('FS-INV-801', ['RF1']), ('FS-INV-802', ['RF2']), ('FS-INV-803', ['RF1']), ('FS-INV-804', ['RF3'])])
+n('roofs', 'pitch-rise-zero', 'A roof pitched 0 in 12: a pitch is two positive integers; a flat roof has none.',
+  ['16.1.1'], roof_doc(rf(pitch={'rise': 0, 'run': 12})), SCH)
+n('roofs', 'edge-pitch-run-too-large', 'An edge pitched 6 in 2^53.', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, edges={'1': {'pitch': {'rise': 6, 'run': 2 ** 53}}})), SCH)
+n('roofs', 'overhang-negative', 'An overhang of -1.', ['16.1.1'], roof_doc(rf(pitch=SIX, overhang=-1)), SCH)
+n('roofs', 'edge-overhang-negative', 'An edge\'s overhang of -1.', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, edges={'0': {'overhang': -1}})), SCH)
+n('roofs', 'thickness-zero', 'A roof 0 thick: "not declared" is an absent member.', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, thickness=0)), SCH)
+n('roofs', 'height-with-a-fraction', 'A height written with a fraction is not a length.', ['16.1.1', '2.1.1'],
+  roof_doc(rf(pitch=SIX, height=3000000.0)), SCH)
+n('roofs', 'edge-index-with-a-leading-zero', 'An edge named "01": an edge index has no leading zeros.', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, edges={'01': {'gable': True}})), SCH)
+n('roofs', 'edge-index-not-a-number', 'An edge named "north".', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, edges={'north': {'gable': True}})), SCH)
+n('roofs', 'gable-with-a-pitch', 'A gable with a pitch of its own: a gable does not slope.', ['16.1.1'],
+  roof_doc(rf(pitch=SIX, edges={'1': {'gable': True, 'pitch': SIX}})), SCH)
+n('roofs', 'gable-not-a-boolean', 'A gable flag of "yes".', ['16.1.1'], roof_doc(rf(pitch=SIX, edges={'1': {'gable': 'yes'}})),
+  SCH)
+n('roofs', 'edge-unknown-member', 'An edge has only gable, pitch and overhang: "fascia" is unknown.', ['16.1.1', '1.4.3'],
+  roof_doc(rf(pitch=SIX, edges={'1': {'fascia': 200 * MM}})), SCH)
+n('roofs', 'roof-unknown-member', 'A roof has only the members of its table: "kind" is derived, never stored.',
+  ['16.1.1', '1.4.1'], roof_doc(rf(pitch=SIX, kind='hip')), SCH)
+n('roofs', 'roof-without-footprint', 'A roof with a level and a pitch and no footprint.', ['16.1.1'],
+  roof_doc({'level': 'L1', 'pitch': SIX}), SCH)
+n('roofs', 'footprint-of-two-points', 'A footprint of two points is not a polygon.', ['16.1.1', '2.6.1'],
+  roof_doc(rf([[0, 0], [4000 * MM, 0]], pitch=SIX)), SCH)
+d = copy.deepcopy(as_02('version-0.2-with-everything'))
+d['roofs'] = {'RF1': {'level': next(iter(d['levels'])), 'footprint': [[0, 0], [1000, 0], [1000, 1000]]}}
+n('roofs', '0.2-document-with-a-roof', 'A document that declares "0.2" and has a roof: "roofs" is a collection 0.3 '
+  'adds, and Core 0.2\'s schema has no such member.', ['1.2.6', '1.1.2'], d, SCH)
+
 # =================================================================================== stairs (0.3): chapter 17
 # Two storeys: L1 at 0 and L2 at 2700 mm, each 2700 mm high. Plans are drawn in millimetres by Draw, which
 # names junctions <p>J1, <p>J2, ... by position, and walls <p>W1, ... and separators <p>S1, ... in the order
 # they are drawn. The standard stair rises east from (1000 mm, 600 mm), 900 mm wide - from y = 150 mm to
 # 1050 mm - with 250 mm treads.
 from tools.oracle.author02 import cdoc, plan                                    # noqa: E402
-from tools.oracle.author_lib import S                                           # noqa: E402
+from tools.oracle.author_lib import S as Sep                                    # noqa: E402
 
 LEVELS2 = {'L1': {'building': 'B1', 'elevation': 0, 'height': 2700 * MM},
            'L2': {'building': 'B1', 'elevation': 2700 * MM, 'height': 2700 * MM}}
@@ -586,7 +804,7 @@ class Draw:
 
     def seps(self, *pts):
         for a, b in zip(pts, pts[1:]):
-            self.ss[f'{self.p}S{len(self.ss) + 1}'] = S(self.j(*a), self.j(*b), self.level)
+            self.ss[f'{self.p}S{len(self.ss) + 1}'] = Sep(self.j(*a), self.j(*b), self.level)
         return self
 
 
@@ -741,22 +959,22 @@ WINDER_Q = {'kind': 'winder', 'turn': 'left', 'angle': 'quarter', 'risersBeforeT
 n('stairs', 'winder-quarter', 'A quarter-turn winder stair: 4 risers east, 3 winders in the 900 mm square at the '
   'turn, and 7 straight treads north, to its head at (2200 mm, 2800 mm). Its rise, risers and box are derived - '
   'the box spans its first flight, the square and its second flight - and its steps, run, walkline and headroom are '
-  'not: FS-LINT-901, an info.', ['17.1.1', '17.2.1', '17.4.3', '17.7.1', '17.7.2', '10.2.1'],
-  hall_house(x0=1000, x1=2800, y1=2800, form=WINDER_Q), WELL + [('FS-LINT-901', ['ST1'])])
+  'not: FS-LINT-016, an info.', ['17.1.1', '17.2.1', '17.4.3', '17.7.1', '17.7.2', '10.2.1'],
+  hall_house(x0=1000, x1=2800, y1=2800, form=WINDER_Q), WELL + [('FS-LINT-016', ['ST1'])])
 n('stairs', 'winder-half', 'A half-turn winder stair turning left with a 100 mm gap: 4 risers east from (1000 mm, '
   '600 mm), 6 winders in the turn across both flights and the gap, then 5 straight treads west to its head at '
-  '(500 mm, 1600 mm). Its box spans x = 500 mm to 2650 mm and y = 150 mm to 2050 mm; FS-LINT-901.',
+  '(500 mm, 1600 mm). Its box spans x = 500 mm to 2650 mm and y = 150 mm to 2050 mm; FS-LINT-016.',
   ['17.2.1', '17.4.3', '17.7.1'],
   hall_house(x0=400, x1=2800, y1=2100, risers=15,
              form={'kind': 'winder', 'turn': 'left', 'angle': 'half', 'risersBeforeTurn': 4, 'winders': 6,
-                   'gap': 100 * MM}), WELL + [('FS-LINT-901', ['ST1'])])
+                   'gap': 100 * MM}), WELL + [('FS-LINT-016', ['ST1'])])
 SPIRAL = {'kind': 'spiral', 'turn': 'left', 'diameter': 1800 * MM, 'sweep': 270_000_000}
 n('stairs', 'spiral', 'A spiral stair 1800 mm across, 800 mm wide, turning left through 270 degrees from its first '
   'nosing line at (2000 mm, 1000 mm): its centre is 500 mm to the left, at (2000 mm, 1500 mm), and its head is turned '
   '270 degrees about it, to (1500 mm, 1500 mm), in the well. Its box is the square around its circle; its steps are '
-  'not derived (FS-LINT-901).', ['17.2.1', '17.4.3', '17.7.1', '17.7.2'],
+  'not derived (FS-LINT-016).', ['17.2.1', '17.4.3', '17.7.1', '17.7.2'],
   hall_house(x0=1000, x1=3000, y1=2500, x=2000, y=1000, width=800, tread=220, risers=13, form=SPIRAL),
-  WELL + [('FS-LINT-901', ['ST1'])])
+  WELL + [('FS-LINT-016', ['ST1'])])
 n('stairs', 'spiral-turning-right', 'A spiral stair at 45 degrees turning right through 450 degrees - more than a '
   'full turn: its centre is 500 mm to its right, and its head is its foot turned clockwise about the centre by '
   '450 degrees: in the direction F(45000000) from it, 45 + 90 - 450 degrees taken in (-180, 180]. Both, and its box, '
@@ -764,7 +982,7 @@ n('stairs', 'spiral-turning-right', 'A spiral stair at 45 degrees turning right 
   'is exactly half its diameter, which 17.2.2 allows.', ['17.2.2', '17.4.3', '2.2.1'],
   hall_house(x0=1500, x1=4000, y1=2500, x=2500, y=1500, width=900, tread=220, risers=17,
              rotation=45_000_000, form={**SPIRAL, 'turn': 'right', 'diameter': 1800 * MM, 'sweep': 450_000_000}),
-  WELL + [('FS-LINT-901', ['ST1'])])
+  WELL + [('FS-LINT-016', ['ST1'])])
 d = hall_house(handrail={'height': 900 * MM, 'sides': 'both'}, rotation=0,
                form={'kind': 'straight'})
 n('stairs', 'defaults-omitted', 'The straight stair written with every constant default - rotation 0, form '

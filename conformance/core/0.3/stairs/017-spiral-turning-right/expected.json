@@ -7,7 +7,7 @@
       "elements": []
     },
     {
-      "code": "FS-LINT-901",
+      "code": "FS-LINT-016",
       "severity": "info",
       "elements": ["ST1"]
     }
@@ -183,6 +183,7 @@
         }
       }
     },
+    "roofs": {},
     "slabs": {},
     "stairs": {
       "ST1": {

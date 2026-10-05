@@ -9,8 +9,8 @@ One directory per draft; start at `request.schema.json`:
 
 - **Ops 0.3** - the current draft (`spec/ops/`), operating on Core 0.3 documents (and so on 0.2
   and 0.1 documents) - is in [`0.3/`](0.3/): it adds no operation and no member, and its files are
-  0.2's with one value more, `"stairs"` - the collection Core 0.3 adds - among `addElement`'s
-  collections (Ops 0.4);
+  0.2's with one difference, that `addElement` may add to Core 0.3's twelfth and thirteenth
+  collections, `roofs` and `stairs` (Ops 0.4);
 - **Ops 0.2** is in [`0.2/`](0.2/), exactly as published at `6f9bc07`;
 - **Ops 0.1** is in [`0.1/`](0.1/), exactly as published at `3bf4f35`; its text is readable from
   git at that commit.
@@ -51,8 +51,8 @@ where a length is expected and passes inside `value`.
 
 ```sh
 pnpm schema:check   # compile each draft (ajv, strict); check it against every request of its suite,
-                    # conformance/ops/0.1, conformance/ops/0.2 and conformance/ops/0.3
-pnpm test           # tools/ops-schema.test.ts: tools/fixtures/ops-requests.json (0.1) and
-                    # ops-requests-0.2.json (0.2), which the oracle's request check
+                    # conformance/ops/0.1, 0.2 and 0.3
+pnpm test           # tools/ops-schema.test.ts: tools/fixtures/ops-requests.json (0.1),
+                    # ops-requests-0.2.json (0.2) and ops-requests-0.3.json (0.3), which the oracle's request check
                     # (tools/oracle/test_ops_request.py) must classify the same way
 ```

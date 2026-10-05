@@ -204,7 +204,7 @@ treads taper, and their outlines, and what is above them, need a definition of t
 
 A deriver MUST NOT derive `steps`, `run`, `walkline` or `headroom` for a winder or a spiral stair. {#FS-CORE-17.7.1 MUST NOT}
 
-A validator SHOULD report `FS-LINT-901` (info) for each winder and each spiral stair. {#FS-CORE-17.7.2 SHOULD}
+A validator SHOULD report `FS-LINT-016` (info) for each winder and each spiral stair. {#FS-CORE-17.7.2 SHOULD}
 
 ## 17.8 Circulation
 

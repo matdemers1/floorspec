@@ -183,6 +183,48 @@ test('core 0.3, chapter 15: the constant defaults are a floor {}, its offset 0, 
   for (const [where] of found) assert.ok(!/floorThickness|ceilingHeight|thickness|\/height|purpose/.test(where) || where.includes('positiveLength'), where);
 });
 
+// ---- Core 0.3, chapter 16: roofs
+const roofDoc = (roof: Record<string, unknown>) => ({
+  floorspec: '0.3',
+  project: { name: 'Roofs' },
+  roofs: { RF1: { level: 'L1', footprint: [[0, 0], [10, 0], [10, 4], [0, 4]], ...roof } },
+});
+
+test('core 0.3, 16.1.1: a roof has its table\'s members, each of its type', () => {
+  accepts(roofDoc({}));
+  accepts(roofDoc({ pitch: { rise: 6, run: 12 }, overhang: 0, height: -5, thickness: 1, material: 'M1', name: 'Main' }));
+  accepts(roofDoc({ pitch: { rise: 6, run: 12 }, edges: { '0': { gable: true, overhang: 3 }, '1': { pitch: { rise: 1, run: 2 } }, '12': {} } }));
+  accepts(roofDoc({ edges: { '0': { gable: false, pitch: { rise: 1, run: 1 } } } }));
+  rejects(roofDoc({ pitch: { rise: 0, run: 12 } }));
+  rejects(roofDoc({ pitch: { rise: 6 } }));
+  rejects(roofDoc({ overhang: -1 }));
+  rejects(roofDoc({ thickness: 0 }));
+  rejects(roofDoc({ kind: 'hip' }));
+  rejects(roofDoc({ edges: { '01': {} } }));
+  rejects(roofDoc({ edges: { north: {} } }));
+  rejects(roofDoc({ edges: { '-1': {} } }));
+  rejects(roofDoc({ edges: { '0': { gable: true, pitch: { rise: 6, run: 12 } } } }));
+  rejects(roofDoc({ edges: { '0': { gable: 'yes' } } }));
+  rejects(roofDoc({ edges: { '0': { overhang: -1 } } }));
+  rejects(roofDoc({ edges: { '0': { fascia: 1 } } }));
+  rejects({ floorspec: '0.3', project: { name: 'x' }, roofs: { RF1: { level: 'L1' } } });
+  rejects({ floorspec: '0.3', project: { name: 'x' }, roofs: { RF1: { level: 'L1', footprint: [[0, 0], [1, 0]] } } });
+  // an edge index that names no edge (16.1.2) is an invariant, FS-INV-801, not the schema's
+  accepts(roofDoc({ edges: { '9': {} } }));
+  // a 0.2 document has no roofs
+  rejects({ floorspec: '0.2', project: { name: 'x' }, roofs: {} }, reader);
+});
+
+test('core 0.3, chapter 16: the constant defaults are no roofs, an overhang of 0, no edges, and an edge that is not a gable', () => {
+  const found = new Map([...defaults(files)].map(([where, d]) => [where, JSON.stringify(d.value)]));
+  assert.equal(found.get('floorspec.schema.json#/properties/roofs'), '{}');
+  assert.equal(found.get('roof.schema.json#/properties/overhang'), '0');
+  assert.equal(found.get('roof.schema.json#/properties/edges'), '{}');
+  assert.equal(found.get('roof.schema.json#/$defs/edge'), '{}');
+  assert.equal(found.get('roof.schema.json#/$defs/edge/properties/gable'), 'false');
+  for (const [where] of found) assert.ok(!/roof\.schema\.json#\/(properties\/(height|pitch|thickness)|\$defs\/edge\/properties\/(pitch|overhang))/.test(where), where);
+});
+
 // Chapter 17: stairs
 function stairs(): Record<string, any> {
   return {

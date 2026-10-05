@@ -76,6 +76,8 @@ class ClearOpenings(unittest.TestCase):
 
 
 NEW_DERIVED = ('floors', 'ceilings', 'slabs')
+NEW_DERIVED += ('roofs',)                            # chapter 16: none in an earlier draft's document
+NEW_DERIVED += ('stairs',)                           # chapter 17: none in an earlier draft's document
 
 
 def without_new(result):

@@ -27,10 +27,11 @@ declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document dec
 it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
 0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
 0.3 adds: operations and clear openings, floors, ceilings and slabs (the group `floors`, and
-hosting on them at the end of `hosting`), and stairs (the group `stairs`, and circulation through
-them at the end of `circulation`). A 0.3 reader derives every room's floor and ceiling and
-every slab's bounding geometry, so every valid re-targeted test's `derived` has the three members
-`floors`, `ceilings` and `slabs` that its 0.2 counterpart lacks; every other value in it is the 0.2
+hosting on them at the end of `hosting`), roofs (the group `roofs`), and stairs (the group
+`stairs`, and circulation through them at the end of `circulation`). A 0.3 reader derives every
+room's floor and ceiling, every slab's bounding geometry, and every roof and stair, so every valid
+re-targeted test's `derived` has the five members `floors`, `ceilings`, `slabs`, `roofs` and
+`stairs` that its 0.2 counterpart lacks — the last two empty; every other value in it is the 0.2
 suite's, byte for byte. A 0.3 reader also reads 0.2 documents (1.2.6), and
 `model/070-read-0.2-document` and `hosting/045-read-0.2-surface-hosts` show that it derives for one
 everything 0.2 does, surface hosts included, and its floors, ceilings and slabs besides.
@@ -43,8 +44,8 @@ that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
 `openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
-`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs) and
-`stairs` (chapter 17). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs), `roofs`
+(chapter 16) and `stairs` (chapter 17). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -193,8 +194,24 @@ draft it declares (with nothing in them for a document with no rooms or slabs):
   tray its centre (`tray`, a polygon as a room's is).
 - `slabs` — every slab's outline (a ring), top, bottom and box (15.7).
 
-A document with a stair (chapter 17) has one more member, `stairs`; a document without one has
-none, so every value derived for it is what it was before stairs:
+And a fourth, for roofs (chapter 16), empty for a document with none — so every valid 0.3 test's
+`derived` has a `roofs` member too:
+
+```json
+{
+  "roofs": {
+    "RF1": { "kind": "gable", "outline": [[-448000, -448000], …], "eave": 3456000,
+             "surface": { "high": 4640000, "box": { "min": […], "max": […] },
+                          "faces": [{ "edge": 1, "polygon": [[x, y, z], …], "area": "…" }, …],
+                          "gables": [{ "edge": 0, "polygon": [[x, y, z], …] }, …],
+                          "lines": [{ "kind": "ridge", "from": [x, y, z], "to": [x, y, z] }, …] } },
+    "RF2": { "kind": "hip", "outline": […], "eave": 3456000, "surface": null }
+  }
+}
+```
+
+And a fifth, for stairs (chapter 17), empty for a document with none — so every valid 0.3 test's
+`derived` has a `stairs` member too:
 
 ```json
 {
@@ -209,6 +226,9 @@ none, so every value derived for it is what it was before stairs:
 }
 ```
 
+- `roofs` — every roof's kind, eave outline and eave (16.2, 16.3), and its surface (16.5): its high,
+  box, faces, gable ends, and ridges, hips and valleys; `null` for a roof whose surface this draft
+  does not derive (16.4.4), which the validator reports with `FS-LINT-015`.
 - `stairs` — every stair: its riser count and riser height, rounded; its rise, bottom and top; its
   foot and head, and the rooms they are in when there are any; its box (17.4). For a straight,
   L-shaped or U-shaped stair also its `steps` — every tread and landing in walking order, a landing
@@ -265,16 +285,18 @@ numbers; the 0.1 and 0.2 suites are published and do not change.
 The Ops suites test an **applier** (Ops §0.2): software that applies a batch of operations to a
 document. A test gives it a document A and an apply request, and says what it must return.
 **Ops 0.3** (`ops/0.3/`) is the suite of the current text and the one `pnpm coverage` gates; it
-holds every Ops 0.2 test on the same documents (Ops 0.3 retires no statement), the five tests that
+holds every Ops 0.2 test on the same documents (Ops 0.3 retires one statement, below), the five tests that
 pin what the text says as the oracle does - declared after 0.2 was published, and so first
 published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
 documents, whose operations and clear openings, floors, ceilings and slabs a batch edits with
 `setProperty`, `unsetProperty` and `addElement`, `moveRoom` moving a vaulted ceiling's ridge
-(`composites/068-move-room-moves-its-vault`), and stairs - added, edited, removed, and removed with
-the levels they join (`primitives/068-add-a-stair` and the tests after it). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+(`composites/068-move-room-moves-its-vault`), roofs added, edited and removed
+(`primitives/068` to `078`), and stairs - added, edited, removed, and removed with the levels they
+join (`primitives/079-add-a-stair` and the tests after it). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
-exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape, with `"stairs"` among
-`addElement`'s collections, and its suite is checked against its own schema, `schema/ops/0.3/`.
+exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape, and may also add
+to Core 0.3's `roofs` and `stairs`: its suite is checked against its own `schema/ops/0.3/`, and its tests cover
+`FS-OPS-1.1.3` where the 0.2 test covered the retired `1.1.2`.
 
 ```text
 conformance/
