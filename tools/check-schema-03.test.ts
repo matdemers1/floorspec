@@ -182,3 +182,82 @@ test('core 0.3, chapter 15: the constant defaults are a floor {}, its offset 0, 
   assert.equal(found.get('room.schema.json#/$defs/ceiling/oneOf/2/properties/slopes'), '"both"');
   for (const [where] of found) assert.ok(!/floorThickness|ceilingHeight|thickness|\/height|purpose/.test(where) || where.includes('positiveLength'), where);
 });
+
+// Chapter 17: stairs
+function stairs(): Record<string, any> {
+  return {
+    floorspec: '0.3',
+    project: { name: 'Stairs' },
+    buildings: { B1: {} },
+    levels: { L1: { building: 'B1', elevation: 0, height: 3456000 }, L2: { building: 'B1', elevation: 3456000, height: 3456000 } },
+    stairs: {
+      ST1: { level: 'L1', to: 'L2', position: [0, 0], width: 1152000, tread: 320000, risers: 15 },
+      ST2: { level: 'L1', to: 'L2', position: [0, 0], rotation: 90000000, width: 1152000, tread: 320000, maxRiser: 245000,
+             form: { kind: 'lShaped', turn: 'left', risersBeforeTurn: 8 }, handrail: { height: 1100000, sides: 'right' } },
+      ST3: { level: 'L1', to: 'L2', position: [0, 0], width: 1152000, tread: 320000, risers: 16, form: { kind: 'uShaped', turn: 'right', risersBeforeTurn: 8, gap: 128000 } },
+      ST4: { level: 'L1', to: 'L2', position: [0, 0], width: 1152000, tread: 320000, risers: 15, form: { kind: 'winder', turn: 'left', angle: 'quarter', risersBeforeTurn: 4, winders: 3 } },
+      ST5: { level: 'L1', to: 'L2', position: [0, 0], width: 1152000, tread: 320000, risers: 15, form: { kind: 'winder', turn: 'left', angle: 'half', risersBeforeTurn: 4, winders: 6, gap: 0 } },
+      ST6: { level: 'L1', to: 'L2', position: [0, 0], width: 896000, tread: 320000, risers: 13, form: { kind: 'spiral', turn: 'right', diameter: 1920000, sweep: 270000000 } },
+    },
+  };
+}
+const s = (mut: (d: Record<string, any>) => void) => {
+  const d = stairs();
+  mut(d);
+  return d;
+};
+
+test('core 0.3, chapter 17: a document with a stair of every form is valid', () => accepts(stairs()));
+
+test('core 0.3, 17.1.1: a stair has its members, of their types, and exactly one of risers and maxRiser', () => {
+  for (const m of ['level', 'to', 'position', 'width', 'tread']) rejects(s((d) => delete d.stairs.ST1[m]));
+  rejects(s((d) => delete d.stairs.ST1.risers));
+  rejects(s((d) => (d.stairs.ST1.maxRiser = 245000)));
+  rejects(s((d) => (d.stairs.ST1.risers = 0)));
+  rejects(s((d) => (d.stairs.ST1.width = 0)));
+  rejects(s((d) => (d.stairs.ST1.tread = -1)));
+  rejects(s((d) => (d.stairs.ST2.maxRiser = 0)));
+  rejects(s((d) => (d.stairs.ST1.rotation = -180000000)));
+  accepts(s((d) => (d.stairs.ST1.rotation = 180000000)));
+  rejects(s((d) => (d.stairs.ST1.nosing = 25600)));
+  rejects(s((d) => (d.stairs.ST2.handrail = { sides: 'both' })));
+  rejects(s((d) => (d.stairs.ST2.handrail.height = 0)));
+  rejects(s((d) => (d.stairs.ST2.handrail.sides = 'neither')));
+  rejects(JSON.stringify(stairs()).replace('"risers":15', '"risers":15.0'));
+  // to and level in one building, its rise and its risers fitting its form are invariants
+  accepts(s((d) => (d.stairs.ST1.to = 'L1')));
+  accepts(s((d) => (d.stairs.ST1.risers = 1)));
+});
+
+test('core 0.3, 17.2.1: a form is exactly one of five, and a quarter-turn winder has no gap', () => {
+  accepts(s((d) => (d.stairs.ST1.form = { kind: 'straight' })));
+  rejects(s((d) => (d.stairs.ST1.form = { kind: 'curved' })));
+  rejects(s((d) => (d.stairs.ST1.form = { kind: 'straight', turn: 'left' })));
+  rejects(s((d) => delete d.stairs.ST2.form.turn));
+  rejects(s((d) => (d.stairs.ST2.form.turn = 'up')));
+  rejects(s((d) => (d.stairs.ST2.form.risersBeforeTurn = 0)));
+  rejects(s((d) => (d.stairs.ST2.form.gap = 0)));
+  rejects(s((d) => (d.stairs.ST3.form.gap = -1)));
+  rejects(s((d) => (d.stairs.ST4.form.gap = 0)));
+  rejects(s((d) => (d.stairs.ST4.form.angle = 'full')));
+  rejects(s((d) => delete d.stairs.ST4.form.winders));
+  rejects(s((d) => (d.stairs.ST5.form.winders = 0)));
+  rejects(s((d) => (d.stairs.ST6.form.sweep = 0)));
+  rejects(s((d) => (d.stairs.ST6.form.diameter = 0)));
+  rejects(s((d) => delete d.stairs.ST6.form.turn));
+  // a spiral's width against its diameter is an invariant (17.2.2)
+  accepts(s((d) => (d.stairs.ST6.width = 2 * 1920000)));
+});
+
+test('core 0.3, chapter 17: stairs are a 0.3 collection, with the constant defaults of 17.1 and 17.2', () => {
+  rejects({ floorspec: '0.2', project: { name: 'x' }, stairs: {} }, reader);
+  accepts({ floorspec: '0.3', project: { name: 'x' }, stairs: {} });
+  const found = new Map([...defaults(files)].map(([where, d]) => [where, JSON.stringify(d.value)]));
+  assert.equal(found.get('floorspec.schema.json#/properties/stairs'), '{}');
+  assert.equal(found.get('stair.schema.json#/properties/rotation'), '0');
+  assert.equal(found.get('stair.schema.json#/properties/form'), '{"kind":"straight"}');
+  assert.equal(found.get('stair.schema.json#/$defs/form/oneOf/2/properties/gap'), '0');
+  assert.equal(found.get('stair.schema.json#/$defs/form/oneOf/4/properties/gap'), '0');
+  assert.equal(found.get('stair.schema.json#/$defs/handrail/properties/sides'), '"both"');
+  for (const [where] of found) if (where.startsWith('stair.schema.json')) assert.ok(!/risers|maxRiser|width|tread|level|position|winders|sweep|diameter/.test(where), where);
+});

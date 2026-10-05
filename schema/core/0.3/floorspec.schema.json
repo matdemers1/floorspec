@@ -155,6 +155,18 @@
       },
       "default": {}
     },
+    "stairs": {
+      "title": "Stairs",
+      "description": "1.1, 17.1: the collection of stairs (1.4), keyed by element ID.",
+      "type": "object",
+      "propertyNames": {
+        "$ref": "defs.schema.json#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "stair.schema.json"
+      },
+      "default": {}
+    },
     "program": {
       "$ref": "program.schema.json",
       "description": "1.1, 11.1: the program — the items the building is meant to provide and the adjacency graph between them.",

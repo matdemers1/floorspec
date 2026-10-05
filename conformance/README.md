@@ -26,8 +26,9 @@ gates it against. It holds every Core 0.2 test re-targeted to 0.3 — same group
 declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
 it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
 0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
-0.3 adds: operations and clear openings, and floors, ceilings and slabs (the group `floors`, and
-hosting on them at the end of `hosting`). A 0.3 reader derives every room's floor and ceiling and
+0.3 adds: operations and clear openings, floors, ceilings and slabs (the group `floors`, and
+hosting on them at the end of `hosting`), and stairs (the group `stairs`, and circulation through
+them at the end of `circulation`). A 0.3 reader derives every room's floor and ceiling and
 every slab's bounding geometry, so every valid re-targeted test's `derived` has the three members
 `floors`, `ceilings` and `slabs` that its 0.2 counterpart lacks; every other value in it is the 0.2
 suite's, byte for byte. A 0.3 reader also reads 0.2 documents (1.2.6), and
@@ -42,7 +43,8 @@ that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
 `openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
-`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+`clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs) and
+`stairs` (chapter 17). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -190,6 +192,28 @@ draft it declares (with nothing in them for a document with no rooms or slabs):
 - `ceilings` — every room's ceiling (15.5): its `kind`, its `low` and `high`, its box, and for a
   tray its centre (`tray`, a polygon as a room's is).
 - `slabs` — every slab's outline (a ring), top, bottom and box (15.7).
+
+A document with a stair (chapter 17) has one more member, `stairs`; a document without one has
+none, so every value derived for it is what it was before stairs:
+
+```json
+{
+  "stairs": {
+    "ST1": { "risers": 14, "riserHeight": 246857, "rise": 3456000, "bottom": 0, "top": 3456000,
+             "foot": [1280000, 768000], "head": [5440000, 768000], "footRoom": "R1", "headRoom": "R2",
+             "box": { "min": [1280000, 192000, 0], "max": [5440000, 1344000, 3456000] },
+             "steps": [ { "outline": [[1280000, 192000], …], "top": 246857 }, … ],
+             "run": 4160000, "walkline": { "points": [[1280000, 768000], [5440000, 768000]], "length": 4160000 },
+             "headroom": 2331429 }
+  }
+}
+```
+
+- `stairs` — every stair: its riser count and riser height, rounded; its rise, bottom and top; its
+  foot and head, and the rooms they are in when there are any; its box (17.4). For a straight,
+  L-shaped or U-shaped stair also its `steps` — every tread and landing in walking order, a landing
+  marked `"landing": true` — its `run` and `walkline` (17.5), and its `headroom` when something is
+  above it (17.6); for a winder or a spiral stair, none of those (17.7).
 
 A deriver conforms when what it derives equals `derived` exactly.
 

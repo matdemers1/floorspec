@@ -8,7 +8,7 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
 Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
 are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
-copied, with seven changed; the table lists 0.3's.
+copied, with seven changed, plus one new one; the table lists 0.3's.
 
 | File | Describes | Spec |
 |---|---|---|
@@ -29,6 +29,7 @@ copied, with seven changed; the table lists 0.3's.
 | `fallback.schema.json` | an extension element's fallback (0.2) | 12.6 |
 | `host.schema.json` | the three forms of a host (0.2) | 13.3 |
 | `clearance.schema.json` | a `clearances` object and its envelopes (0.2) | 13.5 |
+| `stair.schema.json` | stairs: their forms and handrails (0.3) | 17.1, 17.2 |
 
 `defs.schema.json` gains, in 0.2, `triple`, `box`, `area`, `angleHalfOpen`, `collectionName` and
 `httpsUri`; `room.schema.json` gains `brief`, and `type.schema.json` gains `clearances` on door and
@@ -37,7 +38,8 @@ window types. In 0.3, `defs.schema.json` gains `clearOpening` and `doorClearOpen
 `opening.schema.json` gains `clearOpening`, and `floorspec.schema.json` declares `"0.3"`; for
 floors, ceilings and slabs (chapter 15), `defs.schema.json` gains `pitch`, `level.schema.json`
 gains `floorThickness` and `ceilingHeight`, `room.schema.json` gains `floor` and `ceiling`, and
-`slab.schema.json` gains `purpose`.
+`slab.schema.json` gains `purpose`. For stairs (chapter 17), `stair.schema.json` is new and
+`floorspec.schema.json` gains the `stairs` collection.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at

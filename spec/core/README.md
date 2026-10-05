@@ -1,6 +1,6 @@
 # Floorspec Core
 
-The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings, and floors, ceilings and slabs**.
+The normative specification of the Floorspec document — **Draft 0.3: walls and rooms, the program, extensions, hosting and clearances, circulation, door and window operation and net clear openings, floors, ceilings and slabs, and stairs**.
 
 | Chapter | |
 |---|---|
@@ -20,6 +20,7 @@ The normative specification of the Floorspec document — **Draft 0.3: walls and
 | [13. Hosting and clearances](13-hosting.md) | local frames, boxes, hosts and placement, clearance envelopes, the overlap measure |
 | [14. Circulation](14-circulation.md) | the door graph, entries, reachable rooms, sleeping rooms reached through another |
 | [15. Floors, ceilings and slabs](15-floors-ceilings-slabs.md) | floors, sunken and raised; flat, tray and vaulted ceilings; hosting on them; slabs |
+| [17. Stairs](17-stairs.md) | straight, L, U, winder and spiral stairs; foot, head, rise and risers; steps, run and walkline; headroom; circulation |
 | [A. IFC4 mapping](annex-ifc.md) | every core kind and its IFC4 entity |
 
 Every normative statement ends with a tag such as `{#FS-CORE-5.3.1 MUST}`. `pnpm statements`

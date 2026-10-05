@@ -2,8 +2,9 @@
 are reachable from an entry, which sleeping rooms are reachable only through another sleeping
 room, and the circulation lints.
 
-The door graph's nodes are rooms. Two rooms are joined when they are connected (11.4), or when
-both have the function `circulation` and are on different levels of one building (14.1). A room is
+The door graph's nodes are rooms. Two rooms are joined when they are connected (11.4), when a stair
+runs from one to the other (Core 0.3: its foot room and its head room, 17.4), or - in a building
+with no stair - when both have the function `circulation` and are on different levels of it (14.1). A room is
 an entry when an edge between its face and the level's unbounded face is a separator or a wall
 hosting a door or an empty opening (14.2). Everything here is a breadth-first search over a finite
 graph: exact, and independent of the order in which a document lists its elements.
@@ -11,6 +12,7 @@ graph: exact, and independent of the order in which a document lists its element
 
 from __future__ import annotations
 
+from . import stairs
 from .derive import Doc
 from .program import room_relations
 
@@ -48,7 +50,12 @@ def derive_circulation(doc: Doc):
         a, b = sorted(pair)
         links.setdefault(a, set()).add(b)
         links.setdefault(b, set()).add(a)
-    halls = sorted(r for r, room in doc.rooms.items() if room.get('function', 'unspecified') == 'circulation')
+    for a, b in stairs.links(doc):                              # 14.1 (Core 0.3): a stair's foot and head
+        links.setdefault(a, set()).add(b)
+        links.setdefault(b, set()).add(a)
+    with_stairs = {doc.levels[st['level']]['building'] for st in doc.stairs.values()}
+    halls = sorted(r for r, room in doc.rooms.items() if room.get('function', 'unspecified') == 'circulation'
+                   and building_of(doc, r) not in with_stairs)
     for i, a in enumerate(halls):
         for b in halls[i + 1:]:
             if building_of(doc, a) == building_of(doc, b) and doc.rooms[a]['level'] != doc.rooms[b]['level']:

@@ -44,6 +44,12 @@ back can be reconciled element by element (FLR-ADR-012).
 | Hosted element, `surface` | the element's entity | `IfcRelContainedInSpatialStructure` (space → element): the room's `IfcSpace` contains it |
 | Hosted element, `free` | the element's entity | `IfcRelContainedInSpatialStructure` (storey → element) |
 | Clearance envelope | — | not exported. Envelopes are derived from types and hosts, so an importer derives them again; exporting them as `IfcVirtualElement` would add elements with space-boundary semantics that IFC tools would treat as walls of a space |
+| Stair (17.1) | `IfcStair` (`PredefinedType` by form, below) | `IfcRelContainedInSpatialStructure` (the storey of its `level` → stair); `IfcRelAggregates` (stair → its flights and landings); `width`, `tread`, `risers` or `maxRiser`, `rotation`, `to` and the form's members in the property set `Floorspec_Stair`; `Pset_StairCommon` `NumberOfRiser`, `NumberOfTreads`, `RiserHeight` and `TreadLength` from the derived values (17.4, 17.5), in millimetres |
+| Flight of a straight, L-shaped or U-shaped stair (17.3) | `IfcStairFlight` (`PredefinedType` `STRAIGHT`) | `NumberOfRisers`, `NumberOfTreads`, `RiserHeight` and `TreadLength` from the derived values; body = its treads' outlines (17.5) at their tops |
+| Landing (17.3) | `IfcSlab` (`PredefinedType` `LANDING`) | aggregated by the `IfcStair`; body = its outline (17.5) at its top |
+| Winder or spiral stair's steps | — | not derived in this draft (17.7): the `IfcStair` carries no flights, and its body is its box |
+| Handrail (17.1) | `IfcRailing` (`PredefinedType` `HANDRAIL`) | aggregated by the `IfcStair`, one for each side; `Pset_RailingCommon` `Height` = `height` |
+| Headroom, rise (derived) | `IfcQuantityLength` in the property set `Floorspec_Stair` (`Headroom`, `Rise`) | converted to millimetres; no headroom when none is derived |
 
 **Door operations.** The left or right of an IFC4 operation type is the hand IFC4 defines for it;
 an exporter takes it from the opening's `hinge` and `swing` (7.1), and writes the door's own
@@ -75,3 +81,14 @@ value.
 | `horizontalSlider` | `DOUBLE_PANEL_VERTICAL` | `SLIDINGHORIZONTAL`, and `FIXEDCASEMENT` or `SLIDINGHORIZONTAL` |
 | `tiltTurn` | `SINGLE_PANEL` | `TILTANDTURNLEFTHAND` or `TILTANDTURNRIGHTHAND` |
 | `pivot` | `SINGLE_PANEL` | `PIVOTHORIZONTAL` or `PIVOTVERTICAL` |
+
+**Stair forms.**
+
+| Floorspec | `IfcStairTypeEnum` |
+|---|---|
+| `straight` | `STRAIGHT_RUN_STAIR` |
+| `lShaped` | `QUARTER_TURN_STAIR` |
+| `uShaped` | `HALF_TURN_STAIR` |
+| `winder`, `"quarter"` | `QUARTER_WINDING_STAIR` |
+| `winder`, `"half"` | `HALF_WINDING_STAIR` |
+| `spiral` | `SPIRAL_STAIR` |

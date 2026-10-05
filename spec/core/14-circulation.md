@@ -3,8 +3,8 @@
 A plan can meet every line of its brief and still be one nobody can live in: a room with no door,
 a bedroom you can only reach by walking through someone else's. Circulation is how a person gets
 from the front door to every room. Core derives it from what the document already holds — rooms,
-the edges between them and the doors in those edges — so every tool and every rule agrees on which
-rooms can be reached and how. Like the program (chapter 11), circulation never makes a document
+the edges between them, the doors in those edges and the stairs between levels — so every tool
+and every rule agrees on which rooms can be reached and how. Like the program (chapter 11), circulation never makes a document
 invalid: a room without a way in is a fact about a design in progress, reported as a lint (14.4).
 
 ## 14.1 The door graph
@@ -14,14 +14,21 @@ joined by a link when:
 
 - they are **connected** (11.4): adjacent rooms with an edge between their faces that is a
   separator, or a wall hosting a door or an empty, cased opening. A window never connects rooms;
+- a stair (chapter 17) runs between them: one is its foot room and the other its head room (17.4);
   or
-- both have the function `circulation` (4.1) and they are on different levels of the building.
+- the building has no stair, both have the function `circulation` (4.1), and they are on different
+  levels of the building.
 
-The second kind of link stands in for stairs, which this draft does not define (0.5): a stair hall
-on one level and a landing on another are taken to be joined by the stair between them. A level
-is reached from another only through its rooms of function `circulation`, so a plan whose stair
-arrives in a room of another function names that room's function `circulation`, or the rooms
-beyond it are not reachable. Rooms in different buildings are never linked.
+The third kind of link stands in for stairs in a building that has none drawn yet — and in every
+document of a draft before 0.3, which could not have one: a stair hall on one level and a landing
+on another are taken to be joined by the stair between them, and a level is reached from another
+only through its rooms of function `circulation`. Once a building has a stair, its stairs are what
+join its levels: a level is reached through the room a stair arrives in, whatever its function, and
+two halls with no stair between them are not joined. A stair with no foot room or no head room joins
+nothing. Rooms in different buildings are never linked: a stair's two levels are in one building
+(17.1.2).
+
+A deriver MUST link two rooms in the door graph exactly when this section says they are linked. {#FS-CORE-14.1.1 MUST}
 
 Only rooms are nodes. A bounded face with no anchor (6.3) is not a room, and a path never passes
 through one: a vestibule nobody has named does not lead anywhere until it is a room.
@@ -92,4 +99,5 @@ values of 14.3 and say so with their own citations. Core reports only what the p
 ## 14.5 Related
 
 FLR-ADR-001 (a tiny core: circulation is derived from core data, never stored), FLR-ADR-002
-(rooms are found, not drawn), and chapter 11, whose connected rooms the door graph is built on.
+(rooms are found, not drawn), FLR-ADR-024 (circulation, and its stand-in for stairs), chapter 11,
+whose connected rooms the door graph is built on, and chapter 17, whose stairs join its levels.
