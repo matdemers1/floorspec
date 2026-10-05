@@ -13,6 +13,12 @@ An element ID MUST be unique across all of a document's collections, not only wi
 A reference can therefore never be ambiguous, and a diagnostic can name an element by its ID
 alone.
 
+Program items (11.1) and extension elements (12.5) share this space of IDs: the program's `items`
+and every collection an extension adds count as collections for 3.1.2.
+
+A program item's ID and an extension element's ID MUST match the pattern of 3.1.1, and MUST be
+unique among all the IDs of the document, as element IDs are. {#FS-CORE-3.1.3 MUST}
+
 > [!note] IDs across versions
 > An ID identifies one element for as long as it exists: an edit changes an element's members,
 > never its ID, and a deleted element's ID is not reused. That is a property of edits, so
@@ -21,7 +27,9 @@ alone.
 ## 3.2 References
 
 A **reference** is a member whose value is the ID of another element. Every reference names the
-collection — and, for types, the kind — of the element it must resolve to:
+collection — and, for types, the kind — of the element it must resolve to. For this section the
+program's `items` is a collection, and a program item or an extension element that holds a
+reference is its referring element:
 
 | Element | Member | Resolves to |
 |---|---|---|
@@ -37,6 +45,14 @@ collection — and, for types, the kind — of the element it must resolve to:
 | Room | `wallFinish`, `floorFinish`, `ceilingFinish` | a material |
 | Slab | `material` | a material |
 | Material | `texture.asset` | an asset |
+| Room | `brief` | a program item (11.3) |
+| Program item | `level` | a level |
+| Adjacency (11.2) | `a`, `b` | a program item |
+| Extension element (12.5) | `host.wall` | a wall (13.3) |
+| Extension element | `host.room` | a room |
+| Extension element | `host.level` | a level |
+| Extension element | `fallback.level` | a level (12.6) |
+| Extension element | `fallback.asset`, `fallback.symbol` | an asset |
 
 A reference MUST be a string that matches the ID pattern of 3.1. {#FS-CORE-3.2.3 MUST}
 

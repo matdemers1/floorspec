@@ -1,31 +1,49 @@
 """Validation in tiers, with the order of evaluation of 10.3, and the lints.
 
-``run(data: bytes)`` returns the expected result of the conformance suite for a document:
-``{valid, diagnostics, hash?, derived?}`` plus the canonical bytes when the document is valid.
+``check(data: bytes, reader, registry)`` returns the expected result of the conformance suite for a
+document - ``{valid, diagnostics, hash?, derived?}`` - plus the canonical bytes when the document
+is valid. ``reader`` is the draft the oracle reads as: READER_01 (Core 0.1 alone, the default, as
+the 0.1 suite and the Ops oracle use it) or READER_02 (Core 0.2, which also reads 0.1 documents,
+1.2.4). ``registry`` is the known extensions of Core 0.2 (12.2), as the bytes of a JSON array of
+registry entries, or None for none.
 """
 
 from __future__ import annotations
 
 from fractions import Fraction
 
-from . import canon, plane, schema
-from .derive import Doc, LevelGraph, degenerate, opening_points, rpoint, strictly_inside
+from . import canon, frames, plane, registry as reg, schema
+from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, rpoint, strictly_inside
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
+from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
-IMPLEMENTED_VERSIONS = {'0.1'}
+
+class Reader:
+    def __init__(self, versions):
+        self.versions = frozenset(versions)
+        self.v02 = '0.2' in self.versions
+
+
+READER_01 = Reader({'0.1'})
+READER_02 = Reader({'0.1', '0.2'})
+IMPLEMENTED_VERSIONS = READER_01.versions
 IMPLEMENTED_EXTENSIONS: set[str] = set()   # a core-only reader
 
 SEVERITY = {
     'FS-LINT-001': 'warning', 'FS-LINT-002': 'warning', 'FS-LINT-003': 'info', 'FS-LINT-004': 'warning',
     'FS-LINT-005': 'warning', 'FS-LINT-006': 'info', 'FS-LINT-007': 'warning',
+    'FS-LINT-008': 'warning', 'FS-LINT-009': 'warning', 'FS-LINT-010': 'warning', 'FS-LINT-011': 'warning',
 }
+GLTF = {'model/gltf-binary', 'model/gltf+json'}
+SYMBOL = {'image/svg+xml', 'image/png'}
 
 
 def diag(code, elements=()):
     """One diagnostic per instance of a catalogued condition (10.2)."""
-    return {'code': code, 'severity': SEVERITY.get(code, 'error'), 'elements': sorted(set(elements))}
+    return {'code': code, 'severity': SEVERITY.get(code, 'error'),
+            'elements': sorted(set(e for e in elements if e is not None))}
 
 
 def sort_diags(ds):
@@ -67,14 +85,44 @@ def _get(e, path):
     return e
 
 
+def coll_of(d: dict, name: str) -> dict:
+    """A collection by name; `items` is the program's items (Core 0.2, 3.2)."""
+    if name == 'items':
+        return d.get('program', {}).get('items', {})
+    return d.get(name, {})
+
+
 def references(d: dict):
-    """(collection, element id, target id, target collection, kinds) for every reference."""
+    """(collection, element id, target id, target collection, kinds) for every reference. The
+    referring element of an adjacency is None (10.4: FS-INV-002 names no element for it)."""
     out = []
     for coll, path, target, kinds in REF_TABLE:
         for eid, e in d.get(coll, {}).items():
             v = _get(e, path)
             if v is not None:
                 out.append((coll, eid, v, target, kinds))
+    # Core 0.2: the program, room briefs, hosts and fallbacks (3.2)
+    for rid, r in d.get('rooms', {}).items():
+        if 'brief' in r:
+            out.append(('rooms', rid, r['brief'], 'items', None))
+    program = d.get('program', {})
+    for iid, it in program.get('items', {}).items():
+        if 'level' in it:
+            out.append(('items', iid, it['level'], 'levels', None))
+    for a in program.get('adjacency', []):
+        out.append(('adjacency', None, a['a'], 'items', None))
+        out.append(('adjacency', None, a['b'], 'items', None))
+    for _, _, eid, el in ext_elements(d):
+        host = el.get('host')
+        if host is not None:
+            for member, target in (('wall', 'walls'), ('room', 'rooms'), ('level', 'levels')):
+                if member in host:
+                    out.append(('ext', eid, host[member], target, None))
+        fb = el['fallback']
+        out.append(('ext', eid, fb['level'], 'levels', None))
+        for member in ('asset', 'symbol'):
+            if member in fb:
+                out.append(('ext', eid, fb[member], 'assets', None))
     for jid, j in d.get('junctions', {}).items():
         for w in j.get('join', {}).get('through', []):
             out.append(('junctions', jid, w, 'walls', None))
@@ -93,15 +141,19 @@ def polygon_ok(poly) -> bool:
 
 def reference_tier(d: dict):
     ds = []
-    owners: dict[str, list[str]] = {}
+    owners: dict[str, list] = {}
     for c in canon.COLLECTIONS:
         for eid in d.get(c, {}):
             owners.setdefault(eid, []).append(c)
+    for iid in coll_of(d, 'items'):                              # 3.1.3
+        owners.setdefault(iid, []).append('items')
+    for ext, cname, eid, _ in ext_elements(d):
+        owners.setdefault(eid, []).append((ext, cname))
     for eid, cs in owners.items():
         if len(cs) > 1:
             ds.append(diag('FS-INV-001', [eid]))
     for coll, eid, target_id, target, kinds in references(d):
-        t = d.get(target, {})
+        t = coll_of(d, target)
         if target_id not in t:
             ds.append(diag('FS-INV-002', [eid]))
         elif kinds is not None and t[target_id].get('kind') not in kinds:
@@ -113,14 +165,15 @@ def reference_tier(d: dict):
     for n in d.get('extensions', {}):
         if n not in used:
             ds.append(diag('FS-INV-005'))
-    for c in canon.COLLECTIONS:
-        for eid, e in d.get(c, {}).items():
+    for c in canon.COLLECTIONS + ('items',):
+        for eid, e in coll_of(d, c).items():
             if any(n not in used for n in e.get('extensions', {})):
                 ds.append(diag('FS-INV-005', [eid]))
-    for rid, r in d.get('rooms', {}).items():
-        f = r.get('function', 'unspecified')
-        if ':' in f and f.split(':', 1)[0] not in used:
-            ds.append(diag('FS-INV-006', [rid]))
+    for c in ('rooms', 'items'):
+        for rid, r in coll_of(d, c).items():
+            f = r.get('function', 'unspecified')
+            if ':' in f and f.split(':', 1)[0] not in used:
+                ds.append(diag('FS-INV-006', [rid]))
     levels, junctions = d.get('levels', {}), d.get('junctions', {})
     for coll in ('walls', 'separators'):
         for eid, e in d.get(coll, {}).items():
@@ -243,6 +296,8 @@ def join_applicability(doc: Doc, level, js, edges, no_faces):
 
 
 def join_and_room_tier(doc: Doc, level):
+    """Join and room invariants of one level. Rooms that get FS-INV-201..204 are named in the
+    diagnostics, which is how the hosting tier knows to skip FS-INV-503 for them (10.3)."""
     ds = []
     g = LevelGraph(doc, level)
     for wid, e in g.edges.items():
@@ -312,6 +367,152 @@ def opening_tier(doc: Doc, no_top):
             if max(a0, b0) < min(a1, b1) and max(av0, bv0) < min(av1, bv1):
                 ds.append(diag('FS-INV-304', [a, b]))
     return ds
+
+
+# ------------------------------------------------------------------------------ Core 0.2 tiers
+
+def _version(decl):
+    return decl['version'] if isinstance(decl, dict) else decl
+
+
+def extension_tier(d: dict, known):
+    """FS-INV-601..605 (12.3, 12.4), for every extension used at a version at which it is known."""
+    ds = []
+    used = d.get('extensionsUsed', {})
+    elements = ext_elements(d)
+    for x, decl in used.items():
+        entry = reg.entry_for(known, x, _version(decl))
+        if entry is None:
+            continue
+        for y, rng in entry.get('requires', {}).items():
+            if y not in used:
+                ds.append(diag('FS-INV-601'))
+            elif not reg.satisfies(_version(used[y]), rng):
+                ds.append(diag('FS-INV-602'))
+        kinds = entry.get('kinds', {})
+        data = d.get('extensions', {}).get(x)
+        if d.get('floorspec') == '0.2' and isinstance(data, dict) and isinstance(data.get('collections'), dict):
+            for cname in data['collections']:
+                if cname not in kinds:
+                    ds.append(diag('FS-INV-604'))
+        for ext, cname, eid, el in elements:
+            if ext != x or cname not in kinds:
+                continue
+            need = kinds[cname].get('fallback', {})
+            for part in ('asset', 'symbol'):
+                if need.get(part) and part not in el['fallback']:
+                    ds.append(diag('FS-INV-603', [eid]))
+        terms = set(entry.get('terms', {}).get('roomFunctions', []))
+        for c in ('rooms', 'items'):
+            for rid, r in coll_of(d, c).items():
+                f = r.get('function', 'unspecified')
+                if ':' in f and f.split(':', 1)[0] == x and f.split(':', 1)[1] not in terms:
+                    ds.append(diag('FS-INV-605', [rid]))
+    return ds
+
+
+def host_level(doc: Doc, host):
+    if host['mode'] == 'wallFace':
+        return doc.walls[host['wall']]['level']
+    if host['mode'] == 'surface':
+        return doc.rooms[host['room']]['level']
+    return host['level']
+
+
+def hosting_tier(doc: Doc, no_top):
+    """FS-INV-501, 502, 504, 505 and 506 (12.6, 13.2, 13.3). FS-INV-503 is surface_tier's."""
+    ds = []
+    for tid, t in doc.types.items():
+        for env in t.get('clearances', {}).values():
+            if not frames.extents_ok(env):
+                ds.append(diag('FS-INV-505', [tid]))
+    for _, _, eid, el in doc.ext_elements:
+        fb = el['fallback']
+        if not frames.extents_ok(fb['box']):
+            ds.append(diag('FS-INV-505', [eid]))
+        for env in el.get('clearances', {}).values():
+            if not frames.extents_ok(env):
+                ds.append(diag('FS-INV-505', [eid]))
+        if 'asset' in fb and doc.assets[fb['asset']]['mediaType'] not in GLTF:
+            ds.append(diag('FS-INV-506', [eid]))
+        if 'symbol' in fb and doc.assets[fb['symbol']]['mediaType'] not in SYMBOL:
+            ds.append(diag('FS-INV-506', [eid]))
+        host = el.get('host')
+        if host is None:
+            continue
+        if host_level(doc, host) != fb['level']:
+            ds.append(diag('FS-INV-504', [eid]))
+        if host['mode'] == 'wallFace':
+            wid = host['wall']
+            if not wall_length_ok(doc, wid, host['offset']):
+                ds.append(diag('FS-INV-501', [eid]))
+            if wid not in no_top and host['height'] > doc.top_elevation(wid) - doc.base_elevation(wid):
+                ds.append(diag('FS-INV-502', [eid]))
+    return ds
+
+
+def surface_tier(doc: Doc, bad_levels, bad_rooms):
+    """FS-INV-503 (13.3.4): evaluated only where room invariants were evaluated and passed (10.3)."""
+    ds = []
+    graphs = {}
+    for _, _, eid, el in doc.ext_elements:
+        host = el.get('host')
+        if host is None or host['mode'] != 'surface':
+            continue
+        rid = host['room']
+        level = doc.rooms[rid]['level']
+        if level in bad_levels or rid in bad_rooms:
+            continue
+        if level not in graphs:
+            g = LevelGraph(doc, level)
+            graphs[level] = (g, g.faces())
+        g, faces = graphs[level]
+        outer, holes = g.room_polygon(g.face_of(tuple(doc.rooms[rid]['anchor']), faces))
+        if not strictly_inside(tuple(host['position']), outer, holes):
+            ds.append(diag('FS-INV-503', [eid]))
+    return ds
+
+
+def derive_02(doc: Doc) -> dict:
+    """The members Core 0.2 adds to the derived values: program, fallbacks, placements,
+    clearances and clearanceOverlaps (11.3, 11.4, 12.6, 13.4, 13.5, 13.6)."""
+    program, _, _ = derive_program(doc)
+    fallbacks, placements, clearances, envelopes = {}, {}, {}, []
+
+    def envelope(owner, level, frame, name, env):
+        ring, bottom, top = frames.footprint(frame, env)
+        v = {'purpose': env['purpose'], 'level': level, 'footprint': ring, 'bottom': bottom, 'top': top}
+        clearances.setdefault(owner, {})[name] = v
+        envelopes.append(((owner, name), v))
+
+    for oid, o in doc.openings.items():
+        fill = o.get('fill')
+        cl = doc.types[fill].get('clearances', {}) if fill is not None else {}
+        if cl:
+            frame = frames.opening_frame(doc, oid)
+            level = doc.walls[o['wall']]['level']
+            for name, env in cl.items():
+                envelope(oid, level, frame, name, env)
+    for ext, cname, eid, el in doc.ext_elements:
+        frame = frames.element_frame(doc, el)
+        fb = el['fallback']
+        ring, bottom, top = frames.footprint(frame, fb['box'])
+        fallbacks[eid] = {'extension': ext, 'collection': cname, 'level': fb['level'],
+                          'footprint': ring, 'bottom': bottom, 'top': top}
+        if 'host' in el:
+            placements[eid] = frame.placement()
+            if el['host']['mode'] != 'wallFace':
+                assert placements[eid]['facing'] == el['host'].get('rotation', 0)
+        for name, env in el.get('clearances', {}).items():
+            envelope(eid, fb['level'], frame, name, env)
+    overlaps = []
+    for i, (ka, a) in enumerate(envelopes):
+        for kb, b in envelopes[i + 1:]:
+            if ka[0] != kb[0] and frames.envelopes_overlap(a, b):
+                overlaps.append(sorted([list(ka), list(kb)]))
+    overlaps.sort()
+    return {'program': program, 'fallbacks': fallbacks, 'placements': placements,
+            'clearances': clearances, 'clearanceOverlaps': overlaps}
 
 
 # ------------------------------------------------------------------------------ lints
@@ -392,9 +593,14 @@ def opening_in_join(doc: Doc, oid) -> bool:
 
 # ------------------------------------------------------------------------------ the pipeline
 
-def check(data: bytes):
+def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None):
     """Returns (result, canonical bytes or None, notes)."""
     notes = []
+    known = None
+    if registry is not None:                                    # tier 0: configuration (12.2)
+        known = reg.load(registry)
+        if known is None:
+            return {'valid': False, 'diagnostics': [diag('FS-CFG-001')]}, None, ['the known extensions are not a valid registry']
     try:
         value, codes = parse(data)
     except Malformed as e:
@@ -406,7 +612,7 @@ def check(data: bytes):
     ds = []
     if isinstance(value, dict):
         v = value.get('floorspec')
-        if isinstance(v, str) and v not in IMPLEMENTED_VERSIONS:
+        if isinstance(v, str) and v not in reader.versions:
             ds.append(diag('FS-DOC-001'))
         # FS-DOC-002 only for a well-formed extensionsRequired: an array of distinct names, each
         # in extensionsUsed. Anything else is left to the schema tier and FS-INV-004 (10.4).
@@ -418,8 +624,9 @@ def check(data: bytes):
                     ds.append(diag('FS-DOC-002'))
     if ds:
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
-    # tier 3: schema
-    problems = schema.check(value)
+    # tier 3: schema - of the draft the document declares (1.2.4)
+    declared = value.get('floorspec') if isinstance(value, dict) else None
+    problems = schema.check(value, declared if declared in reader.versions else max(reader.versions))
     if problems:
         notes.extend(problems)
         return {'valid': False, 'diagnostics': [diag('FS-SCH-001')]}, None, notes
@@ -429,14 +636,26 @@ def check(data: bytes):
         doc = Doc(value)
         gds, bad_levels, no_top = graph_tier(doc)
         ds.extend(gds)
+        bad_rooms = set()
         for level in sorted(doc.levels):
             if level not in bad_levels:
-                ds.extend(join_and_room_tier(doc, level))
+                rds = join_and_room_tier(doc, level)
+                ds.extend(rds)
+                bad_rooms.update(e for x in rds if x['code'].startswith('FS-INV-2') for e in x['elements'])
         ds.extend(opening_tier(doc, no_top))
+        if reader.v02:
+            ds.extend(program_invariants(value, diag))
+            ds.extend(extension_tier(value, known))
+            ds.extend(hosting_tier(doc, no_top))
+            ds.extend(surface_tier(doc, bad_levels, bad_rooms))
     if any(x['severity'] == 'error' for x in ds):
         return {'valid': False, 'diagnostics': sort_diags(ds)}, None, notes
     doc = Doc(value)
     ds.extend(lints(doc))
+    derived = derive_all(doc)
+    if reader.v02:
+        ds.extend(program_lints(doc, diag))
+        derived.update(derive_02(doc))
     result = {'valid': True, 'diagnostics': sort_diags(ds), 'hash': canon.content_hash(value),
-              'derived': derive_all(doc)}
+              'derived': derived}
     return result, canon.canonical_bytes(value), notes

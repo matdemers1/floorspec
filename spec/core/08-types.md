@@ -62,11 +62,14 @@ entirely.
 | `width` | length | absent | the width of every opening it fills, unless the opening overrides it |
 | `height` | length | absent | likewise, the height |
 | `sill` | length | absent | likewise, the sill |
+| `clearances` | object: envelope name → clearance envelope (13.5) | `{}` | the space every opening it fills needs kept clear — a door's swing, the space in front of a window |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A door or window type's `width` and `height`, when present, MUST be greater than zero, and its `sill` MUST NOT be negative. {#FS-CORE-8.4.1 MUST}
 
-Operation, frame, glazing and hardware are defined in a later draft.
+Operation, frame, glazing and hardware are defined in a later draft. A type's `clearances` are not
+a typed property (8.2): an opening cannot override them in this draft, and they are placed in the
+frame of each opening the type fills (13.5).
 
 ## 8.5 Materials
 

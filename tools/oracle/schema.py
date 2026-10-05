@@ -2,10 +2,13 @@
 
 It is transcribed from the member tables of chapters 1-8 and from the statements the catalogue
 assigns to FS-SCH-001: 1.1, 1.3, 1.4, 1.6.1, 1.8, 2.1, 2.4, 3.1.1, 4.1.1, 4.3.1, 5.9.1, 6.7.1,
-7.1, 8.1, 8.3-8.6. Objects are closed; required members are required; lengths are JSON integers
-(no fraction, no exponent - the parser keeps 1.0 and 1e0 apart from 1) within 2^53 - 1.
+7.1, 8.1, 8.3-8.6 - and, for Core 0.2, from chapters 11-13: 3.1.3 (pattern), 11.1.1, 11.1.2,
+12.1.1, 12.1.2, 12.5.1, 12.5.2, 13.2.1, 13.3.1, 13.5.1. Objects are closed; required members are
+required; lengths are JSON integers (no fraction, no exponent - the parser keeps 1.0 and 1e0 apart
+from 1) within 2^53 - 1.
 
-``check(doc)`` returns a list of problems; any problem is FS-SCH-001.
+``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
+draft whose schema applies: "0.1" or "0.2" (1.2.4).
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ SHA_RE = re.compile(r'[0-9a-f]{64}')
 MEDIA_RE = re.compile(r'[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}')
 VERSION_RE = re.compile(r'[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?')                       # 1.6.7
 URI_RE = re.compile(r"https://(?:[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=-]|%[0-9A-Fa-f]{2})+")  # 8.6
+NAME_RE = re.compile(r'[a-z][A-Za-z0-9]*')                                                # 12.5, 13.5
 
 ROOM_FUNCTIONS = {'unspecified', 'sleeping', 'bath', 'kitchen', 'living', 'dining', 'office',
                   'laundry', 'utility', 'storage', 'circulation', 'mechanical', 'garage', 'exterior'}
@@ -29,6 +33,7 @@ LAYER_FUNCTIONS = {'core', 'substrate', 'insulation', 'membrane', 'airGap', 'fin
 TOP_LEVEL = {'floorspec', 'project', 'site', 'buildings', 'levels', 'junctions', 'walls',
              'separators', 'openings', 'rooms', 'slabs', 'types', 'materials', 'assets',
              'extensionsUsed', 'extensionsRequired', 'extensions', 'extras'}
+PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
 
 
 def is_int(v) -> bool:
@@ -36,8 +41,9 @@ def is_int(v) -> bool:
 
 
 class _Checker:
-    def __init__(self):
+    def __init__(self, version: str = '0.1'):
         self.problems: list[str] = []
+        self.v02 = version == '0.2'
 
     def bad(self, path: str, why: str) -> None:
         self.problems.append(f'{path}: {why}')
@@ -239,17 +245,139 @@ class _Checker:
                                    'hinge': self.enum('start', 'end'), 'swing': self.enum('left', 'right'),
                                    **self.common()}, ('wall', 'offset'))
 
+    def function(self, x, p):
+        if not isinstance(x, str) or not (x in ROOM_FUNCTIONS or EXT_TERM_RE.fullmatch(x)):
+            self.bad(p, 'bad room function')
+
     def room(self, v, path):
         if not self.obj(v, path):
             return
+        allowed = {'level': self.ref, 'anchor': self.point, 'function': self.function,
+                   'wallFinish': self.ref, 'floorFinish': self.ref, 'ceilingFinish': self.ref,
+                   **self.common()}
+        if self.v02:
+            allowed['brief'] = self.ref
+        self.members(v, path, allowed, ('level', 'anchor'))
 
-        def function(x, p):
-            if not isinstance(x, str) or not (x in ROOM_FUNCTIONS or EXT_TERM_RE.fullmatch(x)):
-                self.bad(p, 'bad room function')
+    # ---- Core 0.2: chapters 11-13
+    def integer(self, lo, hi):
+        def f(x, p):
+            if not is_int(x) or not lo <= x <= hi:
+                self.bad(p, 'integer out of range')
+        return f
 
-        self.members(v, path, {'level': self.ref, 'anchor': self.point, 'function': function,
-                               'wallFinish': self.ref, 'floorFinish': self.ref, 'ceilingFinish': self.ref,
-                               **self.common()}, ('level', 'anchor'))
+    def triple(self, v, path):
+        if not isinstance(v, list) or len(v) != 3:
+            self.bad(path, 'not three lengths')
+            return
+        for i, x in enumerate(v):
+            self.length(x, f'{path}/{i}')
+
+    def box(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'min': self.triple, 'max': self.triple}, ('min', 'max'))
+
+    def clearances(self, v, path):
+        if not self.obj(v, path):
+            return
+        for k, e in v.items():
+            p = f'{path}/{k}'
+            if not NAME_RE.fullmatch(k):
+                self.bad(path, f'bad envelope name "{k}"')
+            if self.obj(e, p):
+                self.members(e, p, {'purpose': self.enum(*PURPOSES), 'shape': self.enum('box'),
+                                    'min': self.triple, 'max': self.triple}, ('purpose', 'shape', 'min', 'max'))
+
+    def rotation(self, x, p):
+        if not is_int(x) or not (-180_000_000 < x <= 180_000_000):
+            self.bad(p, 'rotation out of range')
+
+    def host(self, v, path):
+        if not self.obj(v, path):
+            return
+        mode = v.get('mode')
+        if mode == 'wallFace':
+            self.members(v, path, {'mode': self.any_value, 'wall': self.ref, 'side': self.enum('left', 'right'),
+                                   'offset': self.nonneg, 'height': self.nonneg},
+                         ('mode', 'wall', 'side', 'offset', 'height'))
+        elif mode == 'surface':
+            self.members(v, path, {'mode': self.any_value, 'room': self.ref, 'surface': self.enum('floor', 'ceiling'),
+                                   'position': self.point, 'rotation': self.rotation},
+                         ('mode', 'room', 'surface', 'position'))
+        elif mode == 'free':
+            self.members(v, path, {'mode': self.any_value, 'level': self.ref, 'position': self.point,
+                                   'rotation': self.rotation}, ('mode', 'level', 'position'))
+        else:
+            self.bad(path, 'bad host mode')
+
+    def fallback(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'level': self.ref, 'box': self.box, 'asset': self.ref, 'symbol': self.ref},
+                         ('level', 'box'))
+
+    def ext_element(self, v, path):
+        if not self.obj(v, path):
+            return
+        if 'fallback' not in v:
+            self.bad(path, 'an extension element has no fallback')
+        core = {'fallback': self.fallback, 'host': self.host, 'clearances': self.clearances,
+                'name': self.name, 'extras': self.any_obj}
+        for k, x in v.items():
+            if k in core:
+                core[k](x, f'{path}/{k}')
+
+    def top_extensions(self, v, path):
+        """1.6, 12.5: top-level extension data; in a 0.2 document, `collections` holds elements."""
+        self.ext_data(v, path)
+        if not self.v02 or not isinstance(v, dict):
+            return
+        for name, data in v.items():
+            if not isinstance(data, dict) or 'collections' not in data:
+                continue
+            cp = f'{path}/{name}/collections'
+            cs = data['collections']
+            if not self.obj(cs, cp):
+                continue
+            for cname, coll in cs.items():
+                if not NAME_RE.fullmatch(cname):
+                    self.bad(cp, f'bad collection name "{cname}"')
+                if not self.obj(coll, f'{cp}/{cname}'):
+                    continue
+                for eid, el in coll.items():
+                    if not ID_RE.fullmatch(eid):
+                        self.bad(f'{cp}/{cname}', f'bad element ID "{eid}"')
+                    self.ext_element(el, f'{cp}/{cname}/{eid}')
+
+    def program(self, v, path):
+        if not self.obj(v, path):
+            return
+
+        def items(x, p):
+            if not self.obj(x, p):
+                return
+            for k, it in x.items():
+                q = f'{p}/{k}'
+                if not ID_RE.fullmatch(k):
+                    self.bad(p, f'bad item ID "{k}"')
+                if self.obj(it, q):
+                    self.members(it, q, {'function': self.function, 'name': self.name,
+                                         'count': self.integer(1, MAX_LEN),
+                                         'targetArea': self.integer(1, MAX_LEN), 'minArea': self.integer(1, MAX_LEN),
+                                         'level': self.ref, 'extensions': self.ext_data, 'extras': self.any_obj},
+                                 ('function',))
+
+        def adjacency(x, p):
+            if not isinstance(x, list):
+                self.bad(p, 'not an array')
+                return
+            for i, a in enumerate(x):
+                q = f'{p}/{i}'
+                if self.obj(a, q):
+                    self.members(a, q, {'a': self.ref, 'b': self.ref,
+                                        'kind': self.enum('required', 'preferred', 'forbidden'),
+                                        'weight': self.integer(1, 10)}, ('a', 'b', 'kind'))
+
+        self.members(v, path, {'items': items, 'adjacency': adjacency})
 
     def slab(self, v, path):
         if self.obj(v, path):
@@ -265,8 +393,11 @@ class _Checker:
             self.members(v, path, {'kind': self.any_value, 'layers': self.layers, **self.common()},
                          ('kind', 'layers'))
         elif kind in ('doorType', 'windowType'):
-            self.members(v, path, {'kind': self.any_value, 'width': self.positive, 'height': self.positive,
-                                   'sill': self.nonneg, **self.common()}, ('kind',))
+            allowed = {'kind': self.any_value, 'width': self.positive, 'height': self.positive,
+                       'sill': self.nonneg, **self.common()}
+            if self.v02:
+                allowed['clearances'] = self.clearances
+            self.members(v, path, allowed, ('kind',))
         else:
             self.bad(path, 'bad type kind')
 
@@ -329,17 +460,28 @@ class _Checker:
             self.bad('', 'the document is not an object')
             return
 
+        want = '0.2' if self.v02 else '0.1'
+
         def floorspec(x, p):
-            if x != '0.1' or not isinstance(x, str):
-                self.bad(p, 'floorspec must be "0.1"')
+            if not isinstance(x, str) or x != want:
+                self.bad(p, f'floorspec must be "{want}"')
+
+        def version(ver, p):
+            if not isinstance(ver, str) or not VERSION_RE.fullmatch(ver):
+                self.bad(p, 'bad extension version')
 
         def ext_used(x, p):
             if self.obj(x, p):
                 for k, ver in x.items():
                     if not EXT_RE.fullmatch(k):
                         self.bad(p, f'bad extension name "{k}"')
-                    if not isinstance(ver, str) or not VERSION_RE.fullmatch(ver):
-                        self.bad(p, 'bad extension version')
+                    if self.v02 and isinstance(ver, dict):          # 12.1: a declaration object
+                        def uri(y, q):
+                            if not isinstance(y, str) or not URI_RE.fullmatch(y):
+                                self.bad(q, 'bad schema uri')
+                        self.members(ver, f'{p}/{k}', {'version': version, 'schema': uri}, ('version',))
+                    else:
+                        version(ver, f'{p}/{k}')
 
         def ext_required(x, p):
             if not isinstance(x, list):
@@ -359,11 +501,12 @@ class _Checker:
             'rooms': self.collection(self.room), 'slabs': self.collection(self.slab),
             'types': self.collection(self.type_), 'materials': self.collection(self.material),
             'assets': self.collection(self.asset), 'extensionsUsed': ext_used,
-            'extensionsRequired': ext_required, 'extensions': self.ext_data, 'extras': self.any_obj,
+            'extensionsRequired': ext_required, 'extensions': self.top_extensions, 'extras': self.any_obj,
+            **({'program': self.program} if self.v02 else {}),
         }, ('floorspec', 'project'))
 
 
-def check(doc) -> list[str]:
-    c = _Checker()
+def check(doc, version: str = '0.1') -> list[str]:
+    c = _Checker(version)
     c.document(doc)
     return c.problems

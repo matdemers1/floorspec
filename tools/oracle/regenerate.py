@@ -8,7 +8,10 @@ diagnostics are cross-checked, hash, created, removed, resolved, inverse and out
 recomputed (and rewritten with --write), and every committed result is checked for 1.3.1, 1.3.2,
 1.4.1 and 1.6.1.
 
-For every test directory under conformance/core/0.1 it recomputes, from input.json alone:
+For every test directory under conformance/core/0.1 - read as a Core 0.1 reader reads it - and
+under conformance/core/0.2 - read as a Core 0.2 reader, which also reads 0.1 documents (1.2.4),
+configured with the test's registry.json as its known extensions when the test has one (12.2) -
+it recomputes, from input.json (and registry.json) alone:
 
 - `valid` and `diagnostics` - these are written by hand and only ever cross-checked here; --write
   never changes them, so a disagreement is always reported for a person to resolve;
@@ -26,16 +29,29 @@ import sys
 
 from .ops.suite import verify_all as verify_ops
 from .report import dumps
-from .validate import check
+from .validate import READER_01, READER_02, check
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SUITE = os.path.join(ROOT, 'conformance', 'core', '0.1')
+SUITES = {'0.1': (os.path.join(ROOT, 'conformance', 'core', '0.1'), READER_01),
+          '0.2': (os.path.join(ROOT, 'conformance', 'core', '0.2'), READER_02)}
+SUITE = SUITES['0.1'][0]
 
 
-def test_dirs():
-    for dirpath, _, files in sorted(os.walk(SUITE)):
+def test_dirs(suite=SUITE):
+    for dirpath, _, files in sorted(os.walk(suite)):
         if 'input.json' in files or 'test.json' in files:
             yield dirpath
+
+
+def reader_for(path: str):
+    """The reader and known extensions a test directory is checked with."""
+    reader = READER_02 if os.sep + os.path.join('core', '0.2') + os.sep in os.path.abspath(path) + os.sep else READER_01
+    registry = None
+    rp = os.path.join(path, 'registry.json')
+    if os.path.exists(rp):
+        with open(rp, 'rb') as f:
+            registry = f.read()
+    return reader, registry
 
 
 def verify(path: str, write: bool) -> list[str]:
@@ -50,7 +66,8 @@ def verify(path: str, write: bool) -> list[str]:
         errors.append(f'test.json: {e}')
     with open(os.path.join(path, 'input.json'), 'rb') as f:
         data = f.read()
-    result, canonical, notes = check(data)
+    reader, registry = reader_for(path)
+    result, canonical, notes = check(data, reader, registry)
     exp_path = os.path.join(path, 'expected.json')
     try:
         with open(exp_path, encoding='utf-8') as f:
@@ -90,7 +107,7 @@ def verify(path: str, write: bool) -> list[str]:
             errors.append('canonical.json differs from the oracle' if canonical is not None and on_disk is not None
                           else 'canonical.json must exist exactly when the document is valid')
     if canonical is not None:
-        again, canonical2, _ = check(canonical)
+        again, canonical2, _ = check(canonical, reader, registry)
         if not again['valid'] or canonical2 != canonical:
             errors.append('the canonical form does not canonicalize to itself')
         elif again.get('hash') != result.get('hash') or again.get('derived') != result.get('derived'):
@@ -100,16 +117,21 @@ def verify(path: str, write: bool) -> list[str]:
 
 def main(argv) -> int:
     write = '--write' in argv
-    dirs = list(test_dirs())
-    errors = []
-    for d in dirs:
-        errors.extend(verify(d, write))
+    counts, all_errors = {}, []
+    for version, (suite, _) in SUITES.items():
+        dirs = list(test_dirs(suite))
+        errors = []
+        for d in dirs:
+            errors.extend(verify(d, write))
+        counts[version] = (len(dirs), len(errors))
+        all_errors.extend(errors)
     ops_count, ops_errors = verify_ops(write)
-    for e in errors + ops_errors:
+    for e in all_errors + ops_errors:
         print(e)
-    print(f'Core: {len(dirs)} tests, {len(errors)} differences from the oracle')
+    for version, (n, k) in counts.items():
+        print(f'Core {version}: {n} tests, {k} differences from the oracle')
     print(f'Ops: {ops_count} tests, {len(ops_errors)} differences from the oracle')
-    return 1 if errors or ops_errors else 0
+    return 1 if all_errors or ops_errors else 0
 
 
 if __name__ == '__main__':

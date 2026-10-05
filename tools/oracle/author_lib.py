@@ -1,9 +1,10 @@
-"""Helpers for tools/oracle/author.py, the script the conformance suite is written with.
+"""Helpers for tools/oracle/author.py and author02.py, the scripts the Core suites are written with.
 
 A test is declared with t(group, slug, description, covers, input, diagnostics). The diagnostics
 are written by hand; write_all() asks the oracle for its own and reports any disagreement, and
 takes hash, derived and canonical.json from the oracle. Directories are numbered in declaration
-order within a group, so add new tests at the end of their group's section.
+order within a group, so add new tests at the end of their group's section. A Core 0.2 test may
+also give the known extensions (registry=[entries]), written to registry.json.
 """
 import copy  # noqa: F401  (re-exported for author.py)
 import json
@@ -12,7 +13,7 @@ import shutil
 import sys
 
 from tools.oracle.report import dumps
-from tools.oracle.validate import SEVERITY, check
+from tools.oracle.validate import READER_01, SEVERITY, check
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -95,22 +96,25 @@ def cov(*ids):
     return [i if i.startswith('FS-') else f'FS-CORE-{i}' for i in ids]
 
 
-def t(group, slug, description, covers, inp, diags=(), raw=None):
+def t(group, slug, description, covers, inp, diags=(), raw=None, registry=None, registry_raw=None):
     """diags: list of (code, [elements]) - written by hand, cross-checked by the oracle."""
     TESTS.append(dict(group=group, slug=slug, description=description, covers=cov(*covers),
-                      inp=inp, raw=raw, diags=[{'code': c, 'severity': SEVERITY.get(c, 'error'), 'elements': sorted(e)}
-                                               for c, e in diags]))
+                      inp=inp, raw=raw, registry=registry, registry_raw=registry_raw,
+                      diags=[{'code': c, 'severity': SEVERITY.get(c, 'error'), 'elements': sorted(e)}
+                             for c, e in diags]))
 
 
-def write_all(only_group=None, prune=False):
+def write_all(only_group=None, prune=False, tests=None, suite=None, reader=READER_01):
+    tests = TESTS if tests is None else tests
+    suite = SUITE if suite is None else suite
     counters = {}
     failures = 0
     seen_dirs = set()
-    for tc in TESTS:
+    for tc in tests:
         g = tc['group']
         counters[g] = counters.get(g, 0) + 1
         name = f"{counters[g]:03d}-{tc['slug']}"
-        d = os.path.join(SUITE, g, name)
+        d = os.path.join(suite, g, name)
         seen_dirs.add(d)
         if only_group and g != only_group:
             continue
@@ -120,7 +124,16 @@ def write_all(only_group=None, prune=False):
             f.write(data)
         with open(os.path.join(d, 'test.json'), 'w') as f:
             f.write(json.dumps({'description': tc['description'], 'covers': tc['covers']}, indent=2, ensure_ascii=False) + '\n')
-        result, canonical, notes = check(data)
+        registry = tc.get('registry_raw')
+        if registry is None and tc.get('registry') is not None:
+            registry = (fmt(tc['registry']) + '\n').encode('utf-8')
+        rp = os.path.join(d, 'registry.json')
+        if registry is not None:
+            with open(rp, 'wb') as f:
+                f.write(registry)
+        elif os.path.exists(rp):
+            os.remove(rp)
+        result, canonical, notes = check(data, reader, registry)
         hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
         valid = not any(x['severity'] == 'error' for x in hand)
         if hand != result['diagnostics'] or valid != result['valid']:
@@ -142,12 +155,12 @@ def write_all(only_group=None, prune=False):
             os.remove(cp)
     # remove directories no test declares (only when asked: --prune)
     if prune and not only_group:
-        for g in os.listdir(SUITE):
-            gp = os.path.join(SUITE, g)
+        for g in os.listdir(suite):
+            gp = os.path.join(suite, g)
             if os.path.isdir(gp):
                 for n in os.listdir(gp):
                     if os.path.join(gp, n) not in seen_dirs:
                         print('removing', os.path.join(gp, n))
                         shutil.rmtree(os.path.join(gp, n))
-    print(f'{len(TESTS)} tests, {failures} mismatches')
+    print(f'{len(tests)} tests, {failures} mismatches')
     return failures

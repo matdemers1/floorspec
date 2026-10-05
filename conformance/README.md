@@ -9,16 +9,27 @@ adjusted to match an implementation.
 
 ```text
 conformance/
-  core/0.1/<group>/<NNN-slug>/
+  core/0.2/<group>/<NNN-slug>/
     test.json        what the test is and which statements it covers
     input.json       the document under test, byte for byte (it may be malformed on purpose)
+    registry.json    optional: the validator's known extensions (Core 0.2, 12.2) - an array of registry entries
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
+  core/0.1/…         the Core 0.1 suite, as published; unchanged
 ```
 
+**Core 0.2** (`core/0.2/`) is the suite of the current spec text, and the one `pnpm coverage`
+gates it against. It holds every Core 0.1 test re-targeted to 0.2 — same group, same number,
+declaring `"0.2"`, covering `FS-CORE-1.2.3` and `FS-CORE-1.6.9` where the 0.1 test covered the
+retired `1.2.1` and `1.6.5` — and, after them in each group, the tests of what 0.2 adds. A 0.2
+reader also reads 0.1 documents (1.2.4), and `model/061-read-0.1-document` and the tests after it
+show that it reads them exactly as 0.1 does. **Core 0.1** (`core/0.1/`) is the suite of the
+published 0.1 text, kept as it was so that a 0.1 implementation can still be tested against it.
+
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`. `examples` holds whole, plausible models -
-`examples/001-three-room-house` is the Phase 1 exit demo.
+`openings`, `types`, `serialization`, `diagnostics`, and in 0.2 `program`, `extensions`, `hosting`
+and `clearances`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+Phase 1 exit demo.
 
 ## test.json
 
@@ -87,7 +98,8 @@ are illustrative only.
 }
 ```
 
-- All five members are always present, even when empty (`{}` or `[]`).
+- All five members are always present, even when empty (`{}` or `[]`); in the 0.2 suite, so are
+  the five members below.
 - `walls` — every wall on every level: its four face ends (5.7, 5.8) and its base and top
   elevations (5.9).
 - `junctionFills` — every junction whose fill is not empty (5.7), as a ring.
@@ -100,6 +112,39 @@ are illustrative only.
   are sorted by their first vertex.
 - An **area** is a decimal string, because areas can exceed the range where JSON numbers are
   exact: an integer, or an integer followed by `.5`.
+
+Core 0.2 adds five members, derived for every valid document (with nothing in them for a
+document that has no program, extension elements or clearances):
+
+```json
+{
+  "program": {
+    "items": { "BED": { "rooms": ["RNW", "RSW"], "countMet": true, "minAreaMet": true, "targetAreaMet": false } },
+    "adjacency": [ { "a": "KIT", "b": "DIN", "kind": "required", "adjacent": true, "connected": true } ]
+  },
+  "fallbacks": {
+    "SOFA": { "level": "L1", "extension": "FS_furniture", "collection": "pieces",
+              "footprint": [[…], …], "bottom": 0, "top": 1024000 }
+  },
+  "placements": { "SOFA": { "point": [2560000, 1920000, 0], "facing": 90000000 } },
+  "clearances": {
+    "O1": { "swing": { "level": "L1", "purpose": "swing", "footprint": [[…], …], "bottom": 0, "top": 2688000 } }
+  },
+  "clearanceOverlaps": [ [["O1", "swing"], ["PNL", "working"]] ]
+}
+```
+
+- `program` — every program item's rooms and whether it meets its count and areas (11.3), and
+  every adjacency, in the document's order, with `adjacent` and `connected` (11.4).
+  `minAreaMet` and `targetAreaMet` are present only for an item with that member.
+- `fallbacks` — every extension element's fallback box in its frame (12.6): its footprint (a ring
+  of four points, least vertex first, counter-clockwise), and its bottom and top elevations.
+- `placements` — every extension element with a host: its frame's origin, rounded, and the
+  direction it faces, in microdegrees (13.4).
+- `clearances` — every clearance envelope, by owner (an opening or an extension element) and name
+  (13.5).
+- `clearanceOverlaps` — every pair of envelopes of different owners that overlap (13.6), each
+  pair sorted and the list sorted.
 
 A deriver conforms when what it derives equals `derived` exactly.
 
@@ -124,19 +169,26 @@ python3.13 -m unittest discover tools/oracle   # the oracle's own tests
 python3.13 -m tools.oracle.author              # rewrite the suite from its declarations
 ```
 
-`regenerate` recomputes every expected result from `input.json` alone and compares it with what is on
+`regenerate` reads `core/0.1` as a Core 0.1 reader and `core/0.2` as a Core 0.2 reader, and
+recomputes every expected result from `input.json` (and `registry.json`) alone and compares it with what is on
 disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
 the canonical form canonicalizes to itself and derives the same values and hash (9.2.2).
 
 The suite assumes a reader that implements no extension: a document whose `extensionsRequired`
 is well formed (distinct names, each in `extensionsUsed`) and not empty is rejected with
-`FS-DOC-002`, once for each name.
+`FS-DOC-002`, once for each name. It assumes a validator configured with no known extensions
+(Core 0.2, 12.2) except in a test that has a `registry.json`: there, the validator is configured
+with exactly the entries in it. A test that expects `[FS-CFG-001]` has known extensions that are
+not a valid registry, and a conformant validator reports that and nothing else, whatever the
+document.
 
-The tests are declared in `tools/oracle/author.py`, with every expected diagnostic written by hand;
-`python3.13 -m tools.oracle.author` rewrites the suite from it and fails if the oracle disagrees with
-a hand-written diagnostic. Add new tests at the end of that file, so existing directories keep their
-numbers.
+The tests are declared in `tools/oracle/author.py` (Core 0.1) and `tools/oracle/author02.py`
+(Core 0.2, which takes every 0.1 declaration and re-targets it before adding its own), with every
+expected diagnostic written by hand; `python3.13 -m tools.oracle.author` and
+`python3.13 -m tools.oracle.author02` rewrite their suites and fail if the oracle disagrees with a
+hand-written diagnostic. Add new tests at the end of their group in `author02.py`, so existing
+directories keep their numbers; the 0.1 suite is published and does not change.
 
 ## Floorspec Ops
 

@@ -18,6 +18,20 @@ from .surd import Surd
 
 # ------------------------------------------------------------------------------ document access
 
+def ext_elements(d: dict):
+    """Core 0.2, 12.5: (extension, collection, ID, element) for every extension element - only in a
+    document that declares 0.2 (1.2.4); in a 0.1 document, extension data is opaque."""
+    out = []
+    if d.get('floorspec') != '0.2':
+        return out
+    for ext, data in d.get('extensions', {}).items():
+        if isinstance(data, dict) and isinstance(data.get('collections'), dict):
+            for cname, coll in data['collections'].items():
+                for eid, el in coll.items():
+                    out.append((ext, cname, eid, el))
+    return out
+
+
 class Doc:
     """A read-only view of a schema-valid document with its references resolved."""
 
@@ -26,6 +40,8 @@ class Doc:
         for c in ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                   'slabs', 'types', 'materials', 'assets'):
             setattr(self, c, d.get(c, {}))
+        self.items = d.get('program', {}).get('items', {})
+        self.ext_elements = ext_elements(d)
 
     # 8.2 / 5.4
     def effective_layers(self, wid):

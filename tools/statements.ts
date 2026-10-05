@@ -176,6 +176,20 @@ export function parseFile(path: string, root: string, spec: string): { statement
   return { statements, problems };
 }
 
+/**
+ * The IDs a later draft of Core retired (spec/core/00-conventions.md, 0.6): the first column of the
+ * table under "Changes from", written as code spans. Retired IDs are never reused.
+ */
+export function retired(root: string): Set<string> {
+  const text = readFileSync(join(root, 'spec', 'core', '00-conventions.md'), 'utf8');
+  const out = new Set<string>();
+  for (const line of text.split('\n')) {
+    const m = /^\|\s*`(FS-CORE-\d+\.\d+\.\d+)`\s*\|/.exec(line);
+    if (m) out.add(m[1]!);
+  }
+  return out;
+}
+
 /** Every statement of one specification (`core` → FS-CORE), in file and line order. */
 export function extract(root: string, spec: 'core' | 'ops' | 'rules'): { statements: Statement[]; problems: Problem[] } {
   const dir = join(root, 'spec', spec);
