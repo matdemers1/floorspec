@@ -225,7 +225,7 @@ A roof's **derived roof** is:
     `{ "edge", "polygon" }`, where `polygon` is its **gable end**: `A` and then `B` at the eave, and
     then back from `B` to `A` along the surface through every node on the edge — for a shed roof,
     through `B` and `A` — each point `[x, y, z]` rounded as a face's are, each point that equals the
-    one before it removed; listed by `edge`;
+    one before it removed (the first counts as following the last); listed by `edge`;
   - `lines`: each line (16.4.3) as `{ "kind", "from", "to" }`, its `kind` `"ridge"`, `"hip"` or
     `"valley"` and its ends as points `[x, y, z]` rounded as a face's are, `from` the lesser of the
     two — compared by `x`, then `y`, then `z`; listed by `from`, then `to`. A flat or shed roof has
