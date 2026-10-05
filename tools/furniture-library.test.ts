@@ -54,7 +54,7 @@ test('every box is in the convention of 3.1 and carries its category\'s default 
   assert.deepEqual(bed.left, { purpose: 'access', shape: 'box', min: [0, 800 * MM, 0], max: [2050 * MM, 1400 * MM, 2000 * MM] });
 });
 
-test('each model is a binary glTF 2.0 whose bounds, mapped as 3.2 says, are its item\'s box', () => {
+test('each model is a binary glTF 2.0 whose bounds, placed as Core 12.6 says, are its item\'s box (3.2.1)', () => {
   for (const it of ITEMS) {
     const b = files.get(`models/${it.id}.glb`)!;
     assert.equal(b.readUInt32LE(0), 0x46546c67, 'magic glTF');
@@ -75,7 +75,7 @@ test('each model is a binary glTF 2.0 whose bounds, mapped as 3.2 says, are its 
   }
 });
 
-test('each symbol is drawn to its footprint in millimetres, front along the bottom edge (3.3)', () => {
+test('each symbol is drawn to its footprint in millimetres, front along the bottom edge (Core 12.6, 3.3.1)', () => {
   for (const it of ITEMS) {
     const svg = files.get(`symbols/${it.id}.svg`)!.toString('utf8');
     assert.match(svg, new RegExp(`viewBox="0 0 ${it.width} ${it.depth}"`));

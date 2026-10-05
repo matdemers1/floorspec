@@ -121,6 +121,8 @@ What 0.3 adds:
   (`ceiling`, a level's `ceilingHeight`); their exact bounding geometry; and `surface` hosts that
   sit on them (15.6);
 - a slab's **purpose** (6.7), and the bounding geometry of every slab (15.7);
+- how a reader draws an extension element's fallback model and plan symbol in the element's frame
+  (12.6);
 - the diagnostics `FS-INV-305` to `FS-INV-308` and `FS-INV-701` to `FS-INV-703` (chapter 10);
 - the mapping of operations, clear openings, floors, ceilings and slab purposes to IFC4 (Annex A).
 

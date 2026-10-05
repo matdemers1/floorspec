@@ -28,7 +28,7 @@ code is a rule's, in a Floorspec Rules pack, and is advice (FLR-ADR-011).
 |---|---|
 | 1. Conventions | status, conformance, data |
 | 2. Elements | pieces, appliances, casework; their categories and how each is mounted |
-| 3. Models and symbols | the box, the glTF model, the plan symbol, the package |
+| 3. Models and symbols | the box; the model and the plan symbol, placed as Core §12.6 says; the package |
 | 4. Placement, groups and clearances | hosts, default envelopes, groups, connections, interference |
 | 5. Diagnostics | codes, the catalogue, lints |
 | 6. Derived values | the room of an element, items, rooms, groups |
@@ -209,50 +209,23 @@ Its clearances (4.2) are then in front of it, and its model and symbol (3.2, 3.3
 ## 3.2 The model
 
 An element's **model** is its fallback's `asset`: a glTF 2.0 model (Core §12.6), `model/gltf-binary`
-or `model/gltf+json`, in metres. FS_furniture places it in the element's frame by the mapping of
-Core §2.3, which converts Floorspec's axes to glTF's, applied to the frame: the point `(X, Y, Z)` of
-the model's default scene, in metres, is the local point
+or `model/gltf+json`, in metres, placed in the element's frame as Core §12.6 says for every
+fallback model — its origin at the frame's origin, its +X the element's front, +Y up and −Z the
+element's left. With the box of 3.1, the model's origin is the middle of the item's back at its
+bottom, and a model made facing glTF's +Z is used as Core §12.6's note says.
 
-```text
-p = 1,280,000 · X        q = −1,280,000 · Z        r = 1,280,000 · Y
-```
-
-of the element's frame — so the model's +X is the item's front, +Y is up, and −Z is the item's
-left. A model's origin is the frame's origin: the middle of the item's back at its bottom.
-
-> [!note] Which way a model faces
-> glTF 2.0 suggests that the front of an asset face +Z. FS_furniture follows Core §2.3 instead,
-> because the same conversion then takes an item and the house around it to glTF, and an exporter
-> (FLR-T-9.2) writes a placed item as a node whose rotation is the element's facing alone. A model
-> made to face +Z is used by putting its scene under one node rotated by +90° about +Y — the
-> quaternion `[0, √½, 0, √½]` — which turns its +Z to +X and its +X to −Z.
-
-Software that draws an element's model SHOULD place it exactly by this mapping. {#FS-FURN-3.2.1 SHOULD}
-
-A writer SHOULD give an element a model whose bounding box, mapped so, is the element's box. {#FS-FURN-3.2.2 SHOULD}
-A model is drawn as it is and never stretched to the box: the box is what Core and the rules
-measure, and a model larger than its box is drawn larger than the space the item is said to take.
+A writer SHOULD give an element a model whose bounding box, placed as Core §12.6 says, is the element's box. {#FS-FURN-3.2.1 SHOULD}
+The box is what Core and the rules measure, and a model larger than its box is drawn larger than
+the space the item is said to take.
 
 ## 3.3 The plan symbol
 
 An element's **symbol** is its fallback's `symbol`: an image, `image/svg+xml` or `image/png`
-(Core §12.6), drawn on the footprint of the element's box (Core §13.2) as seen from above, with the
-item's front along the bottom edge of the image:
+(Core §12.6), drawn on the footprint of the element's box with the item's front along the bottom
+edge of the image, as Core §12.6 says for every fallback symbol: a headboard is at the top of a
+bed's symbol, burners and a door line at the bottom of a range's.
 
-| Corner of the image | Local point of the box |
-|---|---|
-| top left | `(box.min.x, box.min.y)` |
-| top right | `(box.min.x, box.max.y)` |
-| bottom right | `(box.max.x, box.max.y)` |
-| bottom left | `(box.max.x, box.min.y)` |
-
-So an image is drawn as a person standing at the item's front sees its plan, and is never mirrored:
-a headboard is at the top of a bed's symbol, burners and a door line at the bottom of a range's.
-The whole image — an SVG's `viewBox`, a PNG's grid of pixels — is stretched to the footprint. An
-SVG symbol whose `viewBox` is `0 0 w d` in millimetres, for an item `w` mm wide and `d` mm deep, is
-drawn at its own scale.
-
-Software that draws an element's symbol in plan SHOULD draw it on the element's footprint exactly as this section defines. {#FS-FURN-3.3.1 SHOULD}
+A writer SHOULD give an SVG symbol of an item `w` mm wide and `d` mm deep the `viewBox` `0 0 w d`, in millimetres, so that it is drawn at its own scale and its strokes keep their width. {#FS-FURN-3.3.1 SHOULD}
 
 ## 3.4 The package
 
@@ -365,8 +338,9 @@ bottom and top of its box in its frame (Core §13.2), as Core derives its fallba
 
 Overlaps are not errors. A plan is drawn through states where things are in each other's way, and
 an overlap of two envelopes, without an item in either, is Core's measure (Core §13.6) for the
-rules to read. A wall in an item's way is not tested here: walls are Core's, and so are their
-outlines.
+rules to read. A wall in an item's way — an envelope or a box that crosses a wall's outline — is not
+tested by this version: walls and their outlines are Core's, and the test is left to Floorspec Rules
+packs, which read both.
 
 # 5. Diagnostics
 
@@ -447,7 +421,8 @@ as `refrigerator-900`, with its kind, how its category is mounted (2.5), and `el
 `category`, its `catalogue` (the item's ID), its `name`, `seats` where it has them, its box in the
 convention of 3.1 and its default envelopes (4.2), all in base units — and the `path`, `mediaType`,
 `sha256` and `byteLength` of its model (`models/<item>.glb`, a binary glTF of a few boxes, facing
-+X as 3.2 says) and its symbol (`symbols/<item>.svg`, drawn as 3.3 says, in millimetres).
++X as Core §12.6 places it) and its symbol (`symbols/<item>.svg`, drawn as Core §12.6 and 3.3 say,
+in millimetres).
 
 A writer that places an item copies its model and symbol into the document's package, adds two
 assets for them, sets the element's `fallback.asset`, `fallback.symbol` and `fallback.level`, and

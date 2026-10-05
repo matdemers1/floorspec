@@ -14,11 +14,11 @@
  * Everything is a pure function of the ITEMS table below: the same table gives the same bytes. No
  * third-party asset is used; the library is dedicated to the public domain under CC0 1.0.
  *
- * Conventions (spec.md chapter 3): an item's frame has its origin at the middle of its back at its
- * bottom, forward (+x) the side it is used from, +y to its left and +z up. A model maps the local point
- * (p, q, r) to the glTF point (p, r, -q) / 1,280,000 - Core 2.3's mapping, so the model's front faces
- * glTF +X - and a symbol is the box's footprint seen from above with the item's front along the image's
- * bottom edge.
+ * Conventions (spec.md chapter 3, Core 0.3 12.6): an item's frame has its origin at the middle of its
+ * back at its bottom, forward (+x) the side it is used from, +y to its left and +z up. A fallback model
+ * maps the local point (p, q, r) to the glTF point (p, r, -q) / 1,280,000 - Core 2.3's mapping applied to
+ * the frame (Core 12.6), so the model's front faces glTF +X - and a fallback symbol is the box's
+ * footprint seen from above with the item's front along the image's bottom edge (Core 12.6).
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

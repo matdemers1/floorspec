@@ -207,6 +207,49 @@ frame (13.2).
 
 A deriver MUST derive the fallback of every extension element of a valid document as this section and 13.2 define. {#FS-CORE-12.6.2 MUST}
 
+**Drawing a fallback** (new in 0.3). A reader that has never heard of an extension still draws its
+elements, so where a fallback's model and symbol go is Core's to say, once, for every extension.
+Both are placed in the element's frame (13.1), whose x axis is the element's **front** — the way it
+faces: out of the wall for a `wallFace` host, its `rotation` for a `surface` or `free` host.
+
+A fallback's model is in metres, with glTF 2.0's +Y up. It is placed by the mapping of 2.3, which
+converts Floorspec's axes to glTF's, applied to the frame instead of the plan: the point
+`(X, Y, Z)` of the model's default scene is the local point
+
+```text
+p = 1,280,000 · X        q = −1,280,000 · Z        r = 1,280,000 · Y
+```
+
+of the element's frame. So the model's origin is the frame's origin, its +X is the element's front,
++Y is up, and −Z is the element's left (+y). The model is drawn as it is, never stretched to the
+box: the box is what a deriver and a rule measure.
+
+> [!note] Which way a model faces
+> glTF 2.0 suggests that the front of an asset face +Z. Floorspec places a model by 2.3 instead,
+> because the same conversion then takes an element and the house around it to glTF, and an
+> exporter writes a placed element as a node whose rotation is its facing alone. A model made to
+> face +Z is used by putting its scene under one node rotated by +90° about +Y — the quaternion
+> `[0, √½, 0, √½]` — which turns its +Z to +X and its +X to −Z.
+
+A fallback's symbol is drawn on the footprint of its box (13.2) as seen from above, with the
+element's front along the bottom edge of the image, so that it reads as a person standing in front
+of the element sees its plan, and is never mirrored. The whole image — an SVG's `viewBox`, a PNG's
+grid of pixels — is stretched to the footprint:
+
+| Corner of the image | Local point of the box |
+|---|---|
+| top left | `(box.min.x, box.min.y)` |
+| top right | `(box.min.x, box.max.y)` |
+| bottom right | `(box.max.x, box.max.y)` |
+| bottom left | `(box.max.x, box.min.y)` |
+
+Software that draws a fallback's model SHOULD place it in the element's frame exactly by this mapping. {#FS-CORE-12.6.3 SHOULD}
+
+Software that draws a fallback's symbol in plan SHOULD draw it on the footprint of the element's box exactly as this table defines. {#FS-CORE-12.6.4 SHOULD}
+As with a texture (18.3.1), where a renderer puts a model or an image is not a value a deriver
+reports, so the suite cannot test it; an exporter's placement of a fallback model can be, and is
+tested with export (FLR-T-9.2).
+
 ## 12.7 What an extension may and may not do
 
 An extension may add members to core elements (under `extensions.<name>` on the element), add
