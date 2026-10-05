@@ -122,6 +122,8 @@ class Ctx:
             return self.ext[i][2]['fallback']['level']
         if k == 'envelope':
             return self.derived['clearances'][i][t['envelope']]['level']
+        if k == 'stair':                                                  # Core 0.3, 17.1: the level it rises from
+            return self.doc.stairs[i]['level']
         return i
 
     def envelope(self, owner, name):

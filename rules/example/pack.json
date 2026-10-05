@@ -74,7 +74,7 @@
       "section": "§4",
       "status": "addressed",
       "domain": "stairs",
-      "note": "Riser heights, written ahead of stair data in Core."
+      "note": "Riser heights of every stair."
     },
     {
       "code": "TEST-ELEC",

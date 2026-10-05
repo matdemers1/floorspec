@@ -98,7 +98,7 @@ def rule(v) -> bool:
                  'provenance', 'extras')):
         return False
     a = v['applies']
-    if not (_obj(a, ('to',), ('to', 'extension', 'collection', 'where')) and a['to'] in ('room', 'opening', 'element', 'level')
+    if not (_obj(a, ('to',), ('to', 'extension', 'collection', 'where')) and a['to'] in ('room', 'opening', 'element', 'level', 'stair')
             and ('extension' not in a or _str(a['extension'], EXT_NAME))
             and ('collection' not in a or _str(a['collection'], COLLECTION))
             and ('where' not in a or test(a['where']))):

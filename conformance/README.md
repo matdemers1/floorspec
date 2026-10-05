@@ -460,7 +460,9 @@ and window types declare their operation and clear opening (`measures-openings/�
 are evaluated for Core 0.3 documents as for 0.2 ones (each one's 1.2), and
 `typing/…-extension-rules-on-a-core-0.3-document` shows the rules that read them evaluated on one. `ceilingHeight` (Rules §5.7), reserved until Core 0.3 derived ceilings, is tested on the rules house as
 a Core 0.3 document with a cathedral ceiling, a sunken floor and a tray (`measures-rooms/…-ceiling-height`
-and the two tests after it).
+and the two tests after it). The stair measures (Rules §8.5), reserved until Core 0.3 defined stairs, are
+tested in `measures-stairs` on the rules house as a Core 0.3 document with a second level over the
+living room, a straight stair rising into it through a well and a spiral stair in the bedroom.
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can

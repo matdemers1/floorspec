@@ -157,7 +157,8 @@ test('fixtures: a passing and a failing one, or for a deferred measure a deferre
   p.rules[0]!.fixtures = p.rules[0]!.fixtures.filter((f) => f.expect.outcome !== 'fail');
   assert.deepEqual(checks(p), ['fixtures']);
   p = copy();
-  p.rules.find((r) => r.id === 'STAIR-RISER')!.fixtures[0]!.expect.outcome = 'pass';
+  // a rule on a deferred measure with a passing and a failing fixture and no deferred one
+  (p.rules.find((r) => r.id === 'STAIR-RISER')!.rule.requirement as { measure: string }).measure = 'roomNarrowestDimension';
   assert.deepEqual(checks(p), ['fixtures', 'fixtures']);
   p = copy();
   p.rules[0]!.fixtures[0]!.expect.extensions = ['FS_unknown'];

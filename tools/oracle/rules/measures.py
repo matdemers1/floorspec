@@ -22,8 +22,7 @@ PURPOSES = ('workingSpace', 'fixtureClearance', 'swing', 'access')
 ELEC = 'FS_electrical'
 
 # 4.8: reserved, not evaluated
-DEFERRED = {'roomNarrowestDimension', 'stairRiserHeight', 'stairTreadDepth', 'stairWidth',
-            'stairHeadroom', 'stairHandrailHeight', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
+DEFERRED = {'roomNarrowestDimension', 'countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
             'travelDistance', 'floorElevationDifference'}
 
 
@@ -477,6 +476,35 @@ def envelope_overlaps(ctx, t, a):
         count += 1
         owners.add(other[0])
     return count, sorted(owners)
+
+
+# ------------------------------------------------------------------ 8.5 stairs (Core 0.3, chapter 17)
+@measure('stairRiserHeight', ['stair'], 'length')
+def stair_riser_height(ctx, t, a):
+    """Core's riser height, rounded once as Core reports it (Core 17.4)."""
+    return ctx.derived['stairs'][t['id']]['riserHeight'], None
+
+
+@measure('stairTreadDepth', ['stair'], 'length')
+def stair_tread_depth(ctx, t, a):
+    return ctx.doc.stairs[t['id']]['tread'], None
+
+
+@measure('stairWidth', ['stair'], 'length')
+def stair_width(ctx, t, a):
+    return ctx.doc.stairs[t['id']]['width'], None
+
+
+@measure('stairHeadroom', ['stair'], 'length')
+def stair_headroom(ctx, t, a):
+    """Core's headroom (Core 17.6), or no value when Core derives none."""
+    return ctx.derived['stairs'][t['id']].get('headroom'), None
+
+
+@measure('stairHandrailHeight', ['stair'], 'length')
+def stair_handrail_height(ctx, t, a):
+    """The declared handrail's height (Core 17.1), or no value."""
+    return ctx.doc.stairs[t['id']].get('handrail', {}).get('height'), None
 
 
 def compute(ctx, name, target, args):

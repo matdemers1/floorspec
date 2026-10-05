@@ -488,16 +488,15 @@ R('typing', 'rules-that-are-not-well-typed',
   check=lambda r: ensure([e['rule'] for e in r['evaluated']] == ['GOOD'] and all(e['reason'] == 'invalid' for e in r['notEvaluated']), 'invalid'))
 
 DEFERRED_NAMES = ['countertopReceptacleReach', 'countertopWallRunBetweenReceptacles',
-                  'floorElevationDifference', 'roomNarrowestDimension', 'stairHandrailHeight', 'stairHeadroom', 'stairRiserHeight', 'stairTreadDepth',
-                  'stairWidth', 'travelDistance']
+                  'floorElevationDifference', 'roomNarrowestDimension', 'travelDistance']
 DEFERRED_PACK = pack({f'D-{n}': rule(SLEEPING, C(n, '>=', 1, anything=True), title=f'Uses {n}') for n in DEFERRED_NAMES})
 R('typing', 'every-deferred-measure',
-  'A rule for each of the ten deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
+  'A rule for each of the five deferred measures of 4.8, each with an argument no measure takes: a deferred measure '
   'counts as taking any arguments, so each rule is well typed, and each is reported with FS-RULES-008 (an `info`) and '
   'listed as "deferred". None is evaluated.',
   ['FS-RULES-3.9.2', 'FS-RULES-4.8.1', 'FS-RULES-11.1.1'], house(), req(DEFERRED_PACK),
   diags=[D('FS-RULES-008', pack='test-pack', rule=f'D-{n}') for n in DEFERRED_NAMES],
-  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 10, 'all deferred'))
+  check=lambda r: ensure(r['evaluated'] == [] and len(r['notEvaluated']) == 5, 'all deferred'))
 
 FURN_MEMBER = rule({'to': 'element', 'extension': 'EXT_furniture'}, C('elementMember', '=', 'oak', name='finish', type='term'),
                    title='A member of an extension nobody implements')
@@ -1353,6 +1352,92 @@ MT('measures-elements', 'terms-in-utf-16-order',
    [(element('P1'), 'elementMember', {'name': 'tags', 'type': 'terms'})],
    [['A', 'z', '\U0001f600', 'ﬁ']],
    check=lambda rs: ensure(rs[0]['display'] == 'A, z, \U0001f600, ﬁ', rs[0]['display']))
+
+
+# ============================================================================= stairs (8.5)
+def stair(i):
+    return {'kind': 'stair', 'id': i}
+
+
+def stairs(d):
+    """The rules house as a Core 0.3 document with a second level, L2, over the living room - a room U1 with 12" floors,
+    and a well, from x = 16' to 23' 6" and y = 0 to 4', that no room is in - and two stairs. ST1 rises east in the
+    living room from (13', 2'): 15 risers of 180 mm on 9" treads, 3' wide, with 34" handrails. ST2, in the bedroom, is
+    a spiral 5' across and 30" wide, turning a full circle on 15 risers, with a 7 1/2" going at its walkline and no
+    handrail."""
+    d['floorspec'] = '0.3'
+    d['levels']['L2'] = {'building': 'B1', 'elevation': H, 'height': H, 'floorThickness': 12 * IN}
+    pts = {'K1': (12, 0), 'K2': (12, 12), 'K3': (24, 12), 'K4': (24, 0), 'K5': (23.5, 0), 'K6': (16, 0),
+           'K7': (16, 4), 'K8': (23.5, 4)}
+    d['junctions'].update({k: J(int(x * FT), int(y * FT), 'L2') for k, (x, y) in pts.items()})
+    d['walls'].update({'V1': W('K1', 'K2', 'L2'), 'V2': W('K2', 'K3', 'L2'), 'V3': W('K3', 'K4', 'L2'),
+                       'V4': W('K4', 'K5', 'L2'), 'V5': W('K5', 'K6', 'L2'), 'V6': W('K6', 'K1', 'L2')})
+    d['separators'] = {'S1': {'level': 'L2', 'start': 'K6', 'end': 'K7'}, 'S2': {'level': 'L2', 'start': 'K7', 'end': 'K8'},
+                       'S3': {'level': 'L2', 'start': 'K8', 'end': 'K5'}}
+    d['rooms']['U1'] = {'level': 'L2', 'anchor': [18 * FT, 8 * FT], 'name': 'Upper hall', 'function': 'circulation'}
+    d['stairs'] = {
+        'ST1': {'level': 'L1', 'to': 'L2', 'position': [13 * FT, 2 * FT], 'width': 3 * FT, 'tread': 9 * IN, 'risers': 15,
+                'handrail': {'height': 34 * IN}},
+        'ST2': {'level': 'L1', 'to': 'L2', 'position': [6 * FT, 3 * FT], 'width': 30 * IN, 'tread': 15 * IN // 2, 'risers': 15,
+                'form': {'kind': 'spiral', 'turn': 'left', 'diameter': 5 * FT, 'sweep': 360_000_000}}}
+
+
+ST1_HEADROOM = H - 12 * IN - 5 * (H // 15)      # the floor's bottom over the nosing line at the well's edge, 5 risers up
+MT('measures-stairs', 'stair-measures',
+   'The five stair measures of 8.5 on the straight stair ST1 and the spiral ST2: each riser height is Core\'s, 2700 mm '
+   'over 15 risers; each tread depth and width is the stair\'s own; ST1\'s headroom is Core\'s - at the well\'s west '
+   'edge, 3\' past its first nosing, the nosing line is 5 risers up, under U1\'s floor, 12" thick - and its handrail is '
+   '34"; the spiral has neither a headroom Core derives nor a handrail, so both are null.',
+   ['FS-RULES-8.5.1', 'FS-RULES-4.7.1', 'FS-RULES-4.3.1'], edit(stairs),
+   [(stair('ST1'), 'stairRiserHeight', None), (stair('ST1'), 'stairTreadDepth', None), (stair('ST1'), 'stairWidth', None),
+    (stair('ST1'), 'stairHeadroom', None), (stair('ST1'), 'stairHandrailHeight', None),
+    (stair('ST2'), 'stairRiserHeight', None), (stair('ST2'), 'stairTreadDepth', None), (stair('ST2'), 'stairWidth', None),
+    (stair('ST2'), 'stairHeadroom', None), (stair('ST2'), 'stairHandrailHeight', None)],
+   [H // 15, 9 * IN, 3 * FT, ST1_HEADROOM, 34 * IN, H // 15, 15 * IN // 2, 30 * IN, None, None])
+STAIRS = {'to': 'stair'}
+STAIR_PACK = pack({
+    'RISER': rule(STAIRS, C('stairRiserHeight', '<=', 31 * IN // 4), section='§4.1', title='Risers no taller than 7 3/4 in'),
+    'HEADROOM': rule({'to': 'stair', 'where': C('stairHeadroom', '>=', 0)}, C('stairHeadroom', '>=', 80 * IN), section='§4.2',
+                     title='Headroom of 6 ft 8 in'),
+    'HANDRAIL': rule(STAIRS, {'all': [C('stairHandrailHeight', '>=', 34 * IN), C('stairHandrailHeight', '<=', 38 * IN)]},
+                     section='§4.3', title='A handrail 34 to 38 in high'),
+    'TREAD': rule(STAIRS, C('stairTreadDepth', '>=', 10 * IN), exceptions=[{'when': C('stairWidth', '<', 36 * IN),
+                                                                            'note': 'Synthetic: narrow stairs are exempt.'}],
+                  section='§4.4', title='Treads at least 10 in deep'),
+})
+
+
+def check_stairs(r):
+    f = findings_of(r, 'HEADROOM')[0]
+    ensure(f['subject'] == stair('ST1') and f['location']['level'] == 'L1', f)
+    ensure(f['location']['shapes'] == [{'kind': 'polygon', 'holes': [],
+                                        'outer': [[13 * FT, 2 * FT - 18 * IN], [13 * FT + 14 * 9 * IN, 2 * FT - 18 * IN],
+                                                  [13 * FT + 14 * 9 * IN, 2 * FT + 18 * IN], [13 * FT, 2 * FT + 18 * IN]]}],
+           f['location'])
+    ensure([e['subjects'] for e in r['evaluated'] if e['rule'] == 'HEADROOM'] == [1], r['evaluated'])
+
+
+R('measures-stairs', 'stair-rules',
+  'Four synthetic rules on the stairs: both have risers of 180 mm, under 7 3/4 in; only ST1 has a headroom - the rule '
+  'applies only where one is derived - and at about 4\' 11" it may not meet 6\' 8"; the spiral declares no handrail, so '
+  'both handrail conditions fail on it; and the spiral is exempt from the tread rule as narrower than 3\', while ST1\'s 9" '
+  'treads may not meet 10". A stair\'s finding is on its level, L1, and draws its box.',
+  ['FS-RULES-8.5.1', 'FS-RULES-3.4.1', 'FS-RULES-3.7.1', 'FS-RULES-3.8.1', 'FS-RULES-9.4.1'], edit(stairs), req(STAIR_PACK),
+  found=[('HANDRAIL', 'ST2'), ('HEADROOM', 'ST1'), ('TREAD', 'ST1')], check=check_stairs)
+STAIR_TYPED = pack({
+    'GOOD': rule(STAIRS, C('stairWidth', '>=', 36 * IN), title='Well typed'),
+    'ON-A-ROOM': rule(SLEEPING, C('stairWidth', '>=', 36 * IN), title='A stair measure on a room'),
+    'ROOM-ON-A-STAIR': rule(STAIRS, C('roomNetArea', '>=', 1), title='A room measure on a stair'),
+    'NO-SET': rule(STAIRS, C('stairWidth', '>=', 1), select={'from': 'rooms', 'need': 'any'}, title='Rooms of a stair'),
+    'EXTENSION': rule({'to': 'stair', 'extension': ELEC}, C('stairWidth', '>=', 1), title='An extension on a stair'),
+})
+R('measures-stairs', 'stair-rules-typed',
+  'A stair measure on a room, a room measure on a stair, a candidate set a stair does not have and an extension on a '
+  'stair subject are not well typed (FS-RULES-007); the stair measures are no longer deferred, so a well-typed rule '
+  'on stairs is evaluated - on a document with none it has no subject.',
+  ['FS-RULES-3.9.1', 'FS-RULES-4.8.1'], house(), req(STAIR_TYPED),
+  diags=[D('FS-RULES-007', pack='test-pack', rule=r) for r in ('EXTENSION', 'NO-SET', 'ON-A-ROOM', 'ROOM-ON-A-STAIR')],
+  check=lambda r: ensure([(e['rule'], e['subjects']) for e in r['evaluated']] == [('GOOD', 0)], r['evaluated']))
 
 
 # ============================================================================= writing the suite
