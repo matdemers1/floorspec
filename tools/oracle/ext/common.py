@@ -1,4 +1,4 @@
-"""What the four official extensions share: their activation, the one space of IDs, the room an
+"""What the official extensions share: their activation, the one space of IDs, the room an
 element is in, and diagnostics in an extension's own namespace.
 
 An extension module (electrical.py, ...) defines NAME, VERSION, CORE, SCHEMA (the path of its schema

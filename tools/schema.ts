@@ -390,10 +390,10 @@ export function testDirs(dir: string): string[] {
  * Checks an extension's schema against its suite: the schema rejects the extension's top-level
  * data exactly in the tests that expect `[FS-<CODE>-SCH-001]` alone, and accepts it in every valid
  * test that derives the extension's values (where the extension was evaluated). An Ops test's
- * request must match the Ops 0.2 request schema.
+ * request must match the Ops 0.2 request schema - Ops 0.3's when its document declares "0.3".
  */
 export function checkExtensionSuite(suite: string, name: string, code: string, validateData: ValidateFunction,
-  validateRequest: ValidateFunction, base = suite): SuiteResult {
+  validateRequest: ValidateFunction, base = suite, validateRequest03: ValidateFunction = validateRequest): SuiteResult {
   const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
   for (const dir of testDirs(suite)) {
     const rel = relative(base, dir) || '.';
@@ -402,8 +402,10 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
     };
     const codes = (expected.diagnostics ?? []).map((d) => String(d.code));
     if (existsSync(join(dir, 'request.json'))) {
-      const request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), validateRequest);
-      if (!request.valid) result.problems.push(`${rel}: the Ops 0.2 request schema rejects request.json:\n    ${formatErrors(request.errors).join('\n    ')}`);
+      // Ops 0.2, or Ops 0.3 for a document declaring "0.3", as the suite's Core reader is chosen.
+      const v03 = (parseForSchema(readFileSync(join(dir, 'input.json'), 'utf8')) as { floorspec?: unknown } | null)?.floorspec === '0.3';
+      const request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), v03 ? validateRequest03 : validateRequest);
+      if (!request.valid) result.problems.push(`${rel}: the Ops ${v03 ? '0.3' : '0.2'} request schema rejects request.json:\n    ${formatErrors(request.errors).join('\n    ')}`);
       result.checked++;
       continue;
     }

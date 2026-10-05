@@ -151,18 +151,21 @@ def ext_suites():
 
 def verify_ext(name: str, suite: str, write: bool):
     """An extension suite, run by an implementation of that one extension: its Core-format tests as
-    verify() checks them, its Ops tests (those with a request.json) as the Ops 0.2 suite's are, by an
-    applier whose validator implements the extension and has the test's known extensions."""
+    verify() checks them, its Ops tests (those with a request.json) as the Ops 0.2 suite's are - as
+    the Ops 0.3 suite's for a document declaring "0.3" - by an applier whose validator implements the
+    extension and has the test's known extensions."""
     from .ext import official
     from .ops.suite import verify as verify_op
-    from .ops.version import OPS_02
+    from .ops.version import OPS_02, OPS_03
     implemented = official.implemented(name)
     dirs = list(test_dirs(suite))
     errors = []
     for d in dirs:
         if os.path.exists(os.path.join(d, 'request.json')):
             _, registry = reader_for(d)
-            errors.extend(verify_op(d, write, OPS_02.configured(registry, implemented)))
+            with open(os.path.join(d, 'input.json'), 'rb') as f:
+                profile = OPS_03 if ext_reader(f.read()).v03 else OPS_02
+            errors.extend(verify_op(d, write, profile.configured(registry, implemented)))
         else:
             errors.extend(verify(d, write, implemented))
     return len(dirs), errors

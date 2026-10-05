@@ -53,7 +53,8 @@ edges around a junction (5.6), the orientation of room outlines (6.2) — follow
 
 > [!note] Converting to other systems
 > glTF is Y-up and metric: export maps Floorspec (x, y, z) to glTF (x, z, −y) and divides by
-> 1,280,000. IFC is Z-up like Floorspec.
+> 1,280,000, and an extension element's fallback model is placed in its frame by the same mapping
+> (12.6). IFC is Z-up like Floorspec.
 
 ## 2.4 Angles
 

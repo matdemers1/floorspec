@@ -15,6 +15,8 @@
     "packs:check": "tsx tools/build-pack.ts --check",
     "lint:rules": "tsx tools/lint-rules.ts",
     "coverage:matrix": "tsx tools/coverage-matrix.ts",
+    "library": "tsx tools/furniture-library.ts",
+    "library:check": "tsx tools/furniture-library.ts --check",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tools/*.test.ts",
     "check": "pnpm statements && pnpm schema:check && pnpm coverage"

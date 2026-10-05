@@ -22,7 +22,7 @@ DEFAULT_PROFILE = {
                {'code': 'IRC', 'edition': '2024'}, {'code': 'NEC', 'edition': '2026'}],
 }
 SEVERITY = {'FS-RULES-008': 'info', 'FS-RULES-009': 'info', 'FS-RULES-010': 'warning', 'FS-RULES-011': 'warning'}
-ALL_OFFICIAL = ('FS_electrical', 'FS_plumbing', 'FS_mechanical', 'FS_lowvoltage')
+ALL_OFFICIAL = ('FS_electrical', 'FS_plumbing', 'FS_mechanical', 'FS_lowvoltage', 'FS_furniture')
 
 # 3.5: candidate sets by subject kind, their arguments, and the kind of their candidates
 CANDIDATES = {

@@ -13,7 +13,7 @@ from .. import frames
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 SCHEMAS = {'FS_electrical': 'electrical', 'FS_plumbing': 'plumbing', 'FS_mechanical': 'mechanical',
-           'FS_lowvoltage': 'lowvoltage'}
+           'FS_lowvoltage': 'lowvoltage', 'FS_furniture': 'furniture'}
 _defaults_cache = {}
 
 

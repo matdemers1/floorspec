@@ -3,7 +3,7 @@ name: CI
 # The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against every
 # suite (Core 0.1, 0.2 and 0.3 documents; Ops 0.1, 0.2 and 0.3 requests; Rules 0.1 requests, packs, profiles
 # and reports) → MUST coverage of the current drafts (FS-CORE 0.3, FS-OPS 0.3, FS-RULES 0.1) and of
-# every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV) → the independent
+# every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV, FS-FURN) → the independent
 # oracle reproducing every expected output of the Core and Ops suites, of every extension suite
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
 # result's resolved echo and inverse → the suites being exactly what their author scripts declare →
@@ -48,6 +48,8 @@ jobs:
         run: pnpm schema:check
       - name: Every MUST of Core 0.3, Ops 0.3, Rules 0.1 and every extension has a conformance test
         run: pnpm coverage
+      - name: The FS_furniture starter library is exactly what its generator writes
+        run: pnpm library:check
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage
