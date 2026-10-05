@@ -1,10 +1,12 @@
-"""The reference migrator of Floorspec Core 0.3, chapter 20 - written from the specification alone.
+"""The reference migrator of Floorspec Core 0.4, chapter 20 - written from the specification alone - and,
+with ``drafts=DRAFTS_03``, of Core 0.3 as published, for the migration suite of 0.3.
 
-``migrate(data: bytes, to) -> dict`` is what a conformant migrator returns for a document's bytes and
-a target draft: ``{'status': 'migrated', 'diagnostics': [], 'hash', 'document', 'bytes'}`` or
-``{'status': 'refused', 'diagnostics': [...]}``.
+``migrate(data: bytes, to, drafts) -> dict`` is what a conformant migrator returns for a document's bytes
+and a target draft: ``{'status': 'migrated', 'diagnostics': [], 'hash', 'document', 'bytes'}`` or
+``{'status': 'refused', 'diagnostics': [...]}``. ``drafts`` are the drafts the migrator implements, oldest
+first: a migrator of 0.4 by default.
 
-    python3.13 -m tools.oracle.migrate <document> --to 0.3    print the migration (20.1.1)
+    python3.13 -m tools.oracle.migrate <document> --to 0.4    print the migration (20.1.1)
 
 Order (20.2): the document's tiers 1 to 3 as a validator implementing every extension and knowing
 none reports them (FS-JSON-, FS-DOC-001, FS-SCH-001; never FS-DOC-002 or FS-CFG-001), then the
@@ -21,7 +23,8 @@ from . import canon, schema
 from .jsonparse import Malformed, parse
 from .validate import diag, sort_diags
 
-DRAFTS = ('0.1', '0.2', '0.3')
+DRAFTS_03 = ('0.1', '0.2', '0.3')
+DRAFTS = DRAFTS_04 = ('0.1', '0.2', '0.3', '0.4')
 RECORD = 'floorspec:migration'
 
 
@@ -58,8 +61,14 @@ def _moves_02_03(d: dict):
     return out
 
 
+def _moves_03_04(d: dict):
+    """20.7.1 (Core 0.4): nothing. Core 0.4 adds a stair's minHeadroom and a winder stair's newel, members of
+    objects core defines and closes, which no 0.3 document has; it changes the meaning of no member."""
+    return []
+
+
 # draft -> (the next draft, the members its step moves)
-STEPS = {'0.1': ('0.2', _moves_01_02), '0.2': ('0.3', _moves_02_03)}
+STEPS = {'0.1': ('0.2', _moves_01_02), '0.2': ('0.3', _moves_02_03), '0.3': ('0.4', _moves_03_04)}
 
 
 class Refused(Exception):
@@ -97,8 +106,9 @@ def migrate_value(d: dict, to: str) -> dict:
     return d
 
 
-def migrate(data: bytes, to) -> dict:
-    """The migration of a document's bytes to the draft ``to`` (20.2, 20.1.1)."""
+def migrate(data: bytes, to, drafts=DRAFTS) -> dict:
+    """The migration of a document's bytes to the draft ``to`` (20.2, 20.1.1), by a migrator of ``drafts``."""
+    DRAFTS = drafts                                                             # noqa: N806
     try:
         value, codes = parse(data)
     except Malformed:

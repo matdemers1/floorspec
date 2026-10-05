@@ -1,6 +1,6 @@
 # 0. Conventions
 
-> [!warning] Floorspec Core 0.3 — Draft
+> [!warning] Floorspec Core 0.4 — Draft
 > This is a working draft. It carries no compatibility promise: a later 0.x draft may change any
 > part of it. Floorspec stays 0.x until the 1.0 criteria are met (FLR-ADR-017).
 
@@ -10,8 +10,9 @@ materials they use — including how a door or window operates and the net clear
 declares — the program the building is meant to satisfy, and the elements that extensions
 add — placed on their hosts, with the clearances they need. It defines what makes a document
 valid, the exact geometry a conformant tool derives from it — including which rooms a person can
-walk to, and every room's floor and ceiling, and the surfaces of its roofs — and the one byte
-sequence that every conformant writer produces for it.
+walk to, every room's floor and ceiling, the surfaces of its roofs and the steps of its stairs,
+straight or turning on winders or round a spiral — and the one byte sequence that every conformant
+writer produces for it.
 
 ## 0.1 Normative language
 
@@ -25,12 +26,12 @@ giving its stable identifier and level, for example `{#FS-CORE-5.3.1 MUST}`. The
 named is removed.
 
 Every statement at level `MUST` or `MUST NOT` is exercised by at least one test in the conformance
-suite (`conformance/core/0.3/`), and the build that publishes this specification fails if one is
+suite (`conformance/core/0.4/`), and the build that publishes this specification fails if one is
 not. Tables, figures and informative callouts are normative only where a tagged statement says so.
 
 ## 0.2 Conformance classes
 
-Floorspec Core 0.3 places requirements on these kinds of thing:
+Floorspec Core 0.4 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
@@ -73,9 +74,10 @@ Informative: ISO 16739-1:2024 (IFC 4.3) and IFC4 ADD2 TC1, for the mapping in An
 ## 0.5 What this draft does not yet define
 
 Floorspec Core 0.2 added the program, the extension mechanism in full, hosting and clearance
-envelopes, and circulation to the walls-and-rooms draft (0.7), and Core 0.3 adds the operation and
-net clear opening of door and window types, the floors and ceilings of rooms, roofs and stairs (0.6). These are
-reserved for later drafts and a 0.3 document cannot contain them:
+envelopes, and circulation to the walls-and-rooms draft (0.8), Core 0.3 added the operation and
+net clear opening of door and window types, the floors and ceilings of rooms, roofs and stairs (0.7),
+and Core 0.4 adds the treads of winder and spiral stairs (0.6). These are reserved for later drafts
+and a 0.4 document cannot contain them:
 
 - the surface of a roof with sloped edges at different pitches, or of one with two or more sloped
   edges on an outline with an oblique edge (16.4.4), and a roof's footprint that follows its walls;
@@ -94,23 +96,76 @@ reserved for later drafts and a 0.3 document cannot contain them:
 - edit operations, which are a separate specification, Floorspec Ops;
 - clearance envelopes of any shape but a box, and clearances on an element rather than its type
   for core kinds (13.5);
-- the steps, run, walkline and headroom of a winder or a spiral stair (17.7); a nosing's
-  projection and a riser's construction; a flight of a single riser (17.4.2); landings of any shape
-  but the square or the half landing of 17.3; and obstacles to headroom other than the floors and
-  ceilings of a stair's two levels — a flight over another, as in a U-shaped stair, and slabs
-  (17.6);
+- a nosing's projection and a riser's construction; a flight of a single riser (17.4.2); landings
+  of any shape but the square or the half landing of 17.3; winders that turn other than a quarter
+  or a half, or about a point other than the pivot of 17.7.1, as balanced winders do, and a newel of
+  any shape but a square or a rectangle along the turn; a spiral stair's tread drawn with an arc,
+  its centre column's construction, and a spiral that turns on a landing; and obstacles to headroom
+  other than the floors and ceilings of a stair's two levels — a flight over another, as in a
+  U-shaped stair or a spiral of more than a turn, and slabs (17.6);
 - layout solving: generating a plan from a program is what tools do with a program, not what a
   program means (11.6).
 
-## 0.6 Changes from 0.2
+## 0.6 Changes from 0.3 to 0.4
 
-Core 0.3 is a new draft, not an edit of 0.2. The text of Core 0.2 stays published, unchanged, at
+Core 0.4 is a new draft, not an edit of 0.3. The text of Core 0.3 stays published, unchanged, at
+its own URLs, built from the commit that pinned it (`8a99d02` in the standard's repository); its
+schema is at `/floorspec/schema/core/0.3/` and its suites at `conformance/core/0.3/` and
+`conformance/migration/0.3/`, and none of them changes. This draft's schema is at
+`/floorspec/schema/core/0.4/` and its suite at `conformance/core/0.4/`, which holds every 0.3 test
+re-targeted to 0.4 as well as the new ones; its migration suite, `conformance/migration/0.4/`, holds
+every test of 0.3's and the tests of the step from 0.3 to 0.4.
+
+What 0.4 adds, for stairs (chapter 17):
+
+- the **tapered treads** of winder and spiral stairs, derived exactly (17.7): a winder's nosing lines
+  lie on rays from the pivot of its turn at angles that divide the turn evenly, each a whole number of
+  microdegrees, and a spiral's on rays from its centre at angles that divide its sweep evenly; their
+  steps, in walking order with the straight treads of a winder stair's flights; their walkline — an
+  arc about the pivot or the centre, through the middle of the stair — and its length; the least
+  going at the walkline and the least going at the narrow end of their tapered treads; and a spiral
+  stair's centre;
+- a winder stair's **newel** (17.2), the post or wall at the inner side of its turn on whose faces
+  the winders' narrow ends stand, so that a winder need not narrow to a point;
+- the **headroom** of winder and spiral stairs, measured over the lanes of their tapered treads as
+  over a landing's (17.6);
+- a stair's **`minHeadroom`**, the headroom it is designed for, and the **opening** that follows from
+  it: the steps over which the floor of the level above must be open (17.6);
+- the diagnostics `FS-INV-905` and `FS-INV-906` and `FS-LINT-018` and `FS-LINT-019` (chapter 10); a
+  reader of 0.4 no longer reports `FS-LINT-016`, which said that 0.3 did not derive a winder's or a
+  spiral's steps;
+- the step from 0.3 to 0.4 of a migration (20.7), which only changes the version a document declares.
+
+A 0.4 reader reads 0.1, 0.2 and 0.3 documents as well (1.2.8). Both members 0.4 adds are optional,
+and absent they mean what 0.3 meant: a stair that declares no headroom, and a winder stair with no
+newel. A 0.3 document read as 0.4 means exactly what it meant, and derives every value 0.3 derived
+for it; what is new is that its winder and spiral stairs derive their steps, walkline, goings and
+headroom too, and that each of them gets `FS-LINT-018`, when its treads meet at a point, in place of
+`FS-LINT-016`.
+
+Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
+
+| Retired | Replaced by | Why |
+|---|---|---|
+| `FS-CORE-1.2.5` | `FS-CORE-1.2.7` | a document targeting this draft declares `"0.4"` |
+| `FS-CORE-1.2.6` | `FS-CORE-1.2.8` | a reader reads 0.3 documents as well as 0.1 and 0.2 ones |
+| `FS-CORE-17.7.1` | `FS-CORE-17.7.3` | a deriver derives the steps, run, walkline and headroom of winder and spiral stairs, which 0.3 forbade |
+| `FS-CORE-17.7.2` | — | `FS-LINT-016`, for a stair whose steps this draft does not derive, is no longer reported |
+
+Every other statement of 0.3 keeps its ID and its meaning; where a table it refers to has grown —
+a stair's members (`FS-CORE-17.1.1`), a winder stair's form (`FS-CORE-17.2.1`), the order of
+evaluation (`FS-CORE-10.3.1`) — the statement applies to the new rows too, and a new member's own
+constraint is a statement of its own (`FS-CORE-17.1.3`, `FS-CORE-17.2.3`).
+
+## 0.7 Changes from 0.2 to 0.3
+
+Core 0.3 was a new draft, not an edit of 0.2. The text of Core 0.2 stays published, unchanged, at
 its own URLs, built from the commit that pinned it (`6f9bc07` in the standard's repository); its
 schema is at `/floorspec/schema/core/0.2/` and its suite at `conformance/core/0.2/`, and neither
 changes. This draft's schema is at `/floorspec/schema/core/0.3/` and its suite at
 `conformance/core/0.3/`, which holds every 0.2 test re-targeted to 0.3 as well as the new ones.
 
-What 0.3 adds:
+What 0.3 added:
 
 - a door or window type's **operation** — how its leaves or sashes move (8.4);
 - the **net clear opening** — width, height and, for a window, area — that a door or window type
@@ -190,11 +245,11 @@ And migration (chapter 20):
   document and the target, made of one step per draft, that rewrites only the version declaration
   and moves, into a record in `extras`, the members whose meaning the later draft changed — so that a
   reader of the target reads the migration exactly as it reads the document (20.6); a **migrator**
-  conformance class (0.2) and its diagnostics `FS-MIG-001` and `FS-MIG-002` (20.8);
+  conformance class (0.2) and its diagnostics `FS-MIG-001` and `FS-MIG-002` (20.9);
 - the policy that every major version ships a normative migration from the one before it and a
-  reference migrator, and that a reader of a major reads the one before it (20.7).
+  reference migrator, and that a reader of a major reads the one before it (20.8).
 
-A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
+A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6 of 0.3; 1.2.8 here). Every member 0.3 added is optional, and
 its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read
 as 0.3 means exactly what it meant. Its floors, ceilings and slabs are derived from the defaults —
 a floor at the level's elevation and a flat ceiling at the level's height, the elevations 0.2 gave
@@ -212,15 +267,15 @@ Statements whose meaning changed were given new IDs, and their old IDs are retir
 
 | Retired | Replaced by | Why |
 |---|---|---|
-| `FS-CORE-1.2.3` | `FS-CORE-1.2.5` | a document targeting this draft declares `"0.3"` |
-| `FS-CORE-1.2.4` | `FS-CORE-1.2.6` | a reader reads 0.2 documents as well as 0.1 ones |
+| `FS-CORE-1.2.3` | `FS-CORE-1.2.7` | a document declares the draft it targets; 0.3 replaced it with `FS-CORE-1.2.5`, which 0.4 retired in turn |
+| `FS-CORE-1.2.4` | `FS-CORE-1.2.8` | a reader reads earlier drafts' documents; 0.3 replaced it with `FS-CORE-1.2.6`, which 0.4 retired in turn |
 
 Every other statement of 0.2 keeps its ID and its meaning; where a table it refers to has grown,
 the statement applies to the new rows too. The frame of a `surface` host (13.1, `FS-CORE-13.1.1`)
 is now at its room's derived floor or ceiling (`FS-CORE-15.6.1`); for every document 0.2 could
 express, that is the elevation 0.2 gave it.
 
-## 0.7 Changes from 0.1 to 0.2
+## 0.8 Changes from 0.1 to 0.2
 
 Core 0.2 was a new draft, not an edit of 0.1. The text of Core 0.1 stays published, unchanged, at
 its own URLs, built from the commit that pinned it (`32a7047` in the standard's repository); its
@@ -245,5 +300,5 @@ The statements 0.2 retired, each with the statement of this draft that replaces 
 
 | Retired | Replaced by | Why |
 |---|---|---|
-| `FS-CORE-1.2.1` | `FS-CORE-1.2.5` | a document declares the draft it targets; in 0.2 that was `FS-CORE-1.2.3`, which 0.3 retired in turn |
+| `FS-CORE-1.2.1` | `FS-CORE-1.2.7` | a document declares the draft it targets; in 0.2 that was `FS-CORE-1.2.3`, and in 0.3 `FS-CORE-1.2.5`, each retired in turn |
 | `FS-CORE-1.6.5` | `FS-CORE-1.6.9` | a reader derives fallbacks, placements and clearances from extension elements it does not implement (12.5) |

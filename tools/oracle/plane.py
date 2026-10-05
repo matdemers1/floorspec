@@ -154,3 +154,12 @@ def dedupe_cyclic(points):
     while len(out) > 1 and out[0] == out[-1]:
         out.pop()
     return out
+
+
+def dedupe_cyclic_open(points):
+    """Remove each vertex equal to the one before it, in a path (the first does not follow the last)."""
+    out = []
+    for p in points:
+        if not out or out[-1] != p:
+            out.append(p)
+    return out

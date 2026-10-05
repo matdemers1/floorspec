@@ -4,7 +4,8 @@
 document - ``{valid, diagnostics, hash?, derived?}`` - plus the canonical bytes when the document
 is valid. ``reader`` is the draft the oracle reads as: READER_01 (Core 0.1 alone, the default, as
 the 0.1 suite and the Ops 0.1 oracle use it), READER_02 (Core 0.2, which also reads 0.1 documents,
-1.2.4 of 0.2) or READER_03 (Core 0.3, which also reads 0.1 and 0.2 documents, 1.2.6).
+1.2.4 of 0.2), READER_03 (Core 0.3, which also reads 0.1 and 0.2 documents, 1.2.6 of 0.3) or READER_04
+(Core 0.4, which also reads 0.1, 0.2 and 0.3 documents, 1.2.8).
 ``registry`` is the known extensions (12.2), as the bytes of a JSON array of registry entries, or
 None for none.
 """
@@ -29,13 +30,15 @@ class Reader:
         self.versions = frozenset(versions)
         self.v02 = '0.2' in self.versions           # what 0.2 adds: program, extensions, hosting, circulation
         self.v03 = '0.3' in self.versions           # what 0.3 adds: operation, clear openings, floors, ceilings, slabs
+        self.v04 = '0.4' in self.versions           # what 0.4 adds: the steps, walkline and headroom of winder and spiral stairs
         self.newest = max(self.versions)
 
 
 READER_01 = Reader({'0.1'})
 READER_02 = Reader({'0.1', '0.2'})
 READER_03 = Reader({'0.1', '0.2', '0.3'})
-READERS = {'0.1': READER_01, '0.2': READER_02, '0.3': READER_03}
+READER_04 = Reader({'0.1', '0.2', '0.3', '0.4'})
+READERS = {'0.1': READER_01, '0.2': READER_02, '0.3': READER_03, '0.4': READER_04}
 IMPLEMENTED_VERSIONS = READER_01.versions
 
 
@@ -58,6 +61,7 @@ SEVERITY = {
     'FS-LINT-015': 'info',                                            # roofs (Core 0.3, 16.4)
     'FS-LINT-016': 'info',                                            # stairs (Core 0.3, 17.7)
     'FS-LINT-017': 'info',                                            # design options (Core 0.3, 19.8)
+    'FS-LINT-018': 'warning', 'FS-LINT-019': 'warning',               # stairs (Core 0.4, 17.6, 17.7)
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -152,7 +156,7 @@ def references(d: dict):
                     out.append(('ext', eid, host[member], target, None))
         fb = el['fallback']
         out.append(('ext', eid, fb['level'], 'levels', None))
-        if 'option' in el and d.get('floorspec') == '0.3':      # Core 0.3, 19.2 - in 0.2, the extension's own (1.2.6)
+        if 'option' in el and d.get('floorspec') in ('0.3', '0.4'):    # Core 0.3, 19.2 - in 0.2, the extension's own (1.2.6)
             out.append(('ext', eid, el['option'], 'options', None))
         for member in ('asset', 'symbol'):
             if member in fb:
@@ -460,7 +464,7 @@ def extension_tier(d: dict, known):
                 ds.append(diag('FS-INV-602'))
         kinds = entry.get('kinds', {})
         data = d.get('extensions', {}).get(x)
-        if d.get('floorspec') in ('0.2', '0.3') and isinstance(data, dict) and isinstance(data.get('collections'), dict):
+        if d.get('floorspec') in ('0.2', '0.3', '0.4') and isinstance(data, dict) and isinstance(data.get('collections'), dict):
             for cname in data['collections']:
                 if cname not in kinds:
                     ds.append(diag('FS-INV-604'))
@@ -694,7 +698,7 @@ def design_invariants(value: dict, reader: Reader, known, package=None):
         ds.extend(clear_opening_tier(doc))
         ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
         ds.extend(roofs.invariants(doc, diag))
-        ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
+        ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag, reader.v04))
         ds.extend(finishes.invariants(doc, no_top, diag))               # 18.2, 18.5
         if package is not None:                                         # 18.4: a package validator
             ds.extend(finishes.package_invariants(doc, package, diag))
@@ -720,8 +724,8 @@ def design_values(value: dict, reader: Reader, ext_ctxs, extensions):
         derived.update(floors.derive(doc))
         derived.update(roofs.derive(doc))
         ds.extend(roofs.lints(doc, diag))
-        derived.update(stairs.derive(doc))
-        ds.extend(stairs.lints(doc, diag))
+        derived.update(stairs.derive(doc, reader.v04))
+        ds.extend(stairs.lints(doc, diag, reader.v04))
         derived.update(finishes.derive(doc))                            # 18.6
     if extensions is not None:
         from .ext import official as ext

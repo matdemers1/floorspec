@@ -9,7 +9,7 @@ adjusted to match an implementation.
 
 ```text
 conformance/
-  core/0.3/<group>/<NNN-slug>/
+  core/0.4/<group>/<NNN-slug>/
     test.json        what the test is and which statements it covers
     input.json       the document under test, byte for byte (it may be malformed on purpose)
     registry.json    optional: the validator's known extensions (Core 12.2) - an array of registry entries
@@ -18,15 +18,33 @@ conformance/
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
     package/         optional, Core 0.3: the files of the document's package (18.4) - the test is
                      then run by a package validator, given exactly these files at these paths
+  core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
-  migration/0.3/…    the migration suite of Core 0.3's chapter 20 (below)
+  migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
+  migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
 ```
 
-**Core 0.3** (`core/0.3/`) is the suite of the current spec text, and the one `pnpm coverage`
-gates it against. It holds every Core 0.2 test re-targeted to 0.3 — same group, same number,
+**Core 0.4** (`core/0.4/`) is the suite of the current spec text, and the one `pnpm coverage`
+gates it against. It holds every Core 0.3 test re-targeted to 0.4 — same group, same number,
+declaring `"0.4"` where the 0.3 test declared `"0.3"` (a test whose document declares `"0.1"` or
+`"0.2"` keeps it, and so do the starter templates, `examples/004` to `006`, which are 0.3 files
+byte for byte: each shows a 0.4 reader reading an earlier draft), covering `FS-CORE-1.2.7`,
+`FS-CORE-1.2.8` and `FS-CORE-17.7.3` where the 0.3 test covered the retired `1.2.5`, `1.2.6` and
+`17.7.1` — and, after them in each group, the tests of what 0.4 adds: the tapered treads of winder
+and spiral stairs (`stairs/050-winder-with-newel` and the tests after it: newels, half turns, one
+and two winders, a stair of winders only, headroom under a floor), the opening a stair with a
+`minHeadroom` needs (`stairs/…-opening` and after), FS-INV-905 and FS-INV-906, the schema of the two
+members 0.4 adds, and a 0.3 document read by a 0.4 reader (`model/…-read-0.3-document`). A 0.4
+reader derives the steps of every winder and spiral stair, so the four 0.3 tests of those stairs
+(`stairs/014` to `017`) derive their steps, walkline, goings and headroom too, and report
+FS-LINT-018 where their treads meet at a point in place of 0.3's FS-LINT-016; every other expected
+value is the 0.3 suite's, byte for byte.
+
+**Core 0.3** (`core/0.3/`) is the suite of the published 0.3 text, kept as it was. It holds every
+Core 0.2 test re-targeted to 0.3 — same group, same number,
 declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
 it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
 0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
@@ -266,7 +284,12 @@ And a fifth, for stairs (chapter 17), empty for a document with none — so ever
   foot and head, and the rooms they are in when there are any; its box (17.4). For a straight,
   L-shaped or U-shaped stair also its `steps` — every tread and landing in walking order, a landing
   marked `"landing": true` — its `run` and `walkline` (17.5), and its `headroom` when something is
-  above it (17.6); for a winder or a spiral stair, none of those (17.7).
+  above it (17.6); for a winder or a spiral stair, none of those in the 0.3 suite (17.7 of 0.3). In
+  the 0.4 suite a winder or a spiral stair has them too (17.7): its `steps` — a winder stair's
+  winders marked `"winder": true` — its `run`, its `walkline`, whose length includes an arc, its
+  `walklineGoing` and `narrowGoing`, its `headroom` when something is above it, and for a spiral its
+  `centre`; and every stair with a `minHeadroom` some of whose steps need the floor above open has
+  `"opening": { "first": i }` (17.6).
 
 And a sixth, for materials and finishes (chapter 18), derived for every valid document a 0.3 reader
 reads, whatever its draft — a room's `wallFinish`, `floorFinish` and `ceilingFinish` and a layer's
@@ -325,7 +348,8 @@ python3.13 -m unittest discover tools/oracle   # the oracle's own tests
 python3.13 -m tools.oracle.author              # rewrite the suite from its declarations
 ```
 
-`regenerate` reads `core/0.1` as a Core 0.1 reader, `core/0.2` as a Core 0.2 reader and `core/0.3` as a Core 0.3 reader, and
+`regenerate` reads `core/0.1` as a Core 0.1 reader, `core/0.2` as a Core 0.2 reader, `core/0.3` as a Core 0.3 reader and
+`core/0.4` as a Core 0.4 reader, and
 recomputes every expected result from `input.json` (and `registry.json`, and `package/`) alone and compares it with what is on
 disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
@@ -340,12 +364,13 @@ not a valid registry, and a conformant validator reports that and nothing else, 
 document.
 
 The tests are declared in `tools/oracle/author.py` (Core 0.1), `tools/oracle/author02.py` (Core
-0.2, which takes every 0.1 declaration and re-targets it before adding its own) and
-`tools/oracle/author03.py` (Core 0.3, which does the same with every 0.2 declaration), with every
-expected diagnostic written by hand; `python3.13 -m tools.oracle.author`, `…author02` and
-`…author03` rewrite their suites and fail if the oracle disagrees with a hand-written diagnostic.
-Add new tests at the end of their group in `author03.py`, so existing directories keep their
-numbers; the 0.1 and 0.2 suites are published and do not change.
+0.2, which takes every 0.1 declaration and re-targets it before adding its own),
+`tools/oracle/author03.py` (Core 0.3, which does the same with every 0.2 declaration) and
+`tools/oracle/author04.py` (Core 0.4, likewise with every 0.3 declaration), with every expected
+diagnostic written by hand; `python3.13 -m tools.oracle.author`, `…author02`, `…author03` and
+`…author04` rewrite their suites and fail if the oracle disagrees with a hand-written diagnostic.
+Add new tests at the end of their group in `author04.py`, so existing directories keep their
+numbers; the 0.1, 0.2 and 0.3 suites are published and do not change.
 
 ## Floorspec Ops
 
@@ -601,23 +626,27 @@ report schema and every measure result the measure result definition.
 
 ## Migration
 
-The migration suite, `migration/0.3/`, tests a **migrator** (Core §20.1): software that migrates a
-document of an earlier draft to a later one. `pnpm coverage` gates Core 0.3's chapter 20 against it,
-with the Core 0.3 suite.
+The migration suite, `migration/0.4/`, tests a **migrator** (Core §20.1): software that migrates a
+document of an earlier draft to a later one. `pnpm coverage` gates Core 0.4's chapter 20 against it,
+with the Core 0.4 suite. It holds every test of `migration/0.3/` — the suite of Core 0.3's chapter 20,
+kept as it was published — run by a migrator of 0.4, which migrates to 0.3 exactly as a migrator of
+0.3 does (the drafts those tests name as unknown move from `"0.4"` to `"0.5"`), and the tests of what
+0.4 adds: the step from 0.3 to 0.4 (Core §20.7), which only changes the version (`step-0.3-0.4`),
+migrations that end in 0.4, and the two-storey starter template migrated to 0.4.
 
 ```text
 conformance/
-  migration/0.3/<group>/<NNN-slug>/
+  migration/0.4/<group>/<NNN-slug>/
     test.json        what the test is and which FS-CORE statements it covers
     input.json       the document, byte for byte (it may be malformed on purpose)
-    request.json     the target draft: { "to": "0.3" }
+    request.json     the target draft: { "to": "0.4" }
     expected.json    { "status": "migrated" | "refused", "diagnostics": [ … ],
                        "hash": …, "validation": { "valid": …, "diagnostics": [ … ] } }
     output.json      the migration, byte for byte - present exactly when it is migrated
 ```
 
 - `status` and `diagnostics` - whether the migrator migrates the document or refuses it, and why
-  (Core §20.2, §20.3.3, §20.8), compared as a validator's diagnostics are; a refusal that carries
+  (Core §20.2, §20.3.3, §20.9), compared as a validator's diagnostics are; a refusal that carries
   `FS-SCH-001` carries only that one entry.
 - `hash` - present when it is migrated: the migration's content hash (Core §9.3).
 - `validation` - present when it is migrated: what a reader of the target draft, implementing no
@@ -631,16 +660,19 @@ writes exactly output.json's bytes. Groups: `documents` (what a migrator is give
 schema-invalid documents, a required extension it does not implement, a broken invariant),
 `targets` (the document's own draft, an earlier or unknown draft, the order of the checks),
 `step-0.1-0.2` (opaque top-level `collections` moved, Core §20.4), `step-0.2-0.3` (an extension
-element's own `option` moved, Core §20.5), `composition` (0.1 to 0.3, and a document migrated
-twice), `record` (the record in `extras`, Core §20.3) and `examples` (the three-room house as Core 0.1
-and 0.2 published it, migrated to 0.3).
+element's own `option` moved, Core §20.5), `step-0.3-0.4` (the version only, Core §20.7),
+`composition` (0.1 to 0.3 and to 0.4, and a document migrated twice), `record` (the record in
+`extras`, Core §20.3) and `examples` (the three-room house as Core 0.1 and 0.2 published it, migrated
+to 0.3 and to 0.4, and the two-storey template migrated to 0.4).
 
-The tests are declared in `tools/oracle/migrate_author.py`, with every status, diagnostic,
-validation and moved pointer written by hand; the oracle's migrator is `tools/oracle/migrate.py`.
-`python3.13 -m tools.oracle.migrate_author` rewrites the suite and fails if the oracle disagrees with
-anything written by hand, and `python3.13 -m tools.oracle.regenerate` re-verifies it with the others
+The tests are declared in `tools/oracle/migrate_author.py` (0.3's) and
+`tools/oracle/migrate_author04.py` (0.4's, which carries every 0.3 declaration forward), with every
+status, diagnostic, validation and moved pointer written by hand; the oracle's migrator is
+`tools/oracle/migrate.py`, a migrator of 0.4 or, for 0.3's suite, of 0.3. `python3.13 -m
+tools.oracle.migrate_author` and `…migrate_author04` rewrite their suites and fail if the oracle
+disagrees with anything written by hand, and `python3.13 -m tools.oracle.regenerate` re-verifies it with the others
 (`tools/oracle/migration_suite.py`): each expected output, that a reader of the target reads the
 migration as it reads the document and derives the same values, that migrating a migration to its
 own draft changes nothing, and that a migration is its steps applied in order.
-`python3.13 -m tools.oracle.migrate <document> --to 0.3` prints one migration. `pnpm schema:check`
+`python3.13 -m tools.oracle.migrate <document> --to 0.4` prints one migration. `pnpm schema:check`
 checks each document against the schema of its draft and each migration against its target's.

@@ -20,7 +20,7 @@ import sys
 from tools.oracle.author import room_doc as room_doc_01
 from tools.oracle.author02 import element, free, wall_face, with_elements
 from tools.oracle.author_lib import MM, REPO, _diag, fmt
-from tools.oracle.migrate import RECORD, migrate
+from tools.oracle.migrate import DRAFTS_03, RECORD, migrate
 from tools.oracle.migration_suite import SUITE, expected_text, reading
 
 TESTS = []
@@ -282,9 +282,12 @@ t('examples', 'three-room-house-0.2-to-0.3',
 
 # ============================================================================= writing
 
-def write_all(prune=False):
+def write_all(prune=False, tests=None, suite=SUITE, drafts=DRAFTS_03):
+    """Writes the suite of the migrator of `drafts` - Core 0.3's by default, as published."""
+    SUITE = suite                                                               # noqa: N806
+    tests = TESTS if tests is None else tests
     counters, failures, seen = {}, 0, set()
-    for tc in TESTS:
+    for tc in tests:
         g = tc['group']
         counters[g] = counters.get(g, 0) + 1
         name = f"{counters[g]:03d}-{tc['slug']}"
@@ -298,7 +301,7 @@ def write_all(prune=False):
             f.write(json.dumps({'description': tc['description'], 'covers': tc['covers']}, indent=2, ensure_ascii=False) + '\n')
         with open(os.path.join(d, 'request.json'), 'w') as f:
             f.write(fmt({'to': tc['to']}) + '\n')
-        r = migrate(data, tc['to'])
+        r = migrate(data, tc['to'], drafts)
         problems = []
         if r['status'] != tc['status'] or r['diagnostics'] != tc['diags']:
             problems.append(f'hand {tc["status"]} {json.dumps(tc["diags"])}\n  oracle {r["status"]} {json.dumps(r["diagnostics"])}')
@@ -336,7 +339,7 @@ def write_all(prune=False):
                 if os.path.join(gp, n) not in seen:
                     print('removing', os.path.join(gp, n))
                     shutil.rmtree(os.path.join(gp, n))
-    print(f'{len(TESTS)} tests, {failures} mismatches')
+    print(f'{len(tests)} tests, {failures} mismatches')
     return failures
 
 

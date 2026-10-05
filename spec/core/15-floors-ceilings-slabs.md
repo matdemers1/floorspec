@@ -172,7 +172,7 @@ A deriver MUST derive the frame of every `surface` host at the elevation this se
 
 In a room with no `floor` member and no `ceiling` member, on a level with no `ceilingHeight`, these
 are the level's elevation and its elevation plus its height — exactly the elevations Core 0.2 gave
-every `surface` host. A document that declares `"0.1"` or `"0.2"` cannot have those members (1.2.6),
+every `surface` host. A document that declares `"0.1"` or `"0.2"` cannot have those members (1.2.8),
 so every placement, fallback and clearance derived for it by a reader of this draft is the one a
 reader of its own draft derives.
 

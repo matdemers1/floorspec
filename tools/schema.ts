@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
- * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2
- * and 0.3), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3), whose rejections are
+ * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2,
+ * 0.3 and 0.4), Floorspec Ops's apply-request schemas (0.1, 0.2 and 0.3), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -10,10 +10,10 @@ import { join, relative } from 'node:path';
 import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js';
 
 /** The Core drafts this repository publishes, oldest first. */
-export const CORE_VERSIONS = ['0.1', '0.2', '0.3'] as const;
+export const CORE_VERSIONS = ['0.1', '0.2', '0.3', '0.4'] as const;
 export type CoreVersion = (typeof CORE_VERSIONS)[number];
 /** The draft the spec text in spec/core/ is. */
-export const CURRENT_CORE: CoreVersion = '0.3';
+export const CURRENT_CORE: CoreVersion = '0.4';
 
 export const coreSchemaBase = (v: CoreVersion) => `https://d3cloud.io/floorspec/schema/core/${v}/`;
 export const coreRootId = (v: CoreVersion) => `${coreSchemaBase(v)}floorspec.schema.json`;

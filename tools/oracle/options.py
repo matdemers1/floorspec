@@ -33,8 +33,8 @@ def present(d: dict) -> bool:
 
 
 def _ext_collections(d: dict):
-    """(collection object) of every extension collection of a 0.3 document (12.5)."""
-    if d.get('floorspec') != '0.3':
+    """(collection object) of every extension collection of a 0.3 or 0.4 document (12.5)."""
+    if d.get('floorspec') not in ('0.3', '0.4'):
         return []
     out = []
     for data in d.get('extensions', {}).values():
@@ -87,7 +87,7 @@ def view(d: dict, design: dict) -> dict:
     for c in OPTIONAL:
         if c in d:
             v[c] = {eid: strip(e) for eid, e in d[c].items() if keep(e)}
-    if d.get('floorspec') == '0.3' and isinstance(d.get('extensions'), dict):
+    if d.get('floorspec') in ('0.3', '0.4') and isinstance(d.get('extensions'), dict):
         exts = copy.deepcopy(d['extensions'])
         for data in exts.values():
             if isinstance(data, dict) and isinstance(data.get('collections'), dict):

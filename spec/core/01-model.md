@@ -42,16 +42,16 @@ top-level members; this is what lets a reader tell an unknown extension from a m
 The `floorspec` member declares the version of Floorspec Core the document targets, as
 `"<major>.<minor>"`. Patch releases of the specification are editorial and are not declared.
 
-A document that targets this draft MUST declare `"floorspec": "0.3"`. {#FS-CORE-1.2.5 MUST}
+A document that targets this draft MUST declare `"floorspec": "0.4"`. {#FS-CORE-1.2.7 MUST}
 
 A reader MUST reject a document that declares a version the reader does not implement, with the
 diagnostic `FS-DOC-001`. {#FS-CORE-1.2.2 MUST}
 
-A reader that implements this draft MUST also read a document that declares `"0.1"` or `"0.2"`: it MUST apply the schema of the draft the document declares to it at the schema tier, and otherwise read it as a 0.3 document in which every member that a later draft than the one it declares adds is absent. {#FS-CORE-1.2.6 MUST}
+A reader that implements this draft MUST also read a document that declares `"0.1"`, `"0.2"` or `"0.3"`: it MUST apply the schema of the draft the document declares to it at the schema tier, and otherwise read it as a 0.4 document in which every member that a later draft than the one it declares adds is absent. {#FS-CORE-1.2.8 MUST}
 
 The members 0.2 added are the top-level `program` (11.1), a room's `brief` (11.3), the
 declaration object in `extensionsUsed` (12.1), a door or window type's `clearances` (13.5) and the
-`collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
+`collections` member of top-level extension data (12.5). The members 0.3 added are a door or window
 type's `operation` and `clearOpening` (8.4), an opening's `clearOpening` (7.1), a level's
 `floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2), a slab's
 `purpose` (6.7), the `stairs` collection (17.1), the `optionSets` and `options` collections
@@ -61,8 +61,8 @@ clearances, extension data that core does not look inside, an operation that is 
 declared clear opening, a floor at its level's elevation with no declared thickness, a flat
 ceiling at its level's height, a slab whose purpose is not stated, no stairs, no design options — one design, the document
 itself (19.3) — and a type or material whose origin is not recorded.
-The `roofs` collection (chapter 16) is new in 0.3 too: its absence means no roof, and a reader of
-this draft derives an empty set of roofs for a document of any draft; so are `stairs` (chapter 17),
+The `roofs` collection (chapter 16) was new in 0.3 too: its absence means no roof, and a reader of
+this draft derives an empty set of roofs for a document of 0.1 or 0.2; so were `stairs` (chapter 17),
 of which it derives an empty set too. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
 configured with the same known extensions (12.2), is valid under 0.3 with the same diagnostics,
 the same derived values, the same canonical form and the same content hash; and a document valid
@@ -76,10 +76,24 @@ defaults — so a valid 0.2 or 0.1 document read as 0.3 also derives its rooms' 
 and its slabs' bounding geometry, and every value its own draft derives is unchanged, the
 placements of `surface` hosts included (15.6), and it has no roofs. In a 0.1 document, top-level extension data is
 opaque, as 0.1 says, even where it has a member named `collections`. Core 0.1's schema rejects
-every member and collection 0.2 and 0.3 add, and Core 0.2's every one 0.3 adds, so a document that declares
-`"0.1"` or `"0.2"` and uses one is invalid (`FS-SCH-001`).
+every member and collection 0.2, 0.3 and 0.4 add, Core 0.2's every one 0.3 and 0.4 add, and Core 0.3's both
+members 0.4 adds, so a document that declares `"0.1"`, `"0.2"` or `"0.3"` and uses one is invalid
+(`FS-SCH-001`).
 
-For materials and finishes (chapter 18), 0.3 also adds a material's `metallic` and `roughness`
+The members 0.4 adds are a stair's `minHeadroom` (17.1) and a winder stair's `newel` (17.2). Both are
+optional, and absent they mean what a 0.3 document means without them: a stair that declares no
+headroom, and so needs no opening (17.6), and a winder stair whose winders meet at the pivot of its
+turn (17.7.1). A reader of this draft derives the steps, run, walkline, goings and headroom of every
+winder and spiral stair (17.7) of a document of any draft, from the members 0.3 already has. So a
+document valid under 0.3, read by a validator configured with the same known extensions, is valid
+under 0.4 with the same canonical form, the same content hash and the same derived values — and
+its winder and spiral stairs derive their steps, walkline, goings and headroom too — and with the
+same diagnostics but one: for each of its winder and spiral stairs a reader of 0.3 reports
+`FS-LINT-016` (an info: its steps were not derived), and a reader of 0.4 does not, and reports
+instead `FS-LINT-018` (17.7.6) for each whose treads narrow to a point. Everything this section says
+of a 0.1 or 0.2 document read as 0.3 holds of it read as 0.4.
+
+For materials and finishes (chapter 18), 0.3 also added a material's `metallic` and `roughness`
 (18.1), a texture's `normal`, `metallicRoughness` and `occlusion` maps and its `offset` and
 `rotation` (18.2), an asset's `byteLength` (18.4) and a wall's `finishes` (18.5). Each is optional,
 and its absence means what an earlier draft's document means without it: a matte, non-metallic

@@ -1,4 +1,5 @@
-"""Re-verify the migration suite (Core 0.3, chapter 20): conformance/migration/0.3/<group>/<NNN-slug>/.
+"""Re-verify the migration suites (chapter 20): conformance/migration/<draft>/<group>/<NNN-slug>/ - 0.3's
+with a migrator of Core 0.3, as published, and 0.4's with a migrator of Core 0.4.
 
 For every test, from input.json and request.json alone, with the oracle's migrator (migrate.py):
 
@@ -18,12 +19,14 @@ from __future__ import annotations
 import json
 import os
 
-from .migrate import DRAFTS, migrate
+from .migrate import DRAFTS_03, DRAFTS_04, migrate
 from .author_lib import fmt
 from .validate import READERS, check
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SUITE = os.path.join(ROOT, 'conformance', 'migration', '0.3')
+SUITES = {'0.3': (os.path.join(ROOT, 'conformance', 'migration', '0.3'), DRAFTS_03),
+          '0.4': (os.path.join(ROOT, 'conformance', 'migration', '0.4'), DRAFTS_04)}
+SUITE = SUITES['0.3'][0]
 
 
 def test_dirs(suite=SUITE):
@@ -48,7 +51,7 @@ def expected_text(status, diagnostics, hash_=None, validation=None) -> str:
     return fmt(exp) + '\n'
 
 
-def verify(path: str, write: bool) -> list[str]:
+def verify(path: str, write: bool, drafts=DRAFTS_03) -> list[str]:
     rel = os.path.relpath(path, ROOT)
     errors = []
     with open(os.path.join(path, 'test.json'), encoding='utf-8') as f:
@@ -62,7 +65,7 @@ def verify(path: str, write: bool) -> list[str]:
     exp_path = os.path.join(path, 'expected.json')
     with open(exp_path, encoding='utf-8') as f:
         expected = json.load(f)
-    r = migrate(data, to)
+    r = migrate(data, to, drafts)
     if expected.get('status') != r['status']:
         errors.append(f'status: expected {expected.get("status")}, oracle {r["status"]}')
     if expected.get('diagnostics') != r['diagnostics']:
@@ -79,12 +82,12 @@ def verify(path: str, write: bool) -> list[str]:
             errors.append(f'validation: expected {json.dumps(expected.get("validation"))}, a reader of {to} reports {json.dumps(validation)}')
         if again != validation or derived_again != derived:
             errors.append(f'a reader of {to} reads the migration differently from the document (20.6.1)')
-        if migrate(r['bytes'], to).get('bytes') != r['bytes']:
+        if migrate(r['bytes'], to, drafts).get('bytes') != r['bytes']:
             errors.append('migrating the migration to its own draft changes it (20.1.2)')
         declared = json.loads(data)['floorspec']
-        stepwise = migrate(data, declared)['bytes']
-        for v in DRAFTS[DRAFTS.index(declared) + 1:DRAFTS.index(to) + 1]:
-            stepwise = migrate(stepwise, v)['bytes']
+        stepwise = migrate(data, declared, drafts)['bytes']
+        for v in drafts[drafts.index(declared) + 1:drafts.index(to) + 1]:
+            stepwise = migrate(stepwise, v, drafts)['bytes']
         if stepwise != r['bytes']:
             errors.append('the migration is not its steps applied in order (20.1.3)')
     if write:
@@ -104,9 +107,10 @@ def verify(path: str, write: bool) -> list[str]:
     return [f'{rel}: {e}' for e in errors]
 
 
-def verify_all(write: bool = False):
-    dirs = list(test_dirs())
+def verify_all(write: bool = False, version: str = '0.3'):
+    suite, drafts = SUITES[version]
+    dirs = list(test_dirs(suite))
     errors = []
     for d in dirs:
-        errors.extend(verify(d, write))
+        errors.extend(verify(d, write, drafts))
     return len(dirs), errors
