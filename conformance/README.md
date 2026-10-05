@@ -403,7 +403,8 @@ panel, a boiler, a smoke alarm and two receptacles - so that most values can be 
 The net clear measures (Rules §6.5) are tested on the rules house as a Core 0.3 document whose door
 and window types declare their operation and clear opening (`measures-openings/…-net-clear-openings`,
 `selection/…-net-clear-escape-opening` and the tests after it). The official extensions at 0.1.0
-are evaluated only for a document that declares `"0.2"`, so those tests read no extension.
+are evaluated for Core 0.3 documents as for 0.2 ones (each one's 1.2), and
+`typing/…-extension-rules-on-a-core-0.3-document` shows the rules that read them evaluated on one.
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can
