@@ -8,7 +8,7 @@ written by hand, and the TypeScript types in D3 Floorspec are generated from it,
 Each draft has its own directory: Core 0.1 is in [`0.1/`](0.1/), Core 0.2 in [`0.2/`](0.2/), and
 Core 0.3 — the current draft — in [`0.3/`](0.3/). Start at `floorspec.schema.json`. The 0.2 files
 are the 0.1 files copied and changed, plus five new ones, and the 0.3 files are the 0.2 files
-copied, with seven changed and two new (`roof.schema.json`, `stair.schema.json`); the table lists 0.3's.
+copied, with ten changed and three new (`roof.schema.json`, `stair.schema.json`, `finish.schema.json`); the table lists 0.3's.
 
 | File | Describes | Spec |
 |---|---|---|
@@ -24,7 +24,8 @@ copied, with seven changed and two new (`roof.schema.json`, `stair.schema.json`)
 | `slab.schema.json` | slabs, with their purpose (0.3) | 6.7 |
 | `roof.schema.json` | roofs and their edges (0.3) | 16.1 |
 | `type.schema.json` | wall, door and window types, discriminated by `kind`; a door's or window's operation and clear opening (0.3) | 8.1, 8.3, 8.4 |
-| `material.schema.json`, `asset.schema.json` | materials and assets | 8.5, 8.6 |
+| `material.schema.json`, `asset.schema.json` | materials, with their metallic, roughness and texture maps (0.3), and assets, with their byte length (0.3) | 8.5, 8.6, 18.1, 18.2, 18.4 |
+| `finish.schema.json` | a wall's `finishes`: its face finishes and their regions (0.3) | 18.5 |
 | `program.schema.json` | the program, its items and adjacencies (0.2) | 11.1, 11.2 |
 | `extension.schema.json` | declarations in `extensionsUsed`, top-level extension data, collections and extension elements (0.2) | 12.1, 12.5 |
 | `fallback.schema.json` | an extension element's fallback (0.2) | 12.6 |
@@ -41,7 +42,11 @@ floors, ceilings and slabs (chapter 15), `defs.schema.json` gains `pitch`, `leve
 gains `floorThickness` and `ceilingHeight`, `room.schema.json` gains `floor` and `ceiling`, and
 `slab.schema.json` gains `purpose`; for roofs (chapter 16), `roof.schema.json` is new, and
 `floorspec.schema.json` gains the `roofs` collection; for stairs (chapter 17), `stair.schema.json` is
-new, and `floorspec.schema.json` gains the `stairs` collection.
+new, and `floorspec.schema.json` gains the `stairs` collection; for materials and finishes (chapter
+18), `material.schema.json` gains `metallic` and `roughness` and a texture's `normal`,
+`metallicRoughness` and `occlusion` maps, `offset` and `rotation` (its `asset` no longer required, so
+long as it has one map), `asset.schema.json` gains `byteLength`, `finish.schema.json` is new, and
+`wall.schema.json` gains `finishes`.
 
 The registry entry of an extension (Core 0.2, 12.2) has its own schema,
 [`../registry/0.1/extension.schema.json`](../registry/0.1/extension.schema.json), published at
@@ -111,7 +116,10 @@ input when the expected diagnostics are exactly `[FS-SCH-001]`, and accept it ot
 `FS-CFG-001`. `tools/check-schema-02.test.ts` pins 0.2's new defaults and edges, and
 `tools/check-schema-03.test.ts` 0.3's. Of the members 0.3 adds, only these have constant defaults:
 a room's `floor` (`{}`) and its `offset` (`0`), a room's `ceiling` (`{ "kind": "flat" }`) and a
-vault's `slopes` (`"both"`). An absent operation is not declared, a clear opening is a typed
+vault's `slopes` (`"both"`); and for chapter 18, a texture's `offset` (`[0, 0]`) and `rotation` (`0`),
+a wall's `finishes` and each face finish (`{}`) and a face's `regions` (`[]`). A material's `metallic`
+and `roughness` take their map's value when absent, and a face's `material` its room's or its layer's,
+so neither has a `default`; nor does an asset's `byteLength`, which is not declared when absent. An absent operation is not declared, a clear opening is a typed
 property (8.2), and a level's `floorThickness` and `ceilingHeight`, a floor's `thickness` and a
 ceiling's `height` have derived defaults (15.1, 15.2), so none of them carries a `default`.
 

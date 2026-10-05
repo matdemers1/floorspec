@@ -72,5 +72,6 @@ exactly when the canonical form does.
 ## 9.4 Files
 
 A document stored as a file has the extension `.floorspec.json`. The media type, pending
-registration, is `application/vnd.floorspec+json`. The packaged form, a ZIP archive holding
-`model.json` and its assets, is defined in a later draft.
+registration, is `application/vnd.floorspec+json`. The directory that holds the file is the
+document's package, where the files of its assets are found by their paths (18.4). A packaged form
+in one file, a ZIP archive holding `model.json` and its assets, is defined in a later draft.

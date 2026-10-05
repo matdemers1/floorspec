@@ -38,6 +38,7 @@ dining area. Together they are the level's **edges**.
 | `justification` | `"center"`, `"exteriorFace"`, `"interiorFace"` or `"coreFace"` | `"center"` | where the location line sits in the wall's thickness (5.4) |
 | `base` | `{ "level"?: reference, "offset"?: length }` | `{}` | the wall's bottom (5.9) |
 | `top` | `{ "level": reference, "offset"?: length }` or `{ "height": length }` | absent: follows the level's height (5.9) | the wall's top |
+| `finishes` | `{ "left"?: face finish, "right"?: face finish }` (18.5) | `{}` | the finishes of its faces, and of regions of them, where they differ from the rooms they face (0.3) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 **Separator.**

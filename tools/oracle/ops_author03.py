@@ -434,6 +434,11 @@ T('inverse', 'level-and-stair-removed-and-undone', 'Removing L2 with cascade, it
   check=lambda r, B: ensure([p['id'] for p in r['inverse']].index('L2') < [p['id'] for p in r['inverse']].index('ST1'),
                             r['inverse']))
 
+# ============================================================================= materials and finishes (0.3): Core chapter 18
+import tools.oracle.ops_author03_materials as materials                       # noqa: E402
+
+materials.declare()
+
 NEW = list(TESTS)
 del TESTS[:]
 

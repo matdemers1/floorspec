@@ -87,9 +87,9 @@ members of the document.
 | `level` | reference to a level | — (always present) | the level the room is on |
 | `anchor` | point | — (always present) | which face is this room (6.3) |
 | `function` | room function (4.1) | `"unspecified"` | what the room is for |
-| `wallFinish` | reference to a material | absent | the finish of the walls that face this room |
-| `floorFinish` | reference to a material | absent | the floor finish |
-| `ceilingFinish` | reference to a material | absent | the ceiling finish |
+| `wallFinish` | reference to a material | absent | the finish of the walls that face this room, inherited by each face that faces it unless the wall overrides it (18.6) |
+| `floorFinish` | reference to a material | absent | the floor finish (18.6) |
+| `ceilingFinish` | reference to a material | absent | the ceiling finish (18.6) |
 | `brief` | reference to a program item | absent: the room fulfils no item | the program item this room fulfils (11.3) |
 | `floor` | floor (15.1) | `{}` | its floor's offset from the level and its thickness |
 | `ceiling` | ceiling (15.2) | `{ "kind": "flat" }` | its ceiling's form and height |

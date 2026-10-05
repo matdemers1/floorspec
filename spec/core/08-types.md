@@ -141,16 +141,21 @@ of the type that fills it.
 
 | Member | Type | Default | Meaning |
 |---|---|---|---|
-| `color` | `"#rrggbb"`, lowercase hexadecimal sRGB | absent | the material's base colour |
-| `texture` | `{ "asset": reference to an asset, "size": [w, h] }`, both always present | absent | an image tiled across the surface; one tile covers `w` by `h` base units |
+| `color` | `"#rrggbb"`, lowercase hexadecimal sRGB | absent | the material's base colour (18.1) |
+| `metallic` | integer, in thousandths, 0 to 1000 | absent: 0, or its map's (18.1) | how metallic the surface is |
+| `roughness` | integer, in thousandths, 0 to 1000 | absent: 1000, or its map's (18.1) | how rough it is |
+| `texture` | texture (18.2): its maps, the real-world `size` [w, h] of one tile, its `offset` and `rotation` | absent | images tiled across the surface; one tile covers `w` by `h` base units |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 A material's `color` MUST match `^#[0-9a-f]{6}$`. {#FS-CORE-8.5.1 MUST}
 
 A texture's `size` MUST be two lengths greater than zero. {#FS-CORE-8.5.2 MUST}
 
-Physically based rendering properties are defined in a later draft. A texture's real-world size is
-what makes a dropped-in photo of a tile the right scale on every wall.
+A material is physically based, in the metallic-roughness model of glTF 2.0, and its texture's
+real-world size is what makes a dropped-in photo of a tile the right scale on every wall: chapter
+18 defines both, and how a texture is laid on a surface. `metallic`, `roughness`, and a texture's
+maps other than `asset`, its `offset` and its `rotation` are new in 0.3; a texture of 0.1 or 0.2 is
+its base colour map (`asset`) and its `size`.
 
 ## 8.6 Assets
 
@@ -163,16 +168,19 @@ later drafts and extensions.
 | `uri` | an absolute URI (RFC 3986) whose scheme is `https` and which has an authority | absent | where the file is on the web |
 | `sha256` | 64 lowercase hexadecimal digits | — (always present) | the SHA-256 digest of the file's bytes |
 | `mediaType` | a media type `type/subtype` as RFC 6838 §4.2 defines it, without parameters, such as `"image/png"` | — (always present) | what kind of file it is |
+| `byteLength` | integer, 0 to 2⁵³ − 1 | absent: not declared | the length of the file in bytes (18.4) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 An asset MUST have exactly one of `path` and `uri`. {#FS-CORE-8.6.1 MUST}
 
 A `path` MUST be relative, use `/` as its separator, contain no empty, `.` or `..` segment, and have no `:` in its first segment. {#FS-CORE-8.6.2 MUST}
-A path is a path, not a URI reference: it is not percent-encoded.
+A path is a path, not a URI reference: it is not percent-encoded. It is relative to the document's
+package, the directory that holds the document's file (18.4).
 
 The digest makes an asset verifiable wherever it is found, and lets a store keep one copy of a
 texture used by many projects. An asset by `uri` makes the document depend on someone else's
-server; validators report it as a lint (`FS-LINT-007`).
+server; validators report it as a lint (`FS-LINT-007`). A package validator, which is given the
+package's files, also checks each file against its asset's digest and length (18.4).
 
 ## 8.7 Lints
 

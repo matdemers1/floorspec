@@ -15,6 +15,8 @@ conformance/
     registry.json    optional: the validator's known extensions (Core 12.2) - an array of registry entries
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
+    package/         optional, Core 0.3: the files of the document's package (18.4) - the test is
+                     then run by a package validator, given exactly these files at these paths
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
@@ -30,9 +32,10 @@ it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1
 hosting on them at the end of `hosting`), roofs (the group `roofs`), and stairs (the group
 `stairs`, and circulation through them at the end of `circulation`). A 0.3 reader derives every
 room's floor and ceiling, every slab's bounding geometry, and every roof and stair, so every valid
-re-targeted test's `derived` has the five members `floors`, `ceilings`, `slabs`, `roofs` and
-`stairs` that its 0.2 counterpart lacks — the last two empty; every other value in it is the 0.2
-suite's, byte for byte. A 0.3 reader also reads 0.2 documents (1.2.6), and
+re-targeted test's `derived` has the six members `floors`, `ceilings`, `slabs`, `roofs`, `stairs`
+and `finishes` that its 0.2 counterpart lacks — `roofs` and `stairs` empty, and `finishes` empty
+unless a room or a layer names a material; every other value in it is the 0.2 suite's, byte for
+byte. A 0.3 reader also reads 0.2 documents (1.2.6), and
 `model/070-read-0.2-document` and `hosting/045-read-0.2-surface-hosts` show that it derives for one
 everything 0.2 does, surface hosts included, and its floors, ceilings and slabs besides.
 
@@ -45,7 +48,8 @@ that it reads them exactly as 0.1 does.
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
 `openings`, `types`, `serialization`, `diagnostics`, from 0.2 `program`, `extensions`, `hosting`,
 `clearances` and `circulation`, and from 0.3 `floors` (chapter 15: floors, ceilings and slabs), `roofs`
-(chapter 16) and `stairs` (chapter 17). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
+(chapter 16), `stairs` (chapter 17) and `materials` (chapter 18: materials, textures, the package and
+finishes). `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
 ## test.json
@@ -235,6 +239,40 @@ And a fifth, for stairs (chapter 17), empty for a document with none — so ever
   marked `"landing": true` — its `run` and `walkline` (17.5), and its `headroom` when something is
   above it (17.6); for a winder or a spiral stair, none of those (17.7).
 
+And a sixth, for materials and finishes (chapter 18), derived for every valid document a 0.3 reader
+reads, whatever its draft — a room's `wallFinish`, `floorFinish` and `ceilingFinish` and a layer's
+`material` are members of 0.1 — so every valid 0.3 test's `derived` has a `finishes` member too, with
+nothing in it for a document that finishes nothing:
+
+```json
+{
+  "finishes": {
+    "rooms": { "KIT": { "floor": "OAK", "ceiling": "PAINT" } },
+    "walls": {
+      "W2": {
+        "left": { "material": "SIDING", "source": "layer", "regions": [] },
+        "right": { "room": "KIT", "material": "PAINT", "source": "room",
+                   "regions": [ { "from": 768000, "to": 4352000, "bottom": 1170432, "top": 1755648, "material": "TILE" } ] }
+      }
+    }
+  }
+}
+```
+
+- `finishes.rooms` — every room with a floor or a ceiling finish: `floor` and `ceiling`, each present
+  only when the room names it (18.6).
+- `finishes.walls` — every side of every wall whose finish resolves to a material or that has
+  regions: the `room` it faces, when it faces one; its `material` and the `source` that gave it —
+  `"face"`, `"room"` or `"layer"` — when it resolves to one; and its `regions`, as the wall lists
+  them (`[]` when it has none).
+
+A test with a `package/` directory is run by a **package validator** (18.4), given the files under
+that directory, each at its path relative to it; it checks every asset located by `path` against its
+file (`FS-INV-1005` to `FS-INV-1007`). A test without one is run by a validator that is not given the
+package's files, which never reports those three. Package files are compared byte for byte, and a
+path names exactly one file, case and all: a package validator on a case-insensitive file system
+looks a path up in the directory's listing, not by opening it.
+
 A deriver conforms when what it derives equals `derived` exactly.
 
 ## Writing a test
@@ -259,7 +297,7 @@ python3.13 -m tools.oracle.author              # rewrite the suite from its decl
 ```
 
 `regenerate` reads `core/0.1` as a Core 0.1 reader, `core/0.2` as a Core 0.2 reader and `core/0.3` as a Core 0.3 reader, and
-recomputes every expected result from `input.json` (and `registry.json`) alone and compares it with what is on
+recomputes every expected result from `input.json` (and `registry.json`, and `package/`) alone and compares it with what is on
 disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
 the canonical form canonicalizes to itself and derives the same values and hash (9.2.2).
@@ -292,7 +330,10 @@ documents, whose operations and clear openings, floors, ceilings and slabs a bat
 `setProperty`, `unsetProperty` and `addElement`, `moveRoom` moving a vaulted ceiling's ridge
 (`composites/068-move-room-moves-its-vault`), roofs added, edited and removed
 (`primitives/068` to `078`), and stairs - added, edited, removed, and removed with the levels they
-join (`primitives/079-add-a-stair` and the tests after it). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+join (`primitives/079-add-a-stair` and the tests after it), and materials and finishes - textures
+and wall finishes edited, the FLR-P-8 exit demo as one batch (`primitives/089-tile-photo-on-the-backsplash`
+and the tests after it), removals a finish or a map blocks, and a split wall cutting its regions
+(`normalization/025-split-wall-cuts-its-regions`). **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
 tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
 exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape, and may also add
 to Core 0.3's `roofs` and `stairs`: its suite is checked against its own `schema/ops/0.3/`, and its tests cover

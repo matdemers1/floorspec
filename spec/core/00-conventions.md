@@ -34,12 +34,13 @@ Floorspec Core 0.3 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
-| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–17) |
+| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–18) |
 | **Reader** | software that loads documents | apply defaults and the version and extension rules (1.2, 1.5, 1.6, 12.1) |
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–17 |
+| **Package validator** | a validator that is also given the files of the document's package (18.4) | check every packaged asset against its file, as well (18.4) |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–18 |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 
 One program is usually several of these. The conformance suite tests each class separately; the
@@ -86,7 +87,9 @@ reserved for later drafts and a 0.3 document cannot contain them:
   and the floor of the level above;
 - ceilings of any form but flat, tray and vaulted, a vault's ridge that follows the room's walls,
   and layers of a floor's thickness;
-- finish overrides on a wall face or a region of one;
+- finishes of a wall's ends, of baseboards and trim, and regions of a floor or a ceiling; a texture's
+  coordinates on a tray's vertical step, a slab, a roof or a stair (18.3); a material's transparency,
+  emission, clear coat or sheen; a map in any image format but PNG, JPEG, WebP and KTX2, such as AVIF;
 - the packaged `.floorspec` form (a ZIP of `model.json` and `assets/`);
 - edit operations, which are a separate specification, Floorspec Ops;
 - clearance envelopes of any shape but a box, and clearances on an element rather than its type
@@ -144,6 +147,21 @@ And for stairs (chapter 17):
 - the diagnostics `FS-INV-901` to `FS-INV-904` and `FS-LINT-016` (chapter 10), and the mapping of
   stairs to IFC4 (Annex A).
 
+And for materials, assets and finishes (chapter 18):
+
+- **physically based materials**: a material's `metallic` and `roughness` (18.1), and its texture's
+  normal, metallic-roughness and occlusion maps beside its base colour map, all laid with one tile
+  of a real-world size, with an `offset` and a `rotation` (18.2), on surface coordinates every
+  renderer shares (18.3);
+- **the package**: an asset's `path` is relative to the directory that holds the document, an
+  asset may declare its `byteLength`, and a **package validator**, given the package's files,
+  checks each one's digest and length (18.4);
+- **finishes**: a wall's `finishes` override, on one face or on a rectangular region of one, the
+  finish the face inherits from the room it faces (18.5), and a deriver resolves the finish of every
+  floor, ceiling and wall face (18.6);
+- the diagnostics `FS-INV-1001` to `FS-INV-1007` (chapter 10), and the mapping of materials and
+  finishes to IFC4 (Annex A).
+
 A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
 its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read
 as 0.3 means exactly what it meant. Its floors, ceilings and slabs are derived from the defaults —
@@ -152,6 +170,10 @@ a `surface` host — so every value 0.2 derived for it is unchanged, and what is
 its floors, ceilings and slabs are derived too. It has no stair, so its door graph joins its levels
 through rooms of function `circulation` exactly as 0.2's did (14.1), and its derived `stairs`, like
 its `roofs`, are empty.
+
+Rooms' `wallFinish`, `floorFinish` and `ceilingFinish` and layers' `material` are members of 0.1,
+so a 0.1 or 0.2 document read as 0.3 derives its finishes too (18.6): each room's floor and
+ceiling, and each wall face that a room or a layer finishes, with no overrides and no regions.
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 
