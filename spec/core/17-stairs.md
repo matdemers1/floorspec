@@ -168,7 +168,8 @@ lane is the plan segment between its two ends' points, rounded (17.3). A flight'
 straight from the top of its first riser at their first end to the top of its last at their second —
 the nosing line; a landing's are level at its top.
 
-What is above a plan point `X` of a lane, when `X` is not on the boundary of any of these regions:
+What is above a plan point `X` of a lane — one that is on no edge of a room polygon, of a tray's
+centre (15.4) or of a well, and on the ridge line of no two-sided vault (15.3) — is:
 
 - the ceiling of a room on the stair's `level` that `X` is strictly inside — inside its room
   polygon's outer ring and outside every hole — unless `X` is in the stair's **well**: inside or on
@@ -179,13 +180,13 @@ What is above a plan point `X` of a lane, when `X` is not on the boundary of any
 
 A ceiling is at its elevation at `X` (15.2). The **clearance** at `X` is the least of the elevations
 of what is above it, minus the elevation of the lane at `X`; a point with nothing above it has
-none. Along a lane, what is above changes only where the lane crosses or touches an edge of a room
-polygon of a room on either level, of a tray's centre (15.4), of such a face, or the ridge line of
-a two-sided vault (15.3), and between those places each elevation is linear. The stair's headroom
-is the infimum of the clearance over every point of every lane that has one: the least, over the
-pieces between those places that have something above them, of the clearance at each end of the
-piece, taken as the limit from inside the piece. It is exact, and rounded once. A stair with nothing
-above any of its lanes has no headroom.
+none. Along a lane, what is above changes only where the lane crosses or touches one of those edges
+or ridge lines — of the rooms of the stair's two levels, and the wells of its `to` level — and
+between those places each elevation is linear. The stair's headroom is the infimum of the clearance
+over every point of every lane that has one: the least, over the pieces between those places that
+have something above them, of the clearance at each end of the piece, taken as the limit from
+inside the piece. It is exact, and rounded once. A stair with nothing above any of its lanes has no
+headroom.
 
 A floor reaches up to its top and down to its bottom, and its room polygon stops where the walls
 around it do, so a stair rising through an opening drawn on the upper level — a face bounded by
