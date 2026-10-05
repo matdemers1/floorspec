@@ -117,7 +117,8 @@ class TypingTest(unittest.TestCase):
                          (True, False, {'FS_electrical'}))
 
     def test_deferred(self):
-        self.assertEqual(type_rule(self.rule({'to': 'room'}, {'measure': 'ceilingHeight', 'op': 'has', 'value': 'x'}))[:2], (True, True))
+        self.assertEqual(type_rule(self.rule({'to': 'room'}, {'measure': 'roomNarrowestDimension', 'op': 'has', 'value': 'x'}))[:2], (True, True))
+        self.assertEqual(type_rule(self.rule({'to': 'room'}, {'measure': 'ceilingHeight', 'op': '>=', 'value': 1}))[:2], (True, False))
 
 
 class ProfileTest(unittest.TestCase):

@@ -433,7 +433,9 @@ The net clear measures (Rules §6.5) are tested on the rules house as a Core 0.3
 and window types declare their operation and clear opening (`measures-openings/…-net-clear-openings`,
 `selection/…-net-clear-escape-opening` and the tests after it). The official extensions at 0.1.0
 are evaluated for Core 0.3 documents as for 0.2 ones (each one's 1.2), and
-`typing/…-extension-rules-on-a-core-0.3-document` shows the rules that read them evaluated on one.
+`typing/…-extension-rules-on-a-core-0.3-document` shows the rules that read them evaluated on one. `ceilingHeight` (Rules §5.7), reserved until Core 0.3 derived ceilings, is tested on the rules house as
+a Core 0.3 document with a cathedral ceiling, a sunken floor and a tray (`measures-rooms/…-ceiling-height`
+and the two tests after it).
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can

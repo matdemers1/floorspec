@@ -8,37 +8,6 @@
       "title": "Synthetic conformance rules",
       "license": "CC-BY-4.0",
       "rules": {
-        "D-ceilingHeight": {
-          "title": "Uses ceilingHeight",
-          "citation": {
-            "code": "TEST-CODE",
-            "edition": "2024",
-            "section": "§1.1"
-          },
-          "paraphrase": "A synthetic rule for the conformance suite (uses ceilingheight); it states no requirement of any real code.",
-          "applies": {
-            "to": "room",
-            "where": {
-              "measure": "roomFunction",
-              "op": "=",
-              "value": "sleeping"
-            }
-          },
-          "requirement": {
-            "measure": "ceilingHeight",
-            "op": ">=",
-            "value": 1,
-            "args": {
-              "anything": true
-            }
-          },
-          "severity": "mayNotMeet",
-          "provenance": {
-            "verifiedBy": "Floorspec conformance suite",
-            "verifiedOn": "2026-10-04",
-            "edition": "2024"
-          }
-        },
         "D-countertopReceptacleReach": {
           "title": "Uses countertopReceptacleReach",
           "citation": {
