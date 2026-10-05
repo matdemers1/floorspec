@@ -10,11 +10,13 @@ the committed result.
 
 | Lock | Holds while |
 |---|---|
-| `{ "element": ID }` | the element exists with exactly its content in A; for a wall or separator, its start and end junctions are also unmoved; for a room, every junction on its face's outer cycle is also unmoved |
+| `{ "element": ID }` | the element exists, in the same collection, with exactly its content in A; for a wall or separator, its start and end junctions are also unmoved; for a room, every junction on its face's outer cycle is also unmoved; for an extension element on a wall face, its wall's start and end junctions are also unmoved |
 | `{ "length": wallID }` | the wall exists and its location line has the same length as in A |
 | `{ "distance": [wallID, wallID] }` | both walls exist, are parallel, and the distance between their location lines is as in A |
 
-Comparisons are exact: content in canonical form (constant defaults omitted, Core §9.2, values
+An element lock on a program item or an extension element holds its content; on an outlet, it
+also holds the wall the outlet is on, since an outlet follows its wall (2.7) — "this outlet is
+final" means it does not move. Comparisons are exact: content in canonical form (constant defaults omitted, Core §9.2, values
 equal when their RFC 8785 serializations are), positions as integers, lengths by their squares,
 distances by squared cross products. Locks are checked only on a valid result: a result that is
 both invalid and breaks a lock is rejected with its Core diagnostics alone (1.2, step 6).

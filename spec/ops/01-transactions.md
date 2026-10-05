@@ -12,15 +12,17 @@ transaction. An **apply request** is the JSON object
 
 where `context` is optional: `locks` are the locks in force (chapter 6), and `retired` lists IDs
 that once existed in this document's history and therefore are never minted again (1.5). The
-JSON Schema `schema/ops/0.1/request.schema.json` gives the shape of an apply request: every
+JSON Schema `schema/ops/0.2/request.schema.json` gives the shape of an apply request: every
 operation, every member each has, and the JSON type of each member.
 
-An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.1 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.1 MUST}
+An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.2 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.2 MUST}
 Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`
-and `by` (4.5), `addLevel`'s `elevation`, `above` and `below` (4.8) — an operation with none of
-them, or with more than one, does not have exactly the members its definition lists, and neither
-does one with a member its definition allows only beside another (`toward` without `by`): the
-request is malformed.
+and `by` (4.5), `addLevel`'s `elevation`, `above` and `below` (4.8), a wall-face host's `side`
+and `toward` (4.10) — an operation with none of them, or with more than one, does not have
+exactly the members its definition lists, and neither does one with a member its definition
+allows only beside another (`moveOpening`'s `toward` without `by`): the request is malformed. A
+host reference (4.10) has exactly the members of its `mode`, and `addElement`'s `collection` is
+one of the collections 2.1 names unless the operation has an `extension`.
 The rule is about requests. The inverse of a committed result (1.6) is a batch too, and it may be
 empty; an empty inverse is never applied.
 
@@ -29,8 +31,8 @@ empty; an empty inverse is never applied.
 Before anything else, the applier checks the request (1.1.1). Applying a batch to a document A is
 then a transaction of six steps:
 
-1. **Check A.** A must be a valid Floorspec Core document (Core §10.1), and then every lock in
-   force must apply to A (6.1.1).
+1. **Check A.** A must be a valid Floorspec Core document (0.2), and then every lock in force
+   must apply to A (6.1.1).
 2. **Resolve.** Every reference in every operation — a length written `"2' 6\""`, a selector such as
    `"north wall of R5"` — is resolved against the document as it stands *before that operation*,
    to IDs and integers (chapter 3). Within an operation, references are resolved in the order the
@@ -40,7 +42,7 @@ then a transaction of six steps:
    (chapter 4).
 4. **Apply.** The primitives are applied in order to a working copy of A (chapter 2).
 5. **Normalize.** The working copy is made planar and consistent (chapter 5).
-6. **Validate and commit.** The working copy is validated (Core tiers 3 and 4) and then checked
+6. **Validate and commit.** The working copy is validated (Core tiers 3 and 4, as 0.2 says) and then checked
    against the locks in force (chapter 6). If it is valid and breaks no lock, it is the result B,
    in canonical form. Otherwise the batch is rejected.
 
@@ -67,8 +69,8 @@ An applier returns a **result** object:
 | `document` | committed | B, as its canonical form (Core §9.2) |
 | `hash` | committed | B's content hash (Core §9.3) |
 | `resolved` | committed | the primitive operations actually applied, with every reference resolved to IDs and integers (1.4) |
-| `created` | committed | the IDs of elements that exist in B and not in A, sorted |
-| `removed` | committed | the IDs of elements that exist in A and not in B, sorted |
+| `created` | committed | the IDs of elements (0.3) that exist in B and not in A, sorted |
+| `removed` | committed | the IDs of elements (0.3) that exist in A and not in B, sorted |
 | `inverse` | committed | a batch that turns B back into A (1.6) |
 | `diagnostics` | rejected | why: `FS-OPS-` diagnostics, or the Core diagnostics of the result (1.2.3) |
 
@@ -103,11 +105,14 @@ mints one: the element's **prefix** followed by a decimal integer.
 | `junctions` | `J` | `slabs` | `SL` |
 | `walls` | `W` | `separators` | `S` |
 | `types` | `T` | `materials` | `M` |
-| `assets` | `A` | | |
+| `assets` | `A` | the program's `items` | `P` |
+| every extension collection | `X` | | |
 
 The integer is one more than the largest *n* among the IDs that match `^<prefix>[0-9]+$` — the IDs
-in A, every ID named or minted earlier in the same batch (including any removed again since), and
-those in `context.retired` — or `1` when there are none.
+of every element in A (0.3), every ID named or minted earlier in the same batch (including any
+removed again since), and those in `context.retired` — or `1` when there are none. Every
+extension collection shares the one prefix `X`: an extension's collections are named by the
+extension, and an applier that has never heard of it still mints the same ID.
 
 An applier MUST mint IDs exactly as this section defines. {#FS-OPS-1.5.1 MUST}
 
@@ -125,24 +130,43 @@ An operation that names an ID already used anywhere in the working copy, or list
 The `inverse` of a committed result is the **structural difference** from B back to A, as
 primitives in this order:
 
-1. for every element in both A and B whose content differs, by collection in the order of step 2
-   and by ID: `setProperty` for each top-level member whose value differs or that A has and B
-   lacks, and `unsetProperty` for each that B has and A lacks, by member name;
+1. for every element in both A and B, in the same collection, whose content differs, by
+   collection in the order of step 2 and by ID: `setProperty` for each top-level member whose
+   value differs or that A has and B lacks, and `unsetProperty` for each that B has and A lacks,
+   by member name;
 2. `removeElement` (without `cascade`) for every element in B and not in A, in the order
-   openings, rooms, slabs, separators, walls, junctions, levels, buildings, types, materials,
-   assets, and by ID within a collection;
+   extension elements, openings, rooms, slabs, separators, walls, junctions, program items,
+   levels, buildings, types, materials, assets — the extension collections ordered by extension
+   name and then collection name — and by ID within a collection;
 3. `addElement` for every element in A and not in B, in the reverse of that collection order, and
-   by ID within a collection, with the element exactly as it is in A's canonical form;
+   by ID within a collection, with the element exactly as it is in A's canonical form: a program
+   item with `"collection": "items"`, an extension element with the `extension` and `collection`
+   it is in (2.1);
 4. the same as step 1 for `project` and `site`, addressed as `$project` and `$site` (2.3) — except
    that when the site exists in only one of A and B, it is `setProperty` or `unsetProperty` of
    `$document` `/site` — and for the document's top-level members other than the collections,
-   the project and the site, addressed as `$document`.
+   the project and the site, addressed as `$document` — except that when both have a `program`,
+   its members are compared one by one, addressed as `$document` `/program/<member>`. In this step
+   A, in canonical form, is compared not with B but with the document that applying steps 1 to 3
+   to B leaves, as it is.
+
+Two elements are in the same collection when both are in one of the eleven collections, both are
+program items, or both are in the same collection of the same extension; an element that moved
+between collections in the batch is removed from where it is in B and added where it is in A.
+Step 4's comparison is what restores what is not an element: the program's adjacencies, an
+extension's own top-level data, and the objects that hold collections — so it compares the
+`program` and `extensions` members as steps 1 to 3 leave them, whose elements are already A's.
+It compares them as they are, not in canonical form, so that an object steps 1 to 3 emptied — a
+program whose only item the batch added — is removed rather than left behind, and the inverse of
+a batch that turned a 0.1 document into a 0.2 one gives back a document that Core 0.1 reads.
 
 Content is compared in canonical form: with constant defaults omitted (Core §9.2), and values equal
 when their RFC 8785 serializations are. Property differences come first because an element of A
-may refer to one the batch created — a split wall's first piece ends at a new junction — and the
-removal of the created element is blocked until that reference is restored. When B is A, the
-inverse is the empty batch `[]`.
+may refer to one the batch created — a split wall's first piece ends at a new junction, a room's
+`brief` names a new program item — and the removal of the created element is blocked until that
+reference is restored. Extension elements are removed first because nothing in core refers to
+them, and program items before levels because an item may prefer one. When B is A, the inverse
+is the empty batch `[]`.
 
 An inverse is applied with no `context.retired` and no locks. Applying a committed result's inverse, when it is not empty, to B MUST commit a document whose canonical form is exactly A's. {#FS-OPS-1.6.1 MUST}
 

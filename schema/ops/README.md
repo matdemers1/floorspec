@@ -5,16 +5,29 @@ request it rejects is malformed, and an applier rejects it with `FS-OPS-001` (1.
 
 ## Files
 
-Ops 0.1 is in [`0.1/`](0.1/); start at `request.schema.json`.
+One directory per draft; start at `request.schema.json`:
+
+- **Ops 0.2** is in [`0.2/`](0.2/) - the current draft (`spec/ops/`), operating on Core 0.2
+  documents (and so on 0.1 documents);
+- **Ops 0.1** is in [`0.1/`](0.1/), exactly as published at `3bf4f35`; its text is readable from
+  git at that commit.
+
+The two have the same three files. 0.2's `operation.schema.json` adds to 0.1's: `addElement` into
+the program's `items` or, with `extension`, an extension's collection; `moveOpening`'s `by` and
+`toward`; `addLevel`; `addRoom`'s `brief`; and the operations `setAdjacency`, `removeAdjacency`,
+`setRoomBrief`, `addProgramItem`, `placeElement` and `moveElement`. 0.2's `reference.schema.json`
+adds `area` (3.6) and `host`, the host reference of `placeElement` and `moveElement` (4.10).
 
 | File | Describes | Spec |
 |---|---|---|
 | `request.schema.json` | the apply request: `batch`, and `context` with its `locks` and `retired` IDs | 1.1, 6.1 |
-| `operation.schema.json` | one operation: a union on `op` over the eight primitives and shorthands and the eleven composites, each a closed object with exactly the members its definition lists (and exactly one of each group of alternatives - moveOpening's `at` or `by`, addLevel's `elevation`, `above` or `below`) | 2, 4 |
-| `reference.schema.json` | the JSON forms of the reference grammar: length, point, vector, position, selector, a new ID, element content | 3, 1.5 |
+| `operation.schema.json` | one operation: a union on `op` over the primitives and shorthands (eight in 0.1, ten in 0.2) and the composites (ten in 0.1, fifteen in 0.2), each a closed object with exactly the members its definition lists (and, in 0.2, exactly one of each group of alternatives - moveOpening's `at` or `by`, addLevel's `elevation`, `above` or `below`, a wall-face host's `side` or `toward`) | 2, 4 |
+| `reference.schema.json` | the JSON forms of the reference grammar: length, point, vector, position, selector, a new ID, element content; in 0.2 also area and host reference | 3, 1.5, 4.10 |
 
-Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/ops/0.1/<file>`. A
-published file is immutable: a change is a new draft, in a new directory.
+Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/ops/<draft>/<file>`. A
+published file is immutable: a change is a new draft, in a new directory - which is why 0.1's
+`moveOpening` by a length and `addLevel`, written into 0.1 after it was published, were taken out
+of it again and are in 0.2. CI fails if `schema/ops/0.1/` differs from `3bf4f35`.
 
 ## What the schema checks
 
@@ -33,7 +46,9 @@ where a length is expected and passes inside `value`.
 ## Checking it
 
 ```sh
-pnpm schema:check   # compile it (ajv, strict); check it against every request in conformance/ops/0.1
-pnpm test           # tools/ops-schema.test.ts: tools/fixtures/ops-requests.json, which the oracle's
-                    # request check (tools/oracle/test_ops_request.py) must classify the same way
+pnpm schema:check   # compile each draft (ajv, strict); check it against every request of its suite,
+                    # conformance/ops/0.1 and conformance/ops/0.2
+pnpm test           # tools/ops-schema.test.ts: tools/fixtures/ops-requests.json (0.1) and
+                    # ops-requests-0.2.json (0.2), which the oracle's request check
+                    # (tools/oracle/test_ops_request.py) must classify the same way
 ```

@@ -1,16 +1,17 @@
-"""Helpers for tools/oracle/ops_author.py, the script the Floorspec Ops conformance suite is written
-with.
+"""Helpers for tools/oracle/ops_author.py and ops_author02.py, the scripts the Floorspec Ops 0.1 and
+0.2 conformance suites are written with.
 
 A test is declared with T(group, slug, description, covers, a, request, status, diags, check).
 `status` and `diags` are written by hand; write_all() asks the oracle for its own and reports any
-disagreement. `check`, when given, is a hand-written assertion about the result - the resolved
+disagreement. `check`, when given, is a hand-written assertion about the result (with document A as its `_a`) - the resolved
 integers, where a junction ends up, which wall an opening is on - run against the oracle's output,
 so that the values that matter are checked by a person's arithmetic, not only by the oracle.
 hash, created, removed, resolved, inverse and output.json come from the oracle, and every
 committed test is checked for 1.3.1, 1.3.2, 1.4.1 and 1.6.1 (tools/oracle/ops/suite.py).
 
 Directories are numbered in declaration order within a group: add new tests at the end of their
-group's section.
+group's section. write_all() writes the Ops 0.1 suite with the Ops 0.1 oracle unless it is given
+another list of tests, suite directory and draft (ops_author02.py does).
 """
 import copy  # noqa: F401  (re-exported)
 import json
@@ -22,6 +23,7 @@ from tools.oracle.author_lib import fmt
 from tools.oracle.jsonparse import parse
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.suite import dumps, expected_view, properties
+from tools.oracle.ops.version import OPS_01
 from tools.oracle.validate import SEVERITY
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -151,13 +153,15 @@ def ops(result):
     return result.get('resolved', [])
 
 
-def write_all(prune=False):
+def write_all(prune=False, tests=None, suite=None, profile=OPS_01):
+    tests = TESTS if tests is None else tests
+    suite = SUITE if suite is None else suite
     counters, failures, seen, outputs = {}, 0, set(), {}
-    for tc in TESTS:
+    for tc in tests:
         g = tc['group']
         counters[g] = counters.get(g, 0) + 1
         name = f"{counters[g]:03d}-{tc['slug']}"
-        d = os.path.join(SUITE, g, name)
+        d = os.path.join(suite, g, name)
         seen.add(d)
         os.makedirs(d, exist_ok=True)
         a = tc['raw_a'] if tc['raw_a'] is not None else (fmt(tc['a']) + '\n').encode('utf-8')
@@ -168,7 +172,7 @@ def write_all(prune=False):
             f.write(r)
         with open(os.path.join(d, 'test.json'), 'w') as f:
             f.write(json.dumps({'description': tc['description'], 'covers': tc['covers']}, indent=2, ensure_ascii=False) + '\n')
-        result, b = apply(a, r)
+        result, b = apply(a, r, profile)
         view = expected_view(result)
         hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
         problems = []
@@ -176,11 +180,12 @@ def write_all(prune=False):
             problems.append(f'hand   {tc["status"]} {json.dumps(hand)}\n  oracle {view["status"]} {json.dumps(result["diagnostics"])}')
         if tc['check'] is not None:
             try:
-                tc['check'](result, parse(b)[0] if b is not None else None)
+                # a check sees the result, with A as `_a`, and B
+                tc['check']({**result, '_a': parse(a)[0]}, parse(b)[0] if b is not None else None)
             except Exception as e:                          # noqa: BLE001 - any failure is a mismatch
                 problems.append(f'hand-written check failed: {type(e).__name__}: {e}')
         if b is not None:
-            problems.extend(properties(a, r, result, b))
+            problems.extend(properties(a, r, result, b, profile))
             outputs[(g, tc['slug'])] = b
         if tc['same_as'] is not None and outputs.get((g, tc['same_as'])) != b:
             problems.append(f'output differs from {tc["same_as"]}')
@@ -201,15 +206,15 @@ def write_all(prune=False):
                 f.write(b)
         elif os.path.exists(out):
             os.remove(out)
-    if prune and os.path.isdir(SUITE):
-        for g in os.listdir(SUITE):
-            gp = os.path.join(SUITE, g)
+    if prune and os.path.isdir(suite):
+        for g in os.listdir(suite):
+            gp = os.path.join(suite, g)
             if os.path.isdir(gp):
                 for n in os.listdir(gp):
                     if os.path.join(gp, n) not in seen:
                         print('removing', os.path.join(gp, n))
                         shutil.rmtree(os.path.join(gp, n))
-    print(f'{len(TESTS)} tests, {failures} mismatches')
+    print(f'{len(tests)} tests, {failures} mismatches')
     return failures
 
 

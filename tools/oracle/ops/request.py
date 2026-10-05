@@ -1,30 +1,40 @@
-"""The shape of an apply request (Ops 1.1.1): what FS-OPS-001 rejects.
+"""The shape of an apply request (Ops 1.1): what FS-OPS-001 rejects, for each draft.
 
-Transcribed from chapters 1, 2, 4 and 6, and kept in step with schema/ops/0.1 (check-schema runs
-that schema over every test's request, and must agree with this module on which requests are
-FS-OPS-001). Every object is closed; every operation has exactly the members its definition lists,
-exactly one member of each group of alternatives (ONE_OF), and a member allowed only beside
-another only with it (NEEDS).
+Transcribed from chapters 1, 2, 4 and 6 of each draft, and kept in step with its schema
+(schema/ops/0.1, schema/ops/0.2): check-schema runs each schema over every test's request in its
+suite, and must agree with this module on which requests are FS-OPS-001. Every object is closed;
+every operation has exactly the members its definition lists, exactly one member of each group of
+alternatives (ONE_OF), and a member allowed only beside another only with it (NEEDS).
+
+Ops 0.1 is the published table (commit 3bf4f35): moveOpening takes `at` only, and there is no
+addLevel. Ops 0.2 adds moveOpening's `by` and `toward`, addLevel, addElement into the program's
+`items` or an extension's collection, the adjacency primitives, addRoom's `brief`, setRoomBrief,
+addProgramItem, placeElement and moveElement.
 
 Member values are typed only as far as the operation reads them:
 
-- a member the reference grammar resolves - a length, point, vector, position or element - is a
-  string or the JSON form chapter 3 gives it (an integer length, a point `[x, y]` of lengths);
-- an enumerated member an operation reads (`collection`, `side`, `surface`) is one of its values,
-  and `cascade` is a boolean, `path` a string and `element` an object;
+- a member the reference grammar resolves - a length, area, point, vector, position or element -
+  is a string or the JSON form chapter 3 gives it (an integer length or area, a point `[x, y]` of
+  lengths);
+- an enumerated member an operation reads (`collection`, `side`, `surface`, `kind`, a host's
+  `mode`) is one of its values, and `cascade` is a boolean, `path` a string and `element` an
+  object;
 - a member passed into an element's content unread (`type`, `layers`, `join`, `name`, `hinge`,
-  `function`, `value` …) may be any JSON value: whether the element is valid is decided when the
-  batch is validated (2.1.1).
+  `function`, `value`, `weight`, `count`, `rotation` …) may be any JSON value: whether the element
+  is valid is decided when the batch is validated (2.1.1).
 """
 
 from __future__ import annotations
 
 from .errors import OpsError, esc
+from .version import OPS_01, Profile
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets')
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
+ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them
+KINDS = ('required', 'preferred', 'forbidden')
 
 
 def _string(v):
@@ -55,14 +65,14 @@ def _enum(*values):
     return lambda v: isinstance(v, str) and v in values
 
 
-STRING, LENGTH, POINT, VECTOR, POSITION, ANY, OBJECT, BOOL = (
-    _string, _length, _point, _point, _length, _any, _object, _bool)
+STRING, LENGTH, AREA, POINT, VECTOR, POSITION, ANY, OBJECT, BOOL = (
+    _string, _length, _length, _point, _point, _length, _any, _object, _bool)
 
 WALL_MEMBERS = {'type': ANY, 'layers': ANY, 'justification': ANY, 'base': ANY, 'top': ANY}
 COMMON = {'name': ANY, 'extensions': ANY, 'extras': ANY}      # every element may carry these (Core 1.4)
 
-# op -> (required members, optional members); `op` itself is implied.
-OPERATIONS = {
+# op -> (required members, optional members); `op` itself is implied. Ops 0.1, as published.
+OPERATIONS_01 = {
     # 2. primitives
     'addElement': ({'collection': _enum(*COLLECTIONS), 'element': OBJECT}, {'id': STRING}),
     'addJunction': ({'level': STRING, 'position': POINT}, {'id': STRING, 'join': ANY, **COMMON}),
@@ -81,59 +91,117 @@ OPERATIONS = {
     'addOpening': ({'wall': STRING, 'at': POSITION},
                    {'id': STRING, 'fill': STRING, 'width': LENGTH, 'height': LENGTH, 'sill': LENGTH,
                     'hinge': ANY, 'swing': ANY, **COMMON}),
-    'moveOpening': ({'opening': STRING}, {'at': POSITION, 'by': LENGTH, 'toward': _enum('start', 'end', *SIDES)}),
+    'moveOpening': ({'opening': STRING, 'at': POSITION}, {}),
     'addRoom': ({'level': STRING, 'at': POINT},
                 {'id': STRING, 'function': ANY, 'wallFinish': ANY, 'floorFinish': ANY,
                  'ceilingFinish': ANY, **COMMON}),
     'setRoomFinish': ({'room': STRING, 'surface': _enum(*SURFACES), 'material': STRING}, {}),
     'removeWall': ({'wall': STRING}, {'keep': STRING}),
+}
+
+# Ops 0.2: the 0.1 table, with these operations added or changed.
+OPERATIONS_02 = {
+    **OPERATIONS_01,
+    # 2.1: into the eleven collections, the program's items, or (with `extension`) an extension's collection
+    'addElement': ({'collection': STRING, 'element': OBJECT}, {'id': STRING, 'extension': STRING}),
+    # 2.6
+    'setAdjacency': ({'a': STRING, 'b': STRING, 'kind': _enum(*KINDS)}, {'weight': ANY}),
+    'removeAdjacency': ({'a': STRING, 'b': STRING, 'kind': _enum(*KINDS)}, {}),
+    # 4.5, 4.6, 4.8
+    'moveOpening': ({'opening': STRING}, {'at': POSITION, 'by': LENGTH, 'toward': _enum('start', 'end', *SIDES)}),
+    'addRoom': ({'level': STRING, 'at': POINT},
+                {'id': STRING, 'function': ANY, 'wallFinish': ANY, 'floorFinish': ANY,
+                 'ceilingFinish': ANY, 'brief': STRING, **COMMON}),
+    'setRoomBrief': ({'room': STRING, 'item': STRING}, {}),
     'addLevel': ({'building': STRING, 'height': LENGTH},
                  {'elevation': LENGTH, 'above': STRING, 'below': STRING, 'id': STRING, **COMMON}),
+    # 4.9, 4.10
+    'addProgramItem': ({'function': ANY},
+                       {'id': STRING, 'count': ANY, 'targetArea': AREA, 'minArea': AREA, 'level': STRING, **COMMON}),
+    'placeElement': ({'extension': STRING, 'collection': STRING, 'host': OBJECT, 'element': OBJECT}, {'id': STRING}),
+    'moveElement': ({'element': STRING, 'host': OBJECT}, {}),
 }
 
 # op -> groups of members of which exactly one must be present (4.5, 4.8)
-ONE_OF = {
+ONE_OF_02 = {
     'moveOpening': (('at', 'by'),),
     'addLevel': (('elevation', 'above', 'below'),),
 }
 # op -> {member: the member it is allowed only beside}
-NEEDS = {
+NEEDS_02 = {
     'moveOpening': {'toward': 'by'},
 }
 
+# 4.10: the host references of placeElement and moveElement, by mode: (required, optional, one-of groups)
+HOSTS = {
+    'wallFace': ({'wall': STRING, 'at': POSITION, 'height': LENGTH},
+                 {'side': _enum('left', 'right'), 'toward': STRING}, (('side', 'toward'),)),
+    'surface': ({'room': STRING, 'surface': _enum('floor', 'ceiling'), 'at': POINT}, {'rotation': ANY}, ()),
+    'free': ({'level': STRING, 'at': POINT}, {'rotation': ANY}, ()),
+}
+
 PRIMITIVES = ('addElement', 'addJunction', 'addWall', 'addSeparator', 'removeElement', 'setProperty',
-              'unsetProperty', 'moveJunction')
+              'unsetProperty', 'moveJunction', 'setAdjacency', 'removeAdjacency')
+
+
+def operations(profile: Profile) -> dict:
+    return OPERATIONS_02 if profile.v02 else OPERATIONS_01
 
 
 def _bad(pointer, why):
     raise OpsError('FS-OPS-001', pointer=pointer, note=why)
 
 
-def check_operation(op, pointer: str) -> None:
-    if not isinstance(op, dict):
-        _bad(pointer, 'an operation is not an object')
-    name = op.get('op')
-    if not isinstance(name, str) or name not in OPERATIONS:
-        _bad(f'{pointer}/op', f'unknown operation {name!r}')
-    required, optional = OPERATIONS[name]
+def _members(name, obj, required, optional, pointer, skip=('op',)):
     for k in required:
-        if k not in op:
+        if k not in obj:
             _bad(pointer, f'{name} is missing "{k}"')
-    for k, v in op.items():
-        if k == 'op':
+    for k, v in obj.items():
+        if k in skip:
             continue
         check = required.get(k) or optional.get(k)
         if check is None:
             _bad(f'{pointer}/{esc(k)}', f'{name} has no member "{k}"')
         if not check(v):
             _bad(f'{pointer}/{esc(k)}', f'"{k}" has the wrong type')
-    for group in ONE_OF.get(name, ()):
-        present = [k for k in group if k in op]
+
+
+def _one_of(name, obj, groups, pointer):
+    for group in groups:
+        present = [k for k in group if k in obj]
         if len(present) != 1:
             _bad(pointer, f'{name} takes exactly one of {", ".join(group)}')
-    for k, other in NEEDS.get(name, {}).items():
+
+
+def check_host(host, pointer: str) -> None:
+    """4.10: a host reference has exactly the members of its mode."""
+    mode = host.get('mode')
+    if not isinstance(mode, str) or mode not in HOSTS:
+        _bad(f'{pointer}/mode', f'unknown host mode {mode!r}')
+    required, optional, groups = HOSTS[mode]
+    _members(f'a {mode} host', host, required, optional, pointer, skip=('mode',))
+    _one_of(f'a {mode} host', host, groups, pointer)
+
+
+def check_operation(op, pointer: str, profile: Profile = OPS_01) -> None:
+    if not isinstance(op, dict):
+        _bad(pointer, 'an operation is not an object')
+    name = op.get('op')
+    table = operations(profile)
+    if not isinstance(name, str) or name not in table:
+        _bad(f'{pointer}/op', f'unknown operation {name!r}')
+    required, optional = table[name]
+    _members(name, op, required, optional, pointer)
+    if not profile.v02:
+        return
+    _one_of(name, op, ONE_OF_02.get(name, ()), pointer)
+    for k, other in NEEDS_02.get(name, {}).items():
         if k in op and other not in op:
             _bad(f'{pointer}/{esc(k)}', f'"{k}" is allowed only with "{other}"')
+    if name == 'addElement' and 'extension' not in op and op['collection'] not in COLLECTIONS + (ITEMS,):
+        _bad(f'{pointer}/collection', f'unknown collection {op["collection"]!r}')
+    if 'host' in op and name in ('placeElement', 'moveElement'):
+        check_host(op['host'], f'{pointer}/host')
 
 
 def check_lock(lock, pointer: str) -> None:
@@ -150,7 +218,7 @@ def check_lock(lock, pointer: str) -> None:
         _bad(f'{pointer}/{esc(k)}', f'unknown lock kind "{k}"')
 
 
-def check_request(req) -> None:
+def check_request(req, profile: Profile = OPS_01) -> None:
     """Raises FS-OPS-001 for the first problem found in the request."""
     if not isinstance(req, dict):
         _bad('', 'the request is not an object')
@@ -165,7 +233,7 @@ def check_request(req) -> None:
     if not batch:
         _bad('/batch', 'an empty batch')
     for i, op in enumerate(batch):
-        check_operation(op, f'/batch/{i}')
+        check_operation(op, f'/batch/{i}', profile)
     if 'context' in req:
         ctx = req['context']
         if not isinstance(ctx, dict):
