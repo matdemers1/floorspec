@@ -1,12 +1,11 @@
-"""Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2 and 0.3, Floorspec Ops 0.1 and 0.2,
+"""Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2 and 0.3, Floorspec Ops 0.1, 0.2 and 0.3,
 every official extension's suite (conformance/ext/<NAME>/<version>/) and Floorspec Rules 0.1
 (conformance/rules/0.1/, by tools/oracle/rules/suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
 
-The Ops suites are verified by tools/oracle/ops/suite.py - conformance/ops/0.1 applied as Ops 0.1
-(as published) and conformance/ops/0.2 as Ops 0.2: status and diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
+The Ops suites are verified by tools/oracle/ops/suite.py - conformance/ops/<v> applied as Ops <v>: status and diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
 recomputed (and rewritten with --write), and every committed result is checked for 1.3.1, 1.3.2,
 1.4.1 and 1.6.1.
 

@@ -10,7 +10,7 @@ from tools.oracle.ops.errors import OpsError
 from tools.oracle.ops.normalize import _rehost_hosted
 from tools.oracle.ops.refs import area
 from tools.oracle.ops.space import all_ids, locate
-from tools.oracle.ops.version import OPS_01, OPS_02, profile_for
+from tools.oracle.ops.version import OPS_01, OPS_02, OPS_03, profile_for
 
 FT = 390144
 M2 = 1_638_400_000_000
@@ -27,6 +27,18 @@ class ProfileTest(unittest.TestCase):
         self.assertIs(profile_for(os.path.join('conformance', 'ops', '0.2', 'program', '001-x')), OPS_02)
         self.assertIs(profile_for(os.path.join('conformance', 'ops', '0.1', 'ids', '001-x')), OPS_01)
         self.assertIs(profile_for('elsewhere'), OPS_01)
+        self.assertIs(profile_for(os.path.join('conformance', 'ops', '0.3', 'ids', '001-x')), OPS_03)
+
+    def test_a_0_3_document_needs_ops_0_3(self):
+        a = b'{"floorspec": "0.3", "project": {"name": "x"}}'
+        req = b'{"batch": [{"op": "setProperty", "id": "$project", "path": "/name", "value": "y"}]}'
+        self.assertEqual(apply(a, req, OPS_02)[0]['diagnostics'][0]['code'], 'FS-OPS-002')
+        self.assertEqual(apply(a, req, OPS_03)[0]['status'], 'committed')
+
+    def test_items_exist_in_0_3_documents_under_ops_0_3(self):
+        d = {'floorspec': '0.3', 'project': {'name': 'x'}, 'program': {'items': {'P1': {'function': 'kitchen'}}}}
+        self.assertIsNotNone(locate(d, 'P1', OPS_03))
+        self.assertIsNone(locate(d, 'P1', OPS_02))
 
     def test_a_0_2_document_is_rejected_by_ops_0_1(self):
         a = b'{"floorspec": "0.2", "project": {"name": "x"}}'

@@ -1,8 +1,8 @@
 name: CI
 
 # The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against every
-# suite (Core 0.1, 0.2 and 0.3 documents; Ops 0.1 and 0.2 requests; Rules 0.1 requests, packs, profiles
-# and reports) → MUST coverage of the current drafts (FS-CORE 0.3, FS-OPS 0.2, FS-RULES 0.1) and of
+# suite (Core 0.1, 0.2 and 0.3 documents; Ops 0.1, 0.2 and 0.3 requests; Rules 0.1 requests, packs, profiles
+# and reports) → MUST coverage of the current drafts (FS-CORE 0.3, FS-OPS 0.3, FS-RULES 0.1) and of
 # every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV) → the independent
 # oracle reproducing every expected output of the Core and Ops suites, of every extension suite
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
@@ -42,9 +42,9 @@ jobs:
       - run: pnpm test
       - name: Normative statements are tagged correctly
         run: pnpm statements
-      - name: The schemas agree with every suite (Core 0.1, 0.2 and 0.3 documents, Ops 0.1 and 0.2 requests, the extensions' data, Rules 0.1)
+      - name: The schemas agree with every suite (Core 0.1, 0.2 and 0.3 documents, Ops 0.1, 0.2 and 0.3 requests, the extensions' data, Rules 0.1)
         run: pnpm schema:check
-      - name: Every MUST of Core 0.3, Ops 0.2, Rules 0.1 and every extension has a conformance test
+      - name: Every MUST of Core 0.3, Ops 0.3, Rules 0.1 and every extension has a conformance test
         run: pnpm coverage
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -63,7 +63,7 @@ jobs:
           python-version: '3.13'
       - name: Oracle unit tests
         run: python -m unittest discover -s tools/oracle -p 'test_*.py'
-      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Ops 0.1, Ops 0.2, extension and Rules 0.1 suites
+      - name: The oracle reproduces every expected output of the Core 0.1, Core 0.2, Core 0.3, Ops 0.1, Ops 0.2, Ops 0.3, extension and Rules 0.1 suites
         run: python -m tools.oracle.regenerate
       - name: Every suite is exactly what its author script declares
         run: |
@@ -72,6 +72,7 @@ jobs:
           python -m tools.oracle.author03
           python -m tools.oracle.ops_author
           python -m tools.oracle.ops_author02
+          python -m tools.oracle.ops_author03
           python -m tools.oracle.ext_author
           python -m tools.oracle.rules_author
           git diff --exit-code -- conformance
@@ -80,7 +81,4 @@ jobs:
         run: |
           git diff --exit-code e687d44 -- schema/core/0.1 conformance/core/0.1
           git diff --exit-code 3bf4f35 -- schema/ops/0.1 conformance/ops/0.1
-          git diff --exit-code 6f9bc07 -- schema/core/0.2 conformance/core/0.2 schema/ops/0.2 schema/registry/0.1
-          # Five tests were added to the Ops 0.2 suite after it was published (b7bbd94); nothing
-          # published was changed or removed. They move to the next Ops draft, and this becomes exact.
-          git diff --exit-code --diff-filter=MD 6f9bc07 -- conformance/ops/0.2
+          git diff --exit-code 6f9bc07 -- schema/core/0.2 conformance/core/0.2 schema/ops/0.2 conformance/ops/0.2 schema/registry/0.1

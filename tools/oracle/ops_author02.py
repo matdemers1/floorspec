@@ -825,7 +825,11 @@ T('references', 'sq-needs-a-space', '"sq" and its unit are two words: "120 sqft"
 
 
 # ============================================================================= what the text says as the oracle does
-# (Ops 0.2 text made as specific as the oracle: 1.5, 3.3, 4.2, 4.10)
+# (the Ops text made as specific as the oracle: 1.5, 3.3, 4.2, 4.10). These five were declared after
+# Ops 0.2 was published (6f9bc07), with text that only the next draft publishes: they are Ops 0.3's
+# (ops_author03.py), and the 0.2 suite is exactly as published.
+
+PUBLISHED = len(TESTS)
 
 T('ids', 'mint-past-upgraded-extension-elements', 'A declares "0.1", so its top-level extension data is opaque and the '
   'outlet X4 in it is no element of A (0.3). The batch makes the document declare "0.2", which turns X4 into an '
@@ -859,4 +863,4 @@ T('hosting', 'place-toward-a-room-upstairs', 'A wall-face host "toward" the Loft
 
 if __name__ == '__main__':
     import sys
-    sys.exit(1 if write_all(prune='--prune' in sys.argv, tests=BASE + TESTS, suite=SUITE02, profile=OPS_02) else 0)
+    sys.exit(1 if write_all(prune='--prune' in sys.argv, tests=BASE + TESTS[:PUBLISHED], suite=SUITE02, profile=OPS_02) else 0)

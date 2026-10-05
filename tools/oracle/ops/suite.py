@@ -1,7 +1,7 @@
-"""Verifying the Floorspec Ops conformance suites (conformance/ops/0.1 and 0.2) against the oracle.
+"""Verifying the Floorspec Ops conformance suites (conformance/ops/0.1, 0.2 and 0.3) against the oracle.
 
-Each suite is applied with its own draft (version.py): conformance/ops/0.1 as Ops 0.1, as it was
-published, and conformance/ops/0.2 as Ops 0.2.
+Each suite is applied with its own draft (version.py): conformance/ops/0.1 as Ops 0.1 and
+conformance/ops/0.2 as Ops 0.2, as they were published, and conformance/ops/0.3 as Ops 0.3.
 
 For every test directory - test.json, input.json (document A), request.json, expected.json and,
 when the batch commits, output.json (B's canonical bytes) - it recomputes the result from

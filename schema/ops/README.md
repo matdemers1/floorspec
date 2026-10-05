@@ -7,8 +7,10 @@ request it rejects is malformed, and an applier rejects it with `FS-OPS-001` (1.
 
 One directory per draft; start at `request.schema.json`:
 
-- **Ops 0.2** is in [`0.2/`](0.2/) - the current draft (`spec/ops/`), operating on Core 0.2
-  documents (and so on 0.1 documents);
+- **Ops 0.3** - the current draft (`spec/ops/`), operating on Core 0.3 documents (and so on 0.2
+  and 0.1 documents) - adds no operation and no member, so it has no directory of its own: its
+  requests are exactly those of Ops 0.2, and [`0.2/`](0.2/) is its schema too (Ops 0.4);
+- **Ops 0.2** is in [`0.2/`](0.2/), exactly as published at `6f9bc07`;
 - **Ops 0.1** is in [`0.1/`](0.1/), exactly as published at `3bf4f35`; its text is readable from
   git at that commit.
 
@@ -27,7 +29,8 @@ adds `area` (3.6) and `host`, the host reference of `placeElement` and `moveElem
 Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/ops/<draft>/<file>`. A
 published file is immutable: a change is a new draft, in a new directory - which is why 0.1's
 `moveOpening` by a length and `addLevel`, written into 0.1 after it was published, were taken out
-of it again and are in 0.2. CI fails if `schema/ops/0.1/` differs from `3bf4f35`.
+of it again and are in 0.2. CI fails if `schema/ops/0.1/` differs from `3bf4f35`, or
+`schema/ops/0.2/` from `6f9bc07`.
 
 ## What the schema checks
 

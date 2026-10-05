@@ -13,7 +13,8 @@ transaction. An **apply request** is the JSON object
 where `context` is optional: `locks` are the locks in force (chapter 6), and `retired` lists IDs
 that once existed in this document's history and therefore are never minted again (1.5). The
 JSON Schema `schema/ops/0.2/request.schema.json` gives the shape of an apply request: every
-operation, every member each has, and the JSON type of each member.
+operation, every member each has, and the JSON type of each member. Ops 0.3 adds no operation and
+no member, so the schema of Ops 0.2 is its own (0.4).
 
 An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.2 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.2 MUST}
 Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`
@@ -112,8 +113,9 @@ The integer is one more than the largest *n* among the IDs that match `^<prefix>
 of every element in A (0.3), of every element in the working copy as it stands, every ID named or
 minted earlier in the same batch (including any removed again since), and those in
 `context.retired` — or `1` when there are none. The working copy can hold IDs that are neither in
-A as elements nor named by the batch: a batch that makes a Core 0.1 document declare `"0.2"` turns
-its top-level extension data, opaque under 0.1, into extension elements (0.3), and their IDs count. Every
+A as elements nor named by the batch: a batch that makes a Core 0.1 document declare `"0.2"` or
+`"0.3"` turns its top-level extension data, opaque under 0.1, into extension elements (0.3), and
+their IDs count. Every
 extension collection shares the one prefix `X`: an extension's collections are named by the
 extension, and an applier that has never heard of it still mints the same ID.
 

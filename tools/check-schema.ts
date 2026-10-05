@@ -13,7 +13,8 @@
  *   4. each Ops request schema agrees with its suite: it rejects a test's request exactly when the
  *      expected diagnostics are [FS-OPS-001]; and every document A that a test treats as valid
  *      matches the Core schema of the draft that Ops draft operates on - Ops 0.1's documents
- *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's).
+ *      Core 0.1's, Ops 0.2's as a Core 0.2 reader checks them (a "0.1" document against 0.1's),
+ *      Ops 0.3's - against the 0.2 request schema, which is its own - as a Core 0.3 reader does.
  *
  *   5. every extension in registry/ - its entry, its schema, and its suite (conformance/ext/), as
  *      checkExtensionSuite says;
@@ -45,6 +46,8 @@ import {
   formatErrors,
   loadSchemaFiles,
   OPS_CORE,
+  OPS_SCHEMA,
+  OPS_SCHEMA_VERSIONS,
   OPS_VERSIONS,
   opsSchemaDirOf,
   requestValidator,
@@ -95,7 +98,7 @@ function compile(label: string, files: SchemaFile[]) {
 const cores = Object.fromEntries(
   CORE_VERSIONS.map((v) => [v, rootValidator(compile(`core/${v}`, loadSchemaFiles(coreSchemaDir(v))), coreRootId(v))]),
 ) as Record<(typeof CORE_VERSIONS)[number], ReturnType<typeof rootValidator>>;
-const opsAjv = Object.fromEntries(OPS_VERSIONS.map((v) => [v, compile(`ops/${v}`, loadSchemaFiles(opsSchemaDirOf(v)))]));
+const opsAjv = Object.fromEntries(OPS_SCHEMA_VERSIONS.map((v) => [v, compile(`ops/${v}`, loadSchemaFiles(opsSchemaDirOf(v)))]));
 const registry = rootValidator(compile('registry/0.1', loadSchemaFiles(registrySchemaDir)), REGISTRY_ID);
 
 // 3. The Core suites, each as a reader of its own draft checks it.
@@ -113,7 +116,7 @@ for (const v of CORE_VERSIONS) {
 // schema of the draft it operates on.
 for (const v of OPS_VERSIONS) {
   const core = versionedValidator(cores, OPS_CORE[v]);
-  const ops = checkOpsSuite(join(root, 'conformance', 'ops', v), requestValidator(opsAjv[v], v), core, root);
+  const ops = checkOpsSuite(join(root, 'conformance', 'ops', v), requestValidator(opsAjv[OPS_SCHEMA[v]], v), core, root);
   problems.push(...ops.problems);
   console.log(`schema: ops/${v}: ${ops.checked} conformance request${ops.checked === 1 ? '' : 's'} checked against the request schema`);
 }
