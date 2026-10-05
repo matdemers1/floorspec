@@ -7,7 +7,8 @@ name: CI
 # oracle reproducing every expected output of the four Core and Ops suites, of every extension suite
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
 # result's resolved echo and inverse → the suites being exactly what their author scripts declare →
-# the published drafts (Core 0.1, Ops 0.1) being exactly as published.
+# the published drafts (Core 0.1 and 0.2, Ops 0.1 and 0.2, the registry entry schema 0.1) being
+# exactly as published.
 # A MUST without a test, a test naming an unknown or retired statement, an expected value the oracle
 # does not reproduce, or a change to a published schema or suite fails the build.
 #
@@ -74,7 +75,11 @@ jobs:
           python -m tools.oracle.rules_author
           git diff --exit-code -- conformance
           test -z "$(git status --porcelain -- conformance)"
-      - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35)
+      - name: The published drafts are unchanged (Core 0.1 as of e687d44, Ops 0.1 as published at 3bf4f35, Core 0.2, Ops 0.2 and the registry entry schema as published at 6f9bc07)
         run: |
           git diff --exit-code e687d44 -- schema/core/0.1 conformance/core/0.1
           git diff --exit-code 3bf4f35 -- schema/ops/0.1 conformance/ops/0.1
+          git diff --exit-code 6f9bc07 -- schema/core/0.2 conformance/core/0.2 schema/ops/0.2 schema/registry/0.1
+          # Five tests were added to the Ops 0.2 suite after it was published (b7bbd94); nothing
+          # published was changed or removed. They move to the next Ops draft, and this becomes exact.
+          git diff --exit-code --diff-filter=MD 6f9bc07 -- conformance/ops/0.2
