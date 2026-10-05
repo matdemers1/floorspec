@@ -1,4 +1,7 @@
-"""Verifying the Floorspec Ops 0.1 conformance suite (conformance/ops/0.1) against the oracle.
+"""Verifying the Floorspec Ops conformance suites (conformance/ops/0.1 and 0.2) against the oracle.
+
+Each suite is applied with its own draft (version.py): conformance/ops/0.1 as Ops 0.1, as it was
+published, and conformance/ops/0.2 as Ops 0.2.
 
 For every test directory - test.json, input.json (document A), request.json, expected.json and,
 when the batch commits, output.json (B's canonical bytes) - it recomputes the result from
@@ -23,9 +26,11 @@ import os
 from ..jsonparse import Malformed, parse
 from ..validate import check as core_check
 from .engine import apply
+from .version import OPS_01, PROFILES, Profile, profile_for
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-SUITE = os.path.join(ROOT, 'conformance', 'ops', '0.1')
+SUITES = {v: os.path.join(ROOT, 'conformance', 'ops', v) for v in PROFILES}
+SUITE = SUITES['0.1']
 
 TOP = ['status', 'diagnostics', 'hash', 'created', 'removed', 'resolved', 'inverse']
 INNER = ['op', 'code', 'severity', 'elements', 'collection', 'id', 'level', 'start', 'end', 'position',
@@ -77,27 +82,27 @@ def request_context(req_bytes: bytes) -> dict:
     return value.get('context', {}) if isinstance(value, dict) and isinstance(value.get('context'), dict) else {}
 
 
-def properties(a_bytes: bytes, req_bytes: bytes, result: dict, b_bytes: bytes) -> list[str]:
+def properties(a_bytes: bytes, req_bytes: bytes, result: dict, b_bytes: bytes, profile: Profile = OPS_01) -> list[str]:
     """1.3.1, 1.3.2, 1.4.1 and 1.6.1 for a committed result."""
     errors = []
-    _, b_canon, _ = core_check(b_bytes)
+    _, b_canon, _ = core_check(b_bytes, profile.reader)
     if b_canon != b_bytes:
         errors.append('the committed document is not in canonical form (1.3.1)')
-    r2, b2 = apply(a_bytes, req_bytes)
+    r2, b2 = apply(a_bytes, req_bytes, profile)
     if json.dumps(r2, sort_keys=True) != json.dumps(result, sort_keys=True) or b2 != b_bytes:
         errors.append('applying the batch again gives a different result (1.3.2)')
     ctx = request_context(req_bytes)
     replay = {'batch': result['resolved'], **({'context': ctx} if ctx else {})}
-    r3, b3 = apply(a_bytes, json.dumps(replay).encode('utf-8'))
+    r3, b3 = apply(a_bytes, json.dumps(replay).encode('utf-8'), profile)
     if r3['status'] != 'committed' or b3 != b_bytes:
         errors.append('applying `resolved` to A does not commit the same B (1.4.1): '
                       + json.dumps(r3.get('diagnostics')))
-    _, a_canon, _ = core_check(a_bytes)
+    _, a_canon, _ = core_check(a_bytes, profile.reader)
     if not result['inverse']:
         if b_bytes != a_canon:
             errors.append('the inverse is empty but B is not A (1.6.1)')
     else:
-        r4, b4 = apply(b_bytes, json.dumps({'batch': result['inverse']}).encode('utf-8'))
+        r4, b4 = apply(b_bytes, json.dumps({'batch': result['inverse']}).encode('utf-8'), profile)
         if r4['status'] != 'committed' or b4 != a_canon:
             errors.append('applying `inverse` to B does not commit A (1.6.1): ' + json.dumps(r4.get('diagnostics')))
     return errors
@@ -111,6 +116,7 @@ def test_dirs(suite=SUITE):
 
 def verify(path: str, write: bool = False) -> list[str]:
     rel = os.path.relpath(path, ROOT)
+    profile = profile_for(path)
     errors = []
     try:
         with open(os.path.join(path, 'test.json'), encoding='utf-8') as f:
@@ -128,7 +134,7 @@ def verify(path: str, write: bool = False) -> list[str]:
             expected = json.load(f)
     except (OSError, ValueError) as e:
         return [f'{rel}: {e}']
-    result, b_bytes = apply(a_bytes, req_bytes)
+    result, b_bytes = apply(a_bytes, req_bytes, profile)
     view = expected_view(result)
     if expected.get('status') != view['status']:
         errors.append(f'status: expected {expected.get("status")}, oracle {view["status"]}')
@@ -160,12 +166,13 @@ def verify(path: str, write: bool = False) -> list[str]:
             errors.append('output.json differs from the oracle' if b_bytes is not None and on_disk is not None
                           else 'output.json must exist exactly when the batch commits')
     if b_bytes is not None:
-        errors.extend(properties(a_bytes, req_bytes, result, b_bytes))
+        errors.extend(properties(a_bytes, req_bytes, result, b_bytes, profile))
     return [f'{rel}: {e}' for e in errors]
 
 
-def verify_all(write: bool = False) -> tuple[int, list[str]]:
-    dirs = list(test_dirs())
+def verify_all(write: bool = False, version: str = '0.1') -> tuple[int, list[str]]:
+    """Every test of one Ops suite."""
+    dirs = list(test_dirs(SUITES[version]))
     errors = []
     for d in dirs:
         errors.extend(verify(d, write))

@@ -9,6 +9,12 @@ the order of checks (1.2, 7.1), the order of resolution within an operation (1.2
 shorthand resolves (2.1.2, 2.5), what $document addresses (2.3), minting (1.5), the order of the
 inverse - property differences first (1.6) - and one diagnostic per failing opening or lock
 (7.1.2).
+
+Every run follows one draft (version.py): Ops 0.1 as published, or Ops 0.2, which validates with
+a Core 0.2 reader and adds program items and extension elements to the space of IDs an edit can
+address (space.py), their rows in the removal table (2.2), the adjacency primitives (2.6),
+hosted elements on split walls (5.2 step 6), and the 0.2 composites. Under OPS_01 none of that
+code runs, and the result is exactly what Ops 0.1 says.
 """
 
 from __future__ import annotations
@@ -25,15 +31,23 @@ from ..validate import check as core_check
 from .errors import OpsError, Rejected, esc
 from .faces import LevelFaces, coll, is_point
 from .normalize import OpsStraddle, effective_width, normalize
-from .refs import DIRECTIONS, half, length
-from .request import COLLECTIONS, check_request
+from .refs import DIRECTIONS, area, half, length
+from .request import COLLECTIONS, ITEMS, check_request
 from .select import Resolver, outward_normal
+from .space import EXT, all_ids as space_ids, ext_collections, ext_elements, host_of, items as items_of, kind, locate
+from .version import OPS_01, Profile
 
 PREFIX = {'buildings': 'B', 'levels': 'L', 'junctions': 'J', 'walls': 'W', 'separators': 'S',
-          'openings': 'O', 'rooms': 'R', 'slabs': 'SL', 'types': 'T', 'materials': 'M', 'assets': 'A'}
+          'openings': 'O', 'rooms': 'R', 'slabs': 'SL', 'types': 'T', 'materials': 'M', 'assets': 'A',
+          ITEMS: 'P'}                               # Ops 0.2: program items
+EXT_PREFIX = 'X'                                    # Ops 0.2: every extension collection
 DOC_MEMBERS = ('floorspec', 'project', 'site', 'extensionsUsed', 'extensionsRequired', 'extensions', 'extras')
+DOC_MEMBERS_02 = DOC_MEMBERS + ('program',)
 INVERSE_ORDER = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', 'levels', 'buildings',
                  'types', 'materials', 'assets')
+# Ops 0.2, 1.6 step 2: extension elements first, program items before levels
+INVERSE_ORDER_02 = ('openings', 'rooms', 'slabs', 'separators', 'walls', 'junctions', ITEMS, 'levels',
+                    'buildings', 'types', 'materials', 'assets')
 WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top')
 COMMON = ('name', 'extensions', 'extras')     # Core 1.4: what every element may carry
 
@@ -42,8 +56,8 @@ def isd(v) -> bool:
     return isinstance(v, dict)
 
 
-def all_ids(doc: dict) -> set:
-    return {eid for c in COLLECTIONS for eid in coll(doc, c)}
+def all_ids(doc: dict, profile: Profile = OPS_01) -> set:
+    return space_ids(doc, profile)
 
 
 def same(a, b) -> bool:
@@ -70,11 +84,12 @@ def _index(tok: str, n: int):
 
 
 class Transaction:
-    def __init__(self, a: dict, context: dict):
+    def __init__(self, a: dict, context: dict, profile: Profile = OPS_01):
         self.a = a
+        self.P = profile
         self.wc = copy.deepcopy(a)
         self.in_a_junctions = set(coll(a, 'junctions'))
-        self.a_ids = all_ids(a)
+        self.a_ids = all_ids(a, profile)
         self.used: set[str] = set()                 # every ID named or minted in this batch
         self.retired = set(context.get('retired', []))
         self.locks = context.get('locks', [])
@@ -87,7 +102,7 @@ class Transaction:
         batch (removed again or not), and context.retired."""
         pat = re.compile(re.escape(prefix) + r'([0-9]+)')
         top = 0
-        for eid in self.a_ids | all_ids(self.wc) | self.used | self.minted | self.retired:
+        for eid in self.a_ids | all_ids(self.wc, self.P) | self.used | self.minted | self.retired:
             m = pat.fullmatch(eid)
             if m:
                 top = max(top, int(m[1]))
@@ -101,7 +116,7 @@ class Transaction:
     # ------------------------------------------------------------------ steps 2-4
     def run(self, batch):
         for n, op in enumerate(batch):
-            prims = getattr(self, 'x_' + op['op'])(Resolver(self.wc), op, f'/batch/{n}')
+            prims = getattr(self, 'x_' + op['op'])(Resolver(self.wc, self.P), op, f'/batch/{n}')
             for p in prims:
                 self.apply(p, f'/batch/{n}')
                 self.resolved.append(p)
@@ -110,10 +125,10 @@ class Transaction:
     def apply(self, p: dict, ptr: str) -> None:
         op = p['op']
         if op == 'addElement':
-            self.add(p['collection'], p['id'], p['element'], ptr)
+            self.add(place_of(p), p['id'], p['element'], ptr)
         elif op in ('addJunction', 'addWall', 'addSeparator'):
             c = {'addJunction': 'junctions', 'addWall': 'walls', 'addSeparator': 'separators'}[op]
-            self.add(c, p['id'], {k: v for k, v in p.items() if k not in ('op', 'id')}, ptr)
+            self.add((c,), p['id'], {k: v for k, v in p.items() if k not in ('op', 'id')}, ptr)
         elif op == 'removeElement':
             self.remove(p['id'], p.get('cascade', False), ptr)
         elif op == 'setProperty':
@@ -122,95 +137,165 @@ class Transaction:
             self.unset(p['id'], p['path'], ptr)
         elif op == 'moveJunction':
             self.set(p['id'], '/position', p['to'], ptr)
+        elif op == 'setAdjacency':
+            self.set_adjacency(p, ptr)
+        elif op == 'removeAdjacency':
+            self.remove_adjacency(p, ptr)
         else:
             raise AssertionError(op)
 
-    def add(self, c: str, eid: str, element: dict, ptr: str) -> None:
-        if eid in all_ids(self.wc) or eid in self.retired:
+    def container(self, place, ptr: str) -> dict:
+        """The object a new element goes into, creating the objects on the way to it (2.1.3)."""
+        if len(place) == 1 and place[0] != ITEMS:
+            return self.wc.setdefault(place[0], {})
+        path = ('program', 'items') if place[0] == ITEMS else ('extensions', place[1], 'collections', place[2])
+        cur = self.wc
+        for k in path:
+            if k not in cur:
+                cur[k] = {}
+            if not isd(cur[k]):
+                raise OpsError('FS-OPS-003', [], f'{ptr}/collection', f'/{"/".join(esc(x) for x in path)} leads through a value that is not an object')
+            cur = cur[k]
+        return cur
+
+    def add(self, place, eid: str, element: dict, ptr: str) -> None:
+        if eid in all_ids(self.wc, self.P) or eid in self.retired:
             raise OpsError('FS-OPS-005', [], ptr, f'{eid} is already used or retired')
+        target = self.container(place, ptr)
         self.used.add(eid)
-        self.wc.setdefault(c, {})[eid] = copy.deepcopy(element)
+        target[eid] = copy.deepcopy(element)
+
+    def locate(self, eid):
+        return locate(self.wc, eid, self.P)
 
     def collection_of(self, eid):
-        for c in COLLECTIONS:
-            if eid in coll(self.wc, c):
-                return c
-        return None
+        loc = self.locate(eid)
+        return kind(loc[0]) if loc else None
 
-    def dependents(self, c: str, eid: str) -> list[str]:
+    def _ext_where(self, test):
+        """Extension elements (Ops 0.2) for which test(element) holds, as ((place), ID)."""
+        return [((EXT, x, c), eid) for x, c, eid, el in ext_elements(self.wc, self.P) if isd(el) and test(el)]
+
+    @staticmethod
+    def _host_is(member, eid):
+        return lambda el: isd(el.get('host')) and el['host'].get(member) == eid
+
+    @staticmethod
+    def _fallback_is(*members_and_id):
+        *members, eid = members_and_id
+        return lambda el: isd(el.get('fallback')) and any(el['fallback'].get(m) == eid for m in members)
+
+    def dependents(self, k: str, eid: str) -> list[str]:
         """What blocks removing an element without cascade (2.2)."""
         wc, out = self.wc, []
 
         def where(cc, test):
             out.extend(x for x, e in coll(wc, cc).items() if isd(e) and test(e))
-        if c == 'buildings':
+
+        def ext(test):
+            out.extend(x for _, x in self._ext_where(test))
+        if k == 'buildings':
             where('levels', lambda e: e.get('building') == eid)
-        elif c == 'levels':
+        elif k == 'levels':
             for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs'):
                 where(cc, lambda e: e.get('level') == eid)
             where('walls', lambda e: (isd(e.get('base')) and e['base'].get('level') == eid)
                   or (isd(e.get('top')) and e['top'].get('level') == eid))
-        elif c == 'junctions':
+            ext(lambda el: self._host_is('level', eid)(el) or self._fallback_is('level', eid)(el))
+        elif k == 'junctions':
             for cc in ('walls', 'separators'):
                 where(cc, lambda e: eid in (e.get('start'), e.get('end')))
-        elif c == 'walls':
+        elif k == 'walls':
             where('openings', lambda e: e.get('wall') == eid)
-        elif c == 'types':
+            ext(self._host_is('wall', eid))
+        elif k == 'rooms':
+            ext(self._host_is('room', eid))
+        elif k == 'types':
             where('walls', lambda e: e.get('type') == eid)
             where('openings', lambda e: e.get('fill') == eid)
-        elif c == 'materials':
+        elif k == 'materials':
             def layered(e):
                 return isinstance(e.get('layers'), list) and any(isd(l) and l.get('material') == eid for l in e['layers'])
             where('types', layered)
             where('walls', layered)
             where('rooms', lambda e: eid in (e.get('wallFinish'), e.get('floorFinish'), e.get('ceilingFinish')))
             where('slabs', lambda e: e.get('material') == eid)
-        elif c == 'assets':
+        elif k == 'assets':
             where('materials', lambda e: isd(e.get('texture')) and e['texture'].get('asset') == eid)
+            ext(self._fallback_is('asset', 'symbol', eid))
+        elif k == ITEMS:
+            where('rooms', lambda e: e.get('brief') == eid)
         return sorted(set(out) - {eid})
 
-    def takes(self, c: str, eid: str):
+    def takes(self, place, eid: str):
         """What removing an element takes with it, when cascade is true (2.2)."""
-        wc, out = self.wc, []
+        wc, out, k = self.wc, [], kind(place)
 
         def where(cc, test):
-            out.extend((cc, x) for x, e in coll(wc, cc).items() if isd(e) and test(e))
-        if c == 'buildings':
+            out.extend(((cc,), x) for x, e in coll(wc, cc).items() if isd(e) and test(e))
+        if k == 'buildings':
             where('levels', lambda e: e.get('building') == eid)
-        elif c == 'levels':
+        elif k == 'levels':
             for cc in ('junctions', 'walls', 'separators', 'rooms', 'slabs'):
                 where(cc, lambda e: e.get('level') == eid)
-        elif c == 'junctions':
+            out.extend(self._ext_where(lambda el: self._host_is('level', eid)(el) or self._fallback_is('level', eid)(el)))
+        elif k == 'junctions':
             for cc in ('walls', 'separators'):
                 where(cc, lambda e: eid in (e.get('start'), e.get('end')))
-        elif c == 'walls':
+        elif k == 'walls':
             where('openings', lambda e: e.get('wall') == eid)
+            out.extend(self._ext_where(self._host_is('wall', eid)))
+        elif k == 'rooms':
+            out.extend(self._ext_where(self._host_is('room', eid)))
         return out
 
     def remove(self, eid: str, cascade: bool, ptr: str) -> None:
-        c = self.collection_of(eid)
-        if c is None:
+        loc = self.locate(eid)
+        if loc is None:
             raise OpsError('FS-OPS-003', [], ptr, f'{eid} does not exist')
-        if not cascade or c in ('types', 'materials', 'assets'):
-            deps = self.dependents(c, eid)
+        place = loc[0]
+        k = kind(place)
+        if not cascade or k in ('types', 'materials', 'assets', ITEMS):
+            deps = self.dependents(k, eid)
             if deps:
                 raise OpsError('FS-OPS-006', [eid] + deps, ptr, f'{eid} is used by {", ".join(deps)}')
-            gone = [(c, eid)]
+            gone = [(place, eid)]
         else:
-            gone, todo = [], [(c, eid)]
+            gone, todo = [], [(place, eid)]
             while todo:
                 x = todo.pop()
                 if x in gone:
                     continue
                 gone.append(x)
                 todo.extend(self.takes(*x))
-        for cc, x in gone:
-            del self.wc[cc][x]
-        removed_walls = {x for cc, x in gone if cc == 'walls'}
+        for pl, x in gone:
+            del self.where_is(pl)[x]
+        removed_walls = {x for pl, x in gone if pl == ('walls',)}
         for j in coll(self.wc, 'junctions').values():
             join = j.get('join') if isd(j) else None
             if isd(join) and isinstance(join.get('through'), list) and removed_walls & {w for w in join['through'] if isinstance(w, str)}:
                 del j['join']
+        if self.P.v02:                                              # 2.2.3, whether cascade or not
+            removed_items = {x for pl, x in gone if pl == (ITEMS,)}
+            program = self.wc.get('program')
+            if removed_items and isd(program) and isinstance(program.get('adjacency'), list):
+                program['adjacency'] = [e for e in program['adjacency']
+                                        if not (isd(e) and (e.get('a') in removed_items or e.get('b') in removed_items))]
+            removed_levels = {x for pl, x in gone if pl == ('levels',)}
+            for it in items_of(self.wc, self.P).values():
+                if isd(it) and it.get('level') in removed_levels:
+                    del it['level']
+
+    def where_is(self, place) -> dict:
+        """The existing container of a place (it holds the element being removed)."""
+        if place[0] == ITEMS:
+            return self.wc['program']['items']
+        if place[0] == EXT:
+            return self.wc['extensions'][place[1]]['collections'][place[2]]
+        return self.wc[place[0]]
+
+    def doc_members(self):
+        return DOC_MEMBERS_02 if self.P.v02 else DOC_MEMBERS
 
     def _target(self, eid: str, tokens, create: bool, ptr: str):
         """The object a pointer's first token is looked up in, and the elements an FS-OPS-003
@@ -223,13 +308,13 @@ class Transaction:
                 self.wc['site'] = {}
             return self.wc.get('site'), []
         if eid == '$document':
-            if tokens and tokens[0] not in DOC_MEMBERS:
+            if tokens and tokens[0] not in self.doc_members():
                 raise OpsError('FS-OPS-003', [], f'{ptr}/path', f'$document has no member "{tokens[0]}"')
             return self.wc, []
-        c = self.collection_of(eid)
-        if c is None:
+        loc = self.locate(eid)
+        if loc is None:
             raise OpsError('FS-OPS-003', [], f'{ptr}/id', f'{eid} does not exist')
-        return self.wc[c][eid], [eid]
+        return loc[1][eid], [eid]
 
     def set(self, eid, path, value, ptr):
         if eid not in ('$project', '$site', '$document') and self.collection_of(eid) is None:
@@ -280,8 +365,47 @@ class Transaction:
         else:
             raise OpsError('FS-OPS-003', els, f'{ptr}/path', f'{path} is not there')
 
+    # ------------------------------------------------------------------ 2.6 adjacencies (Ops 0.2)
+    def _adjacency(self, ptr, create: bool):
+        program = self.wc.get('program')
+        if program is None and create:
+            program = self.wc['program'] = {}
+        if not isd(program):
+            raise OpsError('FS-OPS-003', [], ptr, 'the document has no program')
+        if 'adjacency' not in program and create:
+            program['adjacency'] = []
+        adj = program.get('adjacency')
+        if not isinstance(adj, list):
+            raise OpsError('FS-OPS-003', [], ptr, 'the program has no adjacency array')
+        return adj
+
+    @staticmethod
+    def _same(e, a, b, k):
+        return isd(e) and e.get('kind') == k and isinstance(e.get('a'), str) and isinstance(e.get('b'), str) \
+            and sorted((e['a'], e['b'])) == sorted((a, b))
+
+    def set_adjacency(self, p, ptr):
+        adj = self._adjacency(ptr, True)
+        entry = {k: copy.deepcopy(p[k]) for k in ('a', 'b', 'kind', 'weight') if k in p}
+        for i, e in enumerate(adj):
+            if self._same(e, p['a'], p['b'], p['kind']):
+                adj[i] = entry
+                return
+        adj.append(entry)
+
+    def remove_adjacency(self, p, ptr):
+        adj = self._adjacency(ptr, False)
+        keep = [e for e in adj if not self._same(e, p['a'], p['b'], p['kind'])]
+        if len(keep) == len(adj):
+            raise OpsError('FS-OPS-003', [], ptr, f'the program has no {p["kind"]} adjacency of {p["a"]} and {p["b"]}')
+        adj[:] = keep
+
     # ------------------------------------------------------------------ primitives, resolved (2.5)
     def x_addElement(self, R, op, P):
+        if 'extension' in op:
+            eid = self.new_id(op, EXT_PREFIX)
+            return [{'op': 'addElement', 'extension': op['extension'], 'collection': op['collection'], 'id': eid,
+                     'element': copy.deepcopy(op['element'])}]
         eid = self.new_id(op, PREFIX[op['collection']])
         return [{'op': 'addElement', 'collection': op['collection'], 'id': eid, 'element': copy.deepcopy(op['element'])}]
 
@@ -323,6 +447,20 @@ class Transaction:
         jid = R.junction(op['id'], f'{P}/id')
         x, y = R.point(op['to'], f'{P}/to')
         return [{'op': 'moveJunction', 'id': jid, 'to': [x, y]}]
+
+    def _adjacency_prim(self, R, op, P):
+        a = R.item(op['a'], f'{P}/a')
+        b = R.item(op['b'], f'{P}/b')
+        return {'op': op['op'], 'a': a, 'b': b, 'kind': op['kind']}
+
+    def x_setAdjacency(self, R, op, P):
+        p = self._adjacency_prim(R, op, P)
+        if 'weight' in op:
+            p['weight'] = copy.deepcopy(op['weight'])
+        return [p]
+
+    def x_removeAdjacency(self, R, op, P):
+        return [self._adjacency_prim(R, op, P)]
 
     # ------------------------------------------------------------------ chapter 4: composites
     def _draw(self, R, op, P, name, prefix, members):
@@ -385,7 +523,20 @@ class Transaction:
             prims.append({'op': 'moveJunction', 'id': jid, 'to': [x + vx, y + vy]})
         ax, ay = self.wc['rooms'][rid]['anchor']
         prims.append({'op': 'setProperty', 'id': rid, 'path': '/anchor', 'value': [ax + vx, ay + vy]})
+        for eid in self._on_surface_of(rid):                        # Ops 0.2: what stands in the room
+            x, y = self.locate(eid)[1][eid]['host']['position']
+            prims.append({'op': 'setProperty', 'id': eid, 'path': '/host/position', 'value': [x + vx, y + vy]})
         return prims
+
+    def _on_surface_of(self, rid) -> list[str]:
+        """Ops 0.2: the extension elements on a room's floor or ceiling whose position is a point,
+        by ID."""
+        out = []
+        for _, _, eid, el in ext_elements(self.wc, self.P):
+            h = host_of(el)
+            if h is not None and h.get('mode') == 'surface' and h.get('room') == rid and is_point(h.get('position')):
+                out.append(eid)
+        return sorted(out)
 
     def x_resizeRoom(self, R, op, P):
         rid = R.room(op['room'], f'{P}/room')
@@ -518,8 +669,15 @@ class Transaction:
         level = R.element(op['level'], ('levels',), f'{P}/level')[1]
         x, y = R.point(op['at'], f'{P}/at')
         element = {'level': level, 'anchor': [x, y]}
+        if 'brief' in op:                                           # Ops 0.2
+            element['brief'] = R.item(op['brief'], f'{P}/brief')
         element.update({k: copy.deepcopy(op[k]) for k in ('function', 'wallFinish', 'floorFinish', 'ceilingFinish') + COMMON if k in op})
         return [{'op': 'addElement', 'collection': 'rooms', 'id': self.new_id(op, 'R'), 'element': element}]
+
+    def x_setRoomBrief(self, R, op, P):
+        rid = R.room(op['room'], f'{P}/room')
+        iid = R.item(op['item'], f'{P}/item')
+        return [{'op': 'setProperty', 'id': rid, 'path': '/brief', 'value': iid}]
 
     def x_setRoomFinish(self, R, op, P):
         rid = R.room(op['room'], f'{P}/room')
@@ -538,9 +696,89 @@ class Transaction:
             if keep not in (left[0], right[0]):
                 raise OpsError('FS-OPS-008', [wid], f'{P}/keep' if keep else P,
                                f'{wid} divides {left[0]} from {right[0]}: keep must name one')
-            prims.append({'op': 'removeElement', 'id': right[0] if keep == left[0] else left[0]})
+            gone = right[0] if keep == left[0] else left[0]
+            for eid in self._on_surface_of_any(gone):               # Ops 0.2: re-hosted on the room kept
+                prims.append({'op': 'setProperty', 'id': eid, 'path': '/host/room', 'value': keep})
+            prims.append({'op': 'removeElement', 'id': gone})
         prims.append({'op': 'removeElement', 'id': wid, 'cascade': True})
         return prims
+
+    def _on_surface_of_any(self, rid) -> list[str]:
+        out = [eid for _, _, eid, el in ext_elements(self.wc, self.P)
+               if host_of(el) is not None and host_of(el).get('mode') == 'surface' and host_of(el).get('room') == rid]
+        return sorted(out)
+
+    def x_addProgramItem(self, R, op, P):
+        element = {'function': copy.deepcopy(op['function'])}
+        if 'count' in op:
+            element['count'] = copy.deepcopy(op['count'])
+        for k in ('targetArea', 'minArea'):
+            if k in op:
+                element[k] = area(op[k], f'{P}/{k}')
+        if 'level' in op:
+            element['level'] = R.element(op['level'], ('levels',), f'{P}/level')[1]
+        element.update({k: copy.deepcopy(op[k]) for k in COMMON if k in op})
+        return [{'op': 'addElement', 'collection': ITEMS, 'id': self.new_id(op, PREFIX[ITEMS]), 'element': element}]
+
+    def resolve_host(self, R, h, P):
+        """4.10: a host reference resolved to a Core host (13.3), and the host's level."""
+        mode = h['mode']
+        if mode == 'wallFace':
+            wid = R.element(h['wall'], ('walls',), f'{P}/wall')[1]
+            s, t, S, E = R.wall_line('walls', wid, f'{P}/wall')
+            if 'side' in h:
+                side = h['side']
+            else:
+                rid = R.room(h['toward'], f'{P}/toward')
+                lf, f = R.room_face(rid, f'{P}/toward')
+                left, right = lf.he_face.get((wid, s, t), 'none'), lf.he_face.get((wid, t, s), 'none')
+                if f == left and f != right:
+                    side = 'left'
+                elif f == right and f != left:
+                    side = 'right'
+                else:
+                    raise OpsError('FS-OPS-008', [wid], f'{P}/toward', f'{rid} is not on one side of {wid}')
+            D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
+            offset = R.position(h['at'], D, 0, f'{P}/at')
+            height = length(h['height'], f'{P}/height')
+            host = {'mode': 'wallFace', 'wall': wid, 'side': side, 'offset': offset, 'height': height}
+            owner = ('walls', wid)
+        elif mode == 'surface':
+            rid = R.room(h['room'], f'{P}/room')
+            x, y = R.point(h['at'], f'{P}/at')
+            host = {'mode': 'surface', 'room': rid, 'surface': h['surface'], 'position': [x, y]}
+            owner = ('rooms', rid)
+        else:
+            lid = R.element(h['level'], ('levels',), f'{P}/level')[1]
+            x, y = R.point(h['at'], f'{P}/at')
+            host = {'mode': 'free', 'level': lid, 'position': [x, y]}
+            owner = None
+        if 'rotation' in h:
+            host['rotation'] = copy.deepcopy(h['rotation'])
+        if owner is None:
+            return host, host['level']
+        e = self.wc[owner[0]][owner[1]]
+        level = e.get('level') if isd(e) else None
+        if not isinstance(level, str):
+            raise OpsError('FS-OPS-003', [owner[1]], f'{P}/{"wall" if owner[0] == "walls" else "room"}', f'{owner[1]} is on no level')
+        return host, level
+
+    def x_placeElement(self, R, op, P):
+        host, level = self.resolve_host(R, op['host'], f'{P}/host')
+        element = copy.deepcopy(op['element'])
+        element['host'] = host
+        if 'fallback' not in element:
+            element['fallback'] = {'level': level}
+        elif isd(element['fallback']):
+            element['fallback']['level'] = level
+        return [{'op': 'addElement', 'extension': op['extension'], 'collection': op['collection'],
+                 'id': self.new_id(op, EXT_PREFIX), 'element': element}]
+
+    def x_moveElement(self, R, op, P):
+        eid = R.element(op['element'], (EXT,), f'{P}/element')[1]
+        host, level = self.resolve_host(R, op['host'], f'{P}/host')
+        return [{'op': 'setProperty', 'id': eid, 'path': '/host', 'value': host},
+                {'op': 'setProperty', 'id': eid, 'path': '/fallback/level', 'value': level}]
 
     def x_addLevel(self, R, op, P):
         building = R.element(op['building'], ('buildings',), f'{P}/building')[1]
@@ -571,10 +809,10 @@ def _wall_vec(doc, wid):
     return tuple(s), (e[0] - s[0], e[1] - s[1])
 
 
-def lock_valid_in_a(a: dict, lock: dict) -> bool:
+def lock_valid_in_a(a: dict, lock: dict, profile: Profile = OPS_01) -> bool:
     (k, v), = lock.items()
     if k == 'element':
-        return v in all_ids(a)
+        return v in all_ids(a, profile)
     if k == 'length':
         return v in coll(a, 'walls')
     if not all(x in coll(a, 'walls') for x in v):
@@ -590,13 +828,22 @@ def _room_cycle(doc, rid):
     return {u: lf.pos[u] for _, u, _ in lf.faces[f]['outer']}
 
 
-def lock_holds(a: dict, b: dict, lock: dict) -> bool:
+def lock_holds(a: dict, b: dict, lock: dict, profile: Profile = OPS_01) -> bool:
     """a and b in canonical form (constant defaults omitted); both valid."""
     (k, v), = lock.items()
     if k == 'element':
-        c = next(c for c in COLLECTIONS if v in coll(a, c))
-        if v not in coll(b, c) or not same(a[c][v], b[c][v]):
+        place, ca = locate(a, v, profile)
+        lb = locate(b, v, profile)
+        if lb is None or lb[0] != place or not same(ca[v], lb[1][v]):
             return False
+        c = place[0]
+        if c == EXT:                                                # Ops 0.2, 6.1: a wall-face host is unmoved
+            h = host_of(ca[v])
+            if h is None or h.get('mode') != 'wallFace':
+                return True
+            w = a['walls'][h['wall']]
+            return all(w[j] in coll(b, 'junctions') and b['junctions'][w[j]]['position'] == a['junctions'][w[j]]['position']
+                       for j in ('start', 'end'))
         if c in ('walls', 'separators'):
             unmoved = {j: a['junctions'][a[c][v][j]]['position'] for j in ('start', 'end')}
             return all(a[c][v][j] in coll(b, 'junctions') and b['junctions'][a[c][v][j]]['position'] == p
@@ -633,8 +880,10 @@ def _member_diff(target: str, a: dict, b: dict) -> list[dict]:
     return out
 
 
-def inverse(a: dict, b: dict) -> list[dict]:
+def inverse(a: dict, b: dict, profile: Profile = OPS_01) -> list[dict]:
     """The structural difference from B back to A (1.6), both in canonical form."""
+    if profile.v02:
+        return inverse_02(a, b, profile)
     out = []
     for c in INVERSE_ORDER:                                         # step 1: property differences
         ca, cb = coll(a, c), coll(b, c)
@@ -646,21 +895,89 @@ def inverse(a: dict, b: dict) -> list[dict]:
     for c in reversed(INVERSE_ORDER):                               # step 3: additions
         for eid in sorted(set(coll(a, c)) - set(coll(b, c))):
             out.append({'op': 'addElement', 'collection': c, 'id': eid, 'element': copy.deepcopy(a[c][eid])})
-    out += _member_diff('$project', a['project'], b['project'])     # step 4: project, site, document
+    return out + _document_diff(a, b, DOC_MEMBERS)                  # step 4
+
+
+def _document_diff(a: dict, b: dict, members) -> list[dict]:
+    """Step 4 of 1.6: project, site, and the document's other top-level members."""
+    out = _member_diff('$project', a['project'], b['project'])
     if 'site' in a and 'site' in b:
         out += _member_diff('$site', a['site'], b['site'])
     elif 'site' in a:
         out.append({'op': 'setProperty', 'id': '$document', 'path': '/site', 'value': copy.deepcopy(a['site'])})
     elif 'site' in b:
         out.append({'op': 'unsetProperty', 'id': '$document', 'path': '/site'})
-    rest = [m for m in DOC_MEMBERS if m not in ('project', 'site')]
+    rest = [m for m in members if m not in ('project', 'site')]
+    if 'program' in rest and isd(a.get('program')) and isd(b.get('program')):      # Ops 0.2
+        rest.remove('program')
+        out += [{**p, 'path': '/program' + p['path']} for p in _member_diff('$document', a['program'], b['program'])]
     out += _member_diff('$document', {m: a[m] for m in rest if m in a}, {m: b[m] for m in rest if m in b})
     return out
 
 
+def _places_02(a: dict, b: dict, profile: Profile):
+    """Ops 0.2, 1.6 step 2: the extension collections of A and B (by extension, then collection
+    name), then the eleven collections and the program's items in INVERSE_ORDER_02."""
+    exts = sorted({(EXT, x, c) for d in (a, b) for x, c, _ in ext_collections(d, profile)})
+    return exts + [(c,) for c in INVERSE_ORDER_02]
+
+
+def _in(doc: dict, place, profile: Profile) -> dict:
+    if place[0] == ITEMS:
+        return items_of(doc, profile)
+    if place[0] == EXT:
+        for x, c, coll_ in ext_collections(doc, profile):
+            if (x, c) == place[1:]:
+                return coll_
+        return {}
+    return coll(doc, place[0])
+
+
+def inverse_02(a: dict, b: dict, profile: Profile) -> list[dict]:
+    """1.6 in Ops 0.2: program items and extension elements are elements, and step 4 compares A with
+    the document steps 1 to 3 leave - as it is, so that the empty objects they leave behind (an
+    emptied `items`, a program with nothing in it) are removed too, and a 0.1 document comes back
+    without a program its draft does not have."""
+    places = _places_02(a, b, profile)
+    out = []
+    for pl in places:                                               # step 1
+        ca, cb = _in(a, pl, profile), _in(b, pl, profile)
+        for eid in sorted(set(ca) & set(cb)):
+            out += _member_diff(eid, ca[eid], cb[eid])
+    for pl in places:                                               # step 2
+        for eid in sorted(set(_in(b, pl, profile)) - set(_in(a, pl, profile))):
+            out.append({'op': 'removeElement', 'id': eid})
+    for pl in reversed(places):                                     # step 3
+        ca = _in(a, pl, profile)
+        for eid in sorted(set(ca) - set(_in(b, pl, profile))):
+            p = {'op': 'addElement'}
+            if pl[0] == EXT:
+                p['extension'] = pl[1]
+                p['collection'] = pl[2]
+            else:
+                p['collection'] = pl[0]
+            p.update({'id': eid, 'element': copy.deepcopy(ca[eid])})
+            out.append(p)
+    tx = Transaction(b, {}, profile)                                # B': what steps 1 to 3 leave
+    for p in out:
+        try:
+            tx.apply(p, '')
+        except OpsError as e:                                       # by construction, never
+            raise AssertionError(f'the inverse does not apply to B: {p}: {e}') from e
+    return out + _document_diff(a, tx.wc, DOC_MEMBERS_02)        # B' as it is, not in canonical form
+
+
 # ---------------------------------------------------------------------------------- the transaction
 
-def _parse_request(req):
+def place_of(p: dict):
+    """Where an addElement puts its element (2.1): a collection, the program's items, or an
+    extension's collection."""
+    if 'extension' in p:
+        return (EXT, p['extension'], p['collection'])
+    return (p['collection'],)
+
+
+def _parse_request(req, profile: Profile):
     if isinstance(req, (bytes, bytearray)):
         try:
             value, codes = parse(bytes(req))
@@ -669,7 +986,7 @@ def _parse_request(req):
         if codes:
             raise OpsError('FS-OPS-001', [], '', 'the request is not I-JSON: ' + ', '.join(codes))
         req = value
-    check_request(req)
+    check_request(req, profile)
     return req
 
 
@@ -677,43 +994,44 @@ def dumps_doc(doc: dict) -> bytes:
     return json.dumps(doc, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
 
 
-def apply(a_bytes: bytes, request) -> tuple[dict, bytes | None]:
-    """Applies an apply request (bytes, or an already-parsed value) to a document's bytes."""
+def apply(a_bytes: bytes, request, profile: Profile = OPS_01) -> tuple[dict, bytes | None]:
+    """Applies an apply request (bytes, or an already-parsed value) to a document's bytes, as the
+    draft `profile` says (Ops 0.1 by default)."""
     try:
-        return _apply(a_bytes, request)
+        return _apply(a_bytes, request, profile)
     except Rejected as r:
         return {'status': 'rejected', 'diagnostics': r.diagnostics}, None
     except OpsError as e:
         return {'status': 'rejected', 'diagnostics': [e.diagnostic()]}, None
 
 
-def _apply(a_bytes, request):
-    req = _parse_request(request)
-    a_result, a_canonical, _ = core_check(a_bytes)                  # step 1
+def _apply(a_bytes, request, profile: Profile):
+    req = _parse_request(request, profile)
+    a_result, a_canonical, _ = core_check(a_bytes, profile.reader)  # step 1
     if not a_result['valid']:
         raise OpsError('FS-OPS-002', [], None, ', '.join(d['code'] for d in a_result['diagnostics']))
     a, _ = parse(a_bytes)
     context = req.get('context', {})
     bad = [OpsError('FS-OPS-010', lock_ids(lock), f'/context/locks/{i}')
-           for i, lock in enumerate(context.get('locks', [])) if not lock_valid_in_a(a, lock)]
+           for i, lock in enumerate(context.get('locks', [])) if not lock_valid_in_a(a, lock, profile)]
     if bad:
         raise Rejected([e.diagnostic() for e in bad])
-    tx = Transaction(a, context)
+    tx = Transaction(a, context, profile)
     tx.run(req['batch'])                                            # steps 2-4
     try:
-        normalize(tx.wc, tx.in_a_junctions, tx.mint)                # step 5
+        normalize(tx.wc, tx.in_a_junctions, tx.mint, profile)       # step 5
     except OpsStraddle as s:
         raise Rejected([e.diagnostic() for e in s.errors])
-    b_result, b_canonical, _ = core_check(dumps_doc(tx.wc))         # step 6
+    b_result, b_canonical, _ = core_check(dumps_doc(tx.wc), profile.reader)  # step 6
     if not b_result['valid']:
         raise Rejected([d for d in b_result['diagnostics'] if d['severity'] == 'error'])
     a_c = canon.omit_defaults(a)
     b, _ = parse(b_canonical)
     broken = [OpsError('FS-OPS-011', lock_ids(lock), f'/context/locks/{i}')
-              for i, lock in enumerate(context.get('locks', [])) if not lock_holds(a_c, b, lock)]
+              for i, lock in enumerate(context.get('locks', [])) if not lock_holds(a_c, b, lock, profile)]
     if broken:
         raise Rejected([e.diagnostic() for e in broken])
-    ids_a, ids_b = all_ids(a), all_ids(b)
+    ids_a, ids_b = all_ids(a, profile), all_ids(b, profile)
     result = {
         'status': 'committed',
         'diagnostics': [],
@@ -722,6 +1040,6 @@ def _apply(a_bytes, request):
         'resolved': tx.resolved,
         'created': sorted(ids_b - ids_a),
         'removed': sorted(ids_a - ids_b),
-        'inverse': inverse(a_c, b),
+        'inverse': inverse(a_c, b, profile),
     }
     return result, b_canonical

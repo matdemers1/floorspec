@@ -1,10 +1,11 @@
-"""Re-verify the whole conformance suite - Floorspec Core and Floorspec Ops - against the oracle.
+"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2 -
+against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
 
-The Ops suite (conformance/ops/0.1) is verified by tools/oracle/ops/suite.py: status and
-diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
+The Ops suites are verified by tools/oracle/ops/suite.py - conformance/ops/0.1 applied as Ops 0.1
+(as published) and conformance/ops/0.2 as Ops 0.2: status and diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
 recomputed (and rewritten with --write), and every committed result is checked for 1.3.1, 1.3.2,
 1.4.1 and 1.6.1.
 
@@ -28,6 +29,7 @@ import os
 import sys
 
 from .ops.suite import verify_all as verify_ops
+from .ops.version import PROFILES as OPS_VERSIONS
 from .report import dumps
 from .validate import READER_01, READER_02, check
 
@@ -125,12 +127,17 @@ def main(argv) -> int:
             errors.extend(verify(d, write))
         counts[version] = (len(dirs), len(errors))
         all_errors.extend(errors)
-    ops_count, ops_errors = verify_ops(write)
+    ops_counts, ops_errors = {}, []
+    for version in OPS_VERSIONS:
+        n, errors = verify_ops(write, version)
+        ops_counts[version] = (n, len(errors))
+        ops_errors.extend(errors)
     for e in all_errors + ops_errors:
         print(e)
     for version, (n, k) in counts.items():
         print(f'Core {version}: {n} tests, {k} differences from the oracle')
-    print(f'Ops: {ops_count} tests, {len(ops_errors)} differences from the oracle')
+    for version, (n, k) in ops_counts.items():
+        print(f'Ops {version}: {n} tests, {k} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
 
 

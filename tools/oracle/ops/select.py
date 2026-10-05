@@ -14,6 +14,11 @@ holds it (1.2). The grammar's details, as 3.1-3.3 and 7.1 state them:
 - Only elements of the collections the operation's member expects count as matches.
 - FS-OPS-003 names no elements when the reference is the request's own; it names the element
   whose member or reference is missing when that is an element of the document.
+
+Ops 0.2 adds program items and extension elements to what an ID can name (space.py), the forms
+`item <item>` and `brief of <room>`, and, where a member expects a program item or an extension
+element, matching a plain string against those elements' names as well. Under Ops 0.1 none of
+this exists, and a string of those forms is an ID or a room name like any other.
 """
 
 from __future__ import annotations
@@ -26,12 +31,15 @@ from ..surd import Surd
 from .errors import OpsError
 from .faces import Broken, LevelFaces, coll, is_point
 from .refs import CENTERED, DIR_OF, DIRECTIONS, FROM_END, FROM_TOWARD, VECTOR, length
-from .request import COLLECTIONS
+from .space import kind, items, ext_elements, locate
+from .version import OPS_01, Profile
 
 SIDE_SEL = re.compile(r'[ \t]*(?P<side>north|south|east|west)[ \t]+(?P<kind>wall|separator)[ \t]+of[ \t]+(?P<room>.+?)[ \t]*', re.I | re.S)
 BETWEEN_SEL = re.compile(r'[ \t]*(?P<kind>wall|separator)[ \t]+between[ \t]+(?P<rest>.+?)[ \t]*', re.I | re.S)
 AND = re.compile(r'[ \t]+and[ \t]+', re.I)
 END_SEL = re.compile(r'[ \t]*(?P<which>start|end)[ \t]+of[ \t]+(?P<edge>.+?)[ \t]*', re.I | re.S)
+ITEM_SEL = re.compile(r'[ \t]*item[ \t]+(?P<item>.+?)[ \t]*', re.I | re.S)                 # Ops 0.2
+BRIEF_SEL = re.compile(r'[ \t]*brief[ \t]+of[ \t]+(?P<room>.+?)[ \t]*', re.I | re.S)       # Ops 0.2
 
 KIND = {'wall': 'walls', 'separator': 'separators'}
 EDGES = ('walls', 'separators')
@@ -58,16 +66,16 @@ def outward_normal(pos, half_edge):
 
 
 class Resolver:
-    def __init__(self, wc: dict):
+    def __init__(self, wc: dict, profile: Profile = OPS_01):
         self.wc = wc
+        self.profile = profile
         self._levels: dict[str, LevelFaces | Broken] = {}
 
     # ------------------------------------------------------------------ document access
     def collection_of(self, eid: str) -> str | None:
-        for c in COLLECTIONS:
-            if eid in coll(self.wc, c):
-                return c
-        return None
+        """The kind of element `eid` is: a collection name, 'items' or 'ext' (Ops 0.2)."""
+        loc = locate(self.wc, eid, self.profile)
+        return kind(loc[0]) if loc else None
 
     def get(self, c: str, eid: str):
         return coll(self.wc, c).get(eid)
@@ -115,12 +123,23 @@ class Resolver:
         c = self.collection_of(s)
         if c is not None and (kinds is None or c in kinds):
             out.append((c, s))
+        key = s.casefold()
+
+        def named(k, elements):
+            for eid, e in elements:
+                if isinstance(e, dict) and isinstance(e.get('name'), str) and e['name'].casefold() == key:
+                    out.append((k, eid))
         if kinds is None or 'rooms' in kinds:
-            key = s.casefold()
-            for rid, r in coll(self.wc, 'rooms').items():
-                if isinstance(r, dict) and isinstance(r.get('name'), str) and r['name'].casefold() == key:
-                    out.append(('rooms', rid))
+            named('rooms', coll(self.wc, 'rooms').items())
+        if kinds is not None and 'items' in kinds:             # Ops 0.2: only where an item is expected
+            named('items', items(self.wc, self.profile).items())
+        if kinds is not None and 'ext' in kinds:               # ... or an extension element
+            named('ext', [(eid, el) for _, _, eid, el in ext_elements(self.wc, self.profile)])
         return out
+
+    def item(self, s: str, pointer) -> str:
+        """A program item (Ops 0.2): an ID or a name, or `item <item>` or `brief of <room>`."""
+        return self.element(s, ('items',), pointer)[1]
 
     def element(self, s: str, kinds, pointer):
         """(collection, ID) of the one element a string names, among `kinds` (None: any)."""
@@ -148,6 +167,19 @@ class Resolver:
                     if sides == {f1, f2} or (f1 == f2 and sides == {f1}):
                         found.append((c, eid))
             return self._unique([x for x in found if kinds is None or x[0] in kinds], pointer, s)
+        if self.profile.v02:
+            m = ITEM_SEL.fullmatch(s)
+            if m:
+                found = self._plain(m['item'], ('items',))
+                return self._unique([x for x in found if kinds is None or x[0] in kinds], pointer, s)
+            m = BRIEF_SEL.fullmatch(s)
+            if m:
+                rid = self.room(m['room'], pointer)
+                r = self.get('rooms', rid)
+                brief = r.get('brief') if isinstance(r, dict) else None
+                if not (isinstance(brief, str) and brief in items(self.wc, self.profile)):
+                    raise OpsError('FS-OPS-003', [rid], pointer, f'{rid} fulfils no program item')
+                return self._unique([x for x in [('items', brief)] if kinds is None or x[0] in kinds], pointer, s)
         m = END_SEL.fullmatch(s)
         if m:
             ec, eid = self.element(m['edge'], EDGES, pointer)

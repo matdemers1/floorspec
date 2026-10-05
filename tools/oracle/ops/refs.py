@@ -1,5 +1,5 @@
-"""The strings of the reference grammar (Ops 3.1, 3.2, 3.5): lengths, and the forms of points,
-vectors and positions. Resolving the junctions and walls those forms name is `select`'s job.
+"""The strings of the reference grammar (Ops 3.1, 3.2, 3.5, and in Ops 0.2 3.6): lengths, areas, and
+the forms of points, vectors and positions. Resolving the junctions and walls those forms name is `select`'s job.
 
 Lengths follow the ABNF of 3.1 exactly. Whitespace (space or tab) is permitted between any two
 grammar elements but not inside a decimal or a unit word; in `mixed`, the separator between the
@@ -91,6 +91,26 @@ def length(v, pointer=None) -> int:
     if isinstance(v, str):
         return round(exact_length(v, pointer))       # Fraction.__round__: half to even
     raise OpsError('FS-OPS-012', pointer=pointer, note='not a length')
+
+
+# Ops 0.2, 3.6: "<decimal> <unit>2", "<decimal> <unit>\u00b2" or "<decimal> sq <unit>"
+SQUARE = {'mm': MM * MM, 'cm': CM * CM, 'm': M * M, 'in': IN * IN, 'ft': FT * FT}
+_UNIT = r'(?:mm|cm|m|in|ft)'
+_AREA = re.compile(rf'{_S}(?P<v>{_DEC}){_S}(?:(?P<u>{_UNIT})(?:2|\u00b2)|sq[ \t]+(?P<sq>{_UNIT})){_S}', re.I)
+
+
+def area(v, pointer=None) -> int:
+    """An area (Ops 0.2, 3.6): a JSON integer of square base units as it is, or a string resolved
+    exactly and rounded once, ties to even."""
+    if type(v) is int:
+        return v
+    if isinstance(v, str):
+        m = _AREA.fullmatch(v)
+        if m:
+            unit = (m['u'] or m['sq']).lower()
+            return round(_decimal(m['v']) * SQUARE[unit])
+        raise OpsError('FS-OPS-012', pointer=pointer, note=f'{v!r} is not an area')
+    raise OpsError('FS-OPS-012', pointer=pointer, note='not an area')
 
 
 def half(v: int) -> int:

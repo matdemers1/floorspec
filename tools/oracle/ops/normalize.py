@@ -13,6 +13,9 @@ round to n) and (n - 1/2, n + 1/2) when n is odd.
 Only the well-formed part of a working copy takes part: junctions with a string `level` and an
 integer position, and edges whose start and end are such junctions on the edge's own level.
 Anything else is left exactly as it is, for validation to reject.
+
+Ops 0.2 adds step 6 of 5.2: an extension element hosted on a face of a split wall moves to the
+piece whose interval contains its offset. Under Ops 0.1 there are no extension elements.
 """
 
 from __future__ import annotations
@@ -24,6 +27,8 @@ from .. import plane
 from ..surd import Surd
 from .errors import OpsError
 from .faces import coll, is_point
+from .space import ext_elements, host_of
+from .version import OPS_01, Profile
 
 PREFIX = {'walls': 'W', 'separators': 'S'}
 
@@ -183,7 +188,7 @@ def breaks_5_3(js: dict, edges) -> bool:
     return False
 
 
-def planarize(wc: dict, level: str, mint, straddles: list) -> None:
+def planarize(wc: dict, level: str, mint, straddles: list, profile: Profile = OPS_01) -> None:
     """5.2: snap rounding, on a level that breaks Core 5.3; any other level is left as it is."""
     js = _junctions_on(wc, level)
     edges = [e for e in _edges_on(wc, level, js) if js[e[2]] != js[e[3]]]
@@ -215,6 +220,7 @@ def planarize(wc: dict, level: str, mint, straddles: list) -> None:
             pieces.append(nid)
         if c == 'walls':
             _rehost(wc, eid, a, b, inner, pieces, straddles)
+            _rehost_hosted(wc, eid, a, b, inner, pieces, profile)
 
 
 def _rehost(wc, eid, a, b, inner, pieces, straddles):
@@ -240,6 +246,29 @@ def _rehost(wc, eid, a, b, inner, pieces, straddles):
             straddles.append(oid)
 
 
+def _rehost_hosted(wc, eid, a, b, inner, pieces, profile):
+    """Ops 0.2, 5.2 step 6: an extension element on a face of the split wall goes to the piece whose
+    interval [s, e) along the original location line contains its offset - the last piece's
+    interval includes its end - and its offset becomes offset - s, rounded once, ties to even. Its
+    side and height do not change. One whose offset is not an integer, or that no piece contains,
+    is left as it is, on the first piece, for validation to judge."""
+    d = (b[0] - a[0], b[1] - a[1])
+    D = plane.dot(d, d)
+    bounds = [Surd(0)] + [Surd.sqrt(D, Fraction(plane.dot(plane.sub(p, a), d), D)) for p in inner] + [Surd.sqrt(D)]
+    last = len(pieces) - 1
+    for _, _, hid, el in sorted(ext_elements(wc, profile), key=lambda x: x[2]):
+        h = host_of(el)
+        if h is None or h.get('mode') != 'wallFace' or h.get('wall') != eid or type(h.get('offset')) is not int:
+            continue
+        off = h['offset']
+        for i, piece in enumerate(pieces):
+            if bounds[i] <= off and (off < bounds[i + 1] or (i == last and off <= bounds[i + 1])):
+                if i > 0:
+                    h['wall'] = piece
+                    h['offset'] = (Surd(off) - bounds[i]).round()
+                break
+
+
 def join_cleanup(wc: dict) -> None:
     """5.3: a join naming a wall that does not end at its junction is removed."""
     walls = coll(wc, 'walls')
@@ -256,7 +285,7 @@ def join_cleanup(wc: dict) -> None:
                 break
 
 
-def normalize(wc: dict, in_a: set, mint) -> None:
+def normalize(wc: dict, in_a: set, mint, profile: Profile = OPS_01) -> None:
     """5.4: 5.1, then 5.2, then 5.3. FS-OPS-009 for every opening that straddles a junction
     planarization inserts. (Planarization creates junctions only where none are, so nothing can
     coincide after it.)"""
@@ -264,7 +293,7 @@ def normalize(wc: dict, in_a: set, mint) -> None:
         merge(wc, level, in_a)
     straddles: list[str] = []
     for level in levels_of(wc):
-        planarize(wc, level, mint, straddles)
+        planarize(wc, level, mint, straddles, profile)
     if straddles:
         raise OpsStraddle(straddles)
     join_cleanup(wc)
