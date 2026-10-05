@@ -27,10 +27,10 @@ const ruleOf = (id: string) => clone(example.rules.find((r) => r.id === id)!.rul
 const accepts = (validate: typeof v.rule, value: unknown) => assert.ok(validate(value), formatErrors(validate.errors ?? []).join('\n'));
 const rejects = (validate: typeof v.rule, value: unknown) => assert.ok(!validate(value), `expected a rejection of ${JSON.stringify(value)}`);
 
-test('the example pack reads cleanly: a manifest, three rules, five fixtures', () => {
+test('the example pack reads cleanly: a manifest, three rules, six fixtures', () => {
   assert.deepEqual(example.problems, []);
   assert.deepEqual(example.rules.map((r) => r.id), ['ROOM-SIZE', 'SMOKE-ALARM', 'STAIR-RISER']);
-  assert.equal(example.rules.flatMap((r) => r.fixtures).length, 5);
+  assert.equal(example.rules.flatMap((r) => r.fixtures).length, 6);
 });
 
 test('a rule on disk carries a viewer link, the certification and a review mark (FLR-REQ-094, 163, 164)', () => {
@@ -137,10 +137,11 @@ test('sections: containment and natural order', () => {
 
 test('the deferred measures are read from spec/rules 4.8', () => {
   const d = deferredMeasures();
-  for (const m of ['roomNarrowestDimension', 'stairRiserHeight', 'travelDistance', 'countertopReceptacleReach']) assert.ok(d.has(m), m);
+  for (const m of ['roomNarrowestDimension', 'floorElevationDifference', 'travelDistance', 'countertopReceptacleReach']) assert.ok(d.has(m), m);
   assert.ok(!d.has('roomNetArea'));
-  // defined since Core 0.3 derives ceilings (spec/rules 5.7)
+  // defined since Core 0.3 derives ceilings (spec/rules 5.7) and stairs (spec/rules 8.5)
   assert.ok(!d.has('ceilingHeight'));
+  for (const m of ['stairRiserHeight', 'stairTreadDepth', 'stairWidth', 'stairHeadroom', 'stairHandrailHeight']) assert.ok(!d.has(m), m);
 });
 
 test('a rule\'s measures are found in where, select, requirement and exceptions', () => {

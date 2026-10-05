@@ -53,6 +53,7 @@ reference is its referring element:
 | Extension element | `host.level` | a level |
 | Extension element | `fallback.level` | a level (12.6) |
 | Extension element | `fallback.asset`, `fallback.symbol` | an asset |
+| Stair | `level`, `to` | a level (17.1) |
 
 A reference MUST be a string that matches the ID pattern of 3.1. {#FS-CORE-3.2.3 MUST}
 

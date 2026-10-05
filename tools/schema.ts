@@ -36,7 +36,7 @@ export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': 
 /** The Ops request schemas, schema/ops/<v>/, oldest first. */
 export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
-/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` (Ops 0.4). */
+/** The request schema each Ops draft's requests match: Ops 0.3's is 0.2's with addElement into Core 0.3's `roofs` and `stairs` (Ops 0.4). */
 export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
 
 export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;

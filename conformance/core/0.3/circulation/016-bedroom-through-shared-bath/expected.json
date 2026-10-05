@@ -298,6 +298,7 @@
       }
     },
     "roofs": {},
-    "slabs": {}
+    "slabs": {},
+    "stairs": {}
   }
 }

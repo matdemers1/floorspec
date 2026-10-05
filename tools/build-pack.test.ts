@@ -17,7 +17,7 @@ const ev = (rule: string, subjects = 1, findings = 0) => ({ pack: 'example', rul
 const finding = (rule: string, id: string) => ({ pack: 'example', rule, subject: { id } });
 
 test('each fixture is a request for the built pack under a profile adopting the rule\'s cited edition', () => {
-  assert.equal(cases.length, 5);
+  assert.equal(cases.length, 6);
   const c = find('SMOKE-ALARM', 'pass');
   const req = c.request as { packs: { name: string }[]; profile: { adopts: unknown[] } };
   assert.equal(req.packs[0]!.name, 'example');
@@ -43,7 +43,9 @@ test('fail: findings on exactly the subjects listed', () => {
 });
 
 test('deferred: not evaluated, for a deferred measure', () => {
-  const c = find('STAIR-RISER', 'deferred');
+  // the example pack has no rule on a deferred measure since Core 0.3 has stairs: a fixture of one, in memory
+  const c = structuredClone(find('STAIR-RISER', 'fail'));
+  c.fixture.expect = { description: 'd', outcome: 'deferred' };
   assert.deepEqual(checkFixture(c, report({ notEvaluated: [{ pack: 'example', rule: 'STAIR-RISER', reason: 'deferred' }] })), []);
   assert.equal(checkFixture(c, report({ evaluated: [ev('STAIR-RISER')] })).length, 1);
 });

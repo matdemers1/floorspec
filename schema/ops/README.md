@@ -9,8 +9,8 @@ One directory per draft; start at `request.schema.json`:
 
 - **Ops 0.3** - the current draft (`spec/ops/`), operating on Core 0.3 documents (and so on 0.2
   and 0.1 documents) - is in [`0.3/`](0.3/): it adds no operation and no member, and its files are
-  0.2's with one difference, that `addElement` may add to Core 0.3's twelfth collection, `roofs`
-  (Ops 0.4);
+  0.2's with one difference, that `addElement` may add to Core 0.3's twelfth and thirteenth
+  collections, `roofs` and `stairs` (Ops 0.4);
 - **Ops 0.2** is in [`0.2/`](0.2/), exactly as published at `6f9bc07`;
 - **Ops 0.1** is in [`0.1/`](0.1/), exactly as published at `3bf4f35`; its text is readable from
   git at that commit.

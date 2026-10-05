@@ -22,6 +22,7 @@ optional site, the element collections, the program, the extension declarations 
 | `types` | collection of Type | `{}` | 8.1 |
 | `materials` | collection of Material | `{}` | 8.5 |
 | `assets` | collection of Asset | `{}` | 8.6 |
+| `stairs` | collection of Stair | `{}` | 17.1 |
 | `program` | Program | `{}` | 11.1 |
 | `extensionsUsed` | object: extension name → version, or declaration (12.1) | `{}` | 1.6, 12.1 |
 | `extensionsRequired` | array of extension names | `[]` | 1.6 |
@@ -50,14 +51,15 @@ The members 0.2 added are the top-level `program` (11.1), a room's `brief` (11.3
 declaration object in `extensionsUsed` (12.1), a door or window type's `clearances` (13.5) and the
 `collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
 type's `operation` and `clearOpening` (8.4), an opening's `clearOpening` (7.1), a level's
-`floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2) and a slab's
-`purpose` (6.7). Each is optional, and its absence means what a document of an earlier draft means
+`floorThickness` and `ceilingHeight` (1.8), a room's `floor` and `ceiling` (15.1, 15.2), a slab's
+`purpose` (6.7) and the `stairs` collection (17.1). Each is optional, and its absence means what a document of an earlier draft means
 without it: an empty program, a room that fulfils no program item, a version string, no
 clearances, extension data that core does not look inside, an operation that is not declared, no
 declared clear opening, a floor at its level's elevation with no declared thickness, a flat
-ceiling at its level's height, and a slab whose purpose is not stated.
+ceiling at its level's height, a slab whose purpose is not stated, and no stairs.
 The `roofs` collection (chapter 16) is new in 0.3 too: its absence means no roof, and a reader of
-this draft derives an empty set of roofs for a document of any draft. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
+this draft derives an empty set of roofs for a document of any draft; so are `stairs` (chapter 17),
+of which it derives an empty set too. So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
 configured with the same known extensions (12.2), is valid under 0.3 with the same diagnostics,
 the same derived values, the same canonical form and the same content hash; and a document valid
 under 0.1, read by a validator configured with no known extensions, is valid under 0.3 with the
@@ -91,6 +93,7 @@ reference; elements are never nested inside their level.
 Project ─ Site (optional)
    └─ Building (1..n) ─ Level (1..n) ◄── junctions, walls, separators, rooms, slabs, roofs (by "level")
                                            openings (by their wall)
+                                           stairs (by "level", and "to" a level above)
 ```
 
 Every level MUST reference a building. {#FS-CORE-1.3.1 MUST}
@@ -98,6 +101,8 @@ Every level MUST reference a building. {#FS-CORE-1.3.1 MUST}
 Every junction, wall, separator, room and slab MUST reference a level. {#FS-CORE-1.3.2 MUST}
 
 An opening has no level of its own: it is on its host wall's level (chapter 7).
+A stair (chapter 17) has two levels: the `level` it rises from and the level it rises `to`, both in
+one building (17.1.2).
 
 ## 1.4 Collections and elements
 

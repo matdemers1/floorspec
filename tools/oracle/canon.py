@@ -1,7 +1,7 @@
 """Canonical form (9.2) and content hash (9.3).
 
 Step 1 omits constant defaults, innermost first. The table of constant defaults below is
-transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11 and 15; typed properties (8.2) and
+transcribed from the member tables of chapters 1, 5, 6, 7, 8, 11, 15 and 17; typed properties (8.2) and
 members whose default is derived are never omitted, and the content of extension data - including
 Core 0.2's extension elements - and extras is never touched. Core 0.2 also writes a declaration
 object without `schema` as its version string (12.1). None of the 0.2 rules can apply to a 0.1
@@ -18,7 +18,7 @@ import hashlib
 import math
 
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
-               'slabs', 'types', 'materials', 'assets', 'roofs')
+               'slabs', 'types', 'materials', 'assets', 'roofs', 'stairs')   # roofs, stairs: Core 0.3, chapters 16, 17
 
 
 def _is_int(v, n=None) -> bool:
@@ -114,6 +114,19 @@ def omit_defaults(doc: dict) -> dict:
     for c in ('buildings', 'levels', 'separators', 'types', 'materials', 'assets'):
         for e in d.get(c, {}).values():
             _drop_common(e)
+    for e in d.get('stairs', {}).values():              # 17.1, 17.2 (Core 0.3)
+        _drop_common(e)
+        if _is_int(e.get('rotation'), 0):               # rotation: constant 0
+            del e['rotation']
+        form = e.get('form')
+        if isinstance(form, dict):
+            if form.get('kind') in ('uShaped', 'winder') and _is_int(form.get('gap'), 0):
+                del form['gap']                         # gap: constant 0
+            if form == {'kind': 'straight'}:            # form: constant { "kind": "straight" }
+                del e['form']
+        rail = e.get('handrail')
+        if isinstance(rail, dict) and rail.get('sides') == 'both':
+            del rail['sides']                           # handrail.sides: constant "both"
     for e in d.get('types', {}).values():
         if _is_empty_obj(e.get('clearances')):         # 8.4: clearances {} (Core 0.2)
             del e['clearances']

@@ -6,9 +6,9 @@
     "section": "§4.1",
     "link": "https://example.org/test-code/2024/4.1"
   },
-  "paraphrase": "Each step of a stair rises no more than 7 inches from the one below. Floorspec Core has no stairs yet, so this rule is written ahead of the data and is not evaluated until the stair measures exist.",
+  "paraphrase": "Each step of a stair rises no more than 7 inches from the one below. The rule reads the riser height Floorspec Core derives for the stair: its rise, from the floor at its foot to the floor at its head, over its riser count.",
   "applies": {
-    "to": "level"
+    "to": "stair"
   },
   "requirement": {
     "measure": "stairRiserHeight",
@@ -25,7 +25,6 @@
     "certification": "original-paraphrase-v1",
     "review": {
       "status": "unreviewed"
-    },
-    "note": "Kept so that the coverage matrix shows a section waiting on data."
+    }
   }
 }

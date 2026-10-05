@@ -773,6 +773,327 @@ d['roofs'] = {'RF1': {'level': next(iter(d['levels'])), 'footprint': [[0, 0], [1
 n('roofs', '0.2-document-with-a-roof', 'A document that declares "0.2" and has a roof: "roofs" is a collection 0.3 '
   'adds, and Core 0.2\'s schema has no such member.', ['1.2.6', '1.1.2'], d, SCH)
 
+# =================================================================================== stairs (0.3): chapter 17
+# Two storeys: L1 at 0 and L2 at 2700 mm, each 2700 mm high. Plans are drawn in millimetres by Draw, which
+# names junctions <p>J1, <p>J2, ... by position, and walls <p>W1, ... and separators <p>S1, ... in the order
+# they are drawn. The standard stair rises east from (1000 mm, 600 mm), 900 mm wide - from y = 150 mm to
+# 1050 mm - with 250 mm treads.
+from tools.oracle.author02 import cdoc, plan                                    # noqa: E402
+from tools.oracle.author_lib import S as Sep                                    # noqa: E402
+
+LEVELS2 = {'L1': {'building': 'B1', 'elevation': 0, 'height': 2700 * MM},
+           'L2': {'building': 'B1', 'elevation': 2700 * MM, 'height': 2700 * MM}}
+
+
+class Draw:
+    def __init__(self, level, p):
+        self.level, self.p = level, p
+        self.js, self.ws, self.ss, self.at = {}, {}, {}, {}
+
+    def j(self, x, y):
+        if (x, y) not in self.at:
+            jid = f'{self.p}J{len(self.js) + 1}'
+            self.at[(x, y)] = jid
+            self.js[jid] = J(x * MM, y * MM, self.level)
+        return self.at[(x, y)]
+
+    def walls(self, *pts):
+        for a, b in zip(pts, pts[1:]):
+            self.ws[f'{self.p}W{len(self.ws) + 1}'] = W(self.j(*a), self.j(*b), self.level)
+        return self
+
+    def seps(self, *pts):
+        for a, b in zip(pts, pts[1:]):
+            self.ss[f'{self.p}S{len(self.ss) + 1}'] = Sep(self.j(*a), self.j(*b), self.level)
+        return self
+
+
+def storeys(*draws, rooms=None, stairs=None, levels=None):
+    d = v3(level_doc(levels=copy.deepcopy(levels or LEVELS2)))
+    for dr in draws:
+        for k, v in (('junctions', dr.js), ('walls', dr.ws), ('separators', dr.ss)):
+            if v:
+                d.setdefault(k, {}).update(v)
+    d['rooms'] = {rid: R(x * MM, y * MM, lv, **kw) for rid, (lv, x, y, kw) in (rooms or {}).items()}
+    if stairs:
+        d['stairs'] = stairs
+    return d
+
+
+def stair(x=1000, y=600, to='L2', level='L1', width=900, tread=250, risers=14, **kw):
+    st = {'level': level, 'to': to, 'position': [x * MM, y * MM], 'width': width * MM, 'tread': tread * MM}
+    if risers is not None:
+        st['risers'] = risers
+    st.update(kw)
+    return st
+
+
+def lower(p='D'):
+    """L1: one 6 m by 4 m room's walls."""
+    return Draw('L1', p).walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (0, 0))
+
+
+def upper(x0=1500, x1=4250, y1=1100, p='U'):
+    """L2: the same walls, with a well - separators around (x0, 0) to (x1, y1), standing for a railing - that no
+    room is anchored in."""
+    return (Draw('L2', p).walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (x1, 0), (x0, 0), (0, 0))
+            .seps((x0, 0), (x0, y1), (x1, y1), (x1, 0)))
+
+
+HALLS = {'R1': ('L1', 3000, 2500, {}), 'R2': ('L2', 3000, 3000, {})}
+WELL = [('FS-LINT-003', [])]
+
+
+def hall_house(x0=1500, x1=4250, y1=1100, l1=None, l2=None, rooms=None, **st):
+    levels = copy.deepcopy(LEVELS2)
+    levels['L1'].update(l1 if l1 is not None else {'ceilingHeight': 2400 * MM})
+    levels['L2'].update(l2 if l2 is not None else {'floorThickness': 300 * MM})
+    return storeys(lower(), upper(x0, x1, y1), rooms=rooms or HALLS, stairs={'ST1': stair(**st)}, levels=levels)
+
+
+n('stairs', 'straight-stair', 'A straight stair of 14 risers from a hall on L1 to the hall above, through a well '
+  'that starts 500 mm past its first nosing line. Its foot room is R1 (bottom 0) and its head, 13 treads on at '
+  '(4250 mm, 600 mm), is on the well\'s separator and so in R2 (top 2700 mm): a rise of 3456000, riser height '
+  '3456000 / 14 rounded to 246857. Its run is 13 x 250 mm, its walkline the same length, and its 13 treads are '
+  'listed bottom to top. The headroom is where the floor above ends: at the well\'s edge the nosing line is 3 risers '
+  'up, 740571.43, under L2\'s 300 mm floor and L1\'s 2400 mm ceilings at 3072000 - 2331428.57, rounded to 2331429.',
+  ['17.1.1', '17.4.3', '17.5.1', '17.6.1', '2.2.1'], hall_house(), WELL)
+n('stairs', 'stair-under-its-floor', 'The same stair with no well: the floor of R2 covers it, so near its head the '
+  'nosing line rises through the floor\'s 300 mm, and the headroom is -384000 - the floor\'s bottom, 2400 mm, less '
+  'the head\'s 2700 mm. A negative headroom says the floor is in the way.', ['17.6.1'],
+  storeys(lower(), Draw('L2', 'U').walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (0, 0)), rooms=HALLS,
+          stairs={'ST1': stair()},
+          levels={'L1': {**LEVELS2['L1'], 'ceilingHeight': 2400 * MM}, 'L2': {**LEVELS2['L2'], 'floorThickness': 300 * MM}}))
+n('stairs', 'stair-under-its-well', 'A well that starts at the stair\'s first nosing line: every point of every lane '
+  'is in the well, where L1\'s ceiling is cut and no room of L2 is, so nothing is above the stair and it has no '
+  'headroom member.', ['17.6.1'], hall_house(x0=1000), WELL)
+n('stairs', 'max-riser', 'The straight stair with no riser count and a greatest riser of 7 3/4 in (251968): 2700 mm '
+  'over 13 risers would be 265846.15, too tall; over 14, 246857.14 is not. Its riser count is 14, and every other '
+  'value is the first test\'s.', ['17.1.1', '17.4.3'], hall_house(risers=None, maxRiser=31 * IN // 4), WELL)
+n('stairs', 'sunken-foot', 'A hall on L1 sunk 150 mm: the stair\'s bottom is the top of its foot room\'s floor, '
+  '-192000, so its rise is 2850 mm, and with a greatest riser of 7 3/4 in it needs 15 risers of 243200 - one more than '
+  'from a floor at the level\'s elevation. Its head moves out a tread, to (4500 mm, 600 mm), past the well into R2, '
+  'whose 300 mm floor is now over its last tread: its headroom is -384000.',
+  ['17.4.3', '15.1.2'],
+  hall_house(rooms={'R1': ('L1', 3000, 2500, {'floor': {'offset': -150 * MM}}), 'R2': HALLS['R2']},
+             risers=None, maxRiser=31 * IN // 4), WELL)
+n('stairs', 'foot-in-no-room', 'A stair whose position, 30 mm east of L1\'s west wall\'s location line, is in that '
+  'wall\'s thickness - in no room - and whose head, on the well\'s east separator at (3280 mm, 600 mm), is in R2: its '
+  'bottom is L1\'s elevation, it has no footRoom member, and it derives everything else.', ['17.4.3'],
+  hall_house(x=30, x1=3280), WELL)
+
+L_FORM = {'kind': 'lShaped', 'turn': 'left', 'risersBeforeTurn': 7}
+
+
+def l_house(form=None, rotation=None, **kw):
+    """An L-shaped stair and a well around its landing and its second flight: from (2400, 0) to (3500, 2550)."""
+    st = {'form': form or L_FORM}
+    if rotation is not None:
+        st['rotation'] = rotation
+    return hall_house(x0=2400, x1=3500, y1=2550, **st, **kw)
+
+
+n('stairs', 'l-stair-with-landing', 'An L-shaped stair turning left: a first flight of 7 risers east from (1000 mm, '
+  '600 mm), a 900 mm square landing at 7 risers up from (2500 mm, 150 mm), and a second flight of 7 risers north '
+  'from (2950 mm, 1050 mm) to its head at (2950 mm, 2550 mm), on the well\'s north separator. 12 treads and the '
+  'landing, in walking order; a run of 12 x 250 mm, and a walkline through the landing\'s middle of 12 x 250 + 900 '
+  'mm. Its headroom is under the floor above the first flight, at the well\'s west edge.',
+  ['17.4.3', '17.5.1', '17.6.1'], l_house(), WELL)
+d = storeys(Draw('L1', 'D').walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (0, 0)),
+            Draw('L2', 'U').walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (0, 0)),
+            rooms={'R1': ('L1', 4500, 2000, {}), 'R2': ('L2', 4500, 2000, {})},
+            stairs={'ST1': stair(x=600, y=500, rotation=90_000_000,
+                                 form={'kind': 'lShaped', 'turn': 'right', 'risersBeforeTurn': 9})})
+n('stairs', 'l-stair-turning-right', 'An L-shaped stair that rises north (rotation 90 degrees) from (600 mm, 500 mm) '
+  'and turns right: in its frame the mirror image of a left turn. Its landing is from y = 2500 mm to 3400 mm, and '
+  'its second flight runs east from it to its head at (2050 mm, 2950 mm). With no well, the floor of R2 is over all of it '
+  'and its headroom is 0: L2\'s floor declares no thickness, so its bottom is its top.', ['17.4.3', '17.5.1', '17.6.1'], d)
+U_FORM = {'kind': 'uShaped', 'turn': 'left', 'risersBeforeTurn': 7, 'gap': 200 * MM}
+n('stairs', 'u-stair-with-landing', 'A U-shaped stair turning left, with a 200 mm gap between its flights: 7 risers '
+  'east, a landing 900 mm deep across both flights and the gap, from (2500 mm, 150 mm) to (3400 mm, 2150 mm), and 7 '
+  'risers west from (2500 mm, 1700 mm) to its head at (1000 mm, 1700 mm) - above its foot. Its walkline runs '
+  'through the landing\'s middle: 12 x 250 + 2 x 900 + 200 mm. The well covers the whole stair, so it has no '
+  'headroom.', ['17.4.3', '17.5.1', '17.6.1'],
+  hall_house(x0=1000, x1=3500, y1=2200, form=U_FORM), WELL)
+n('stairs', 'u-stair-turning-right-no-gap', 'A U-shaped stair turning right with no gap - written out as "gap": 0, '
+  'its constant default, which the canonical form omits: its second flight is beside its first, to its right.',
+  ['17.4.3', '17.5.1', '9.2.1'],
+  storeys(Draw('L1', 'D').walls((0, 0), (0, 4000), (6000, 4000), (6000, 0), (0, 0)),
+          rooms={'R1': ('L1', 3000, 3500, {})},
+          stairs={'ST1': stair(y=2500, form={'kind': 'uShaped', 'turn': 'right', 'risersBeforeTurn': 8, 'gap': 0})}))
+n('stairs', 'rotated-stair', 'A straight stair rising at 30 degrees: its frame faces F(30000000) = (866025404, '
+  '500000000), so the corners of its treads, its head and its box are irrational, each rounded once. L2 has no '
+  'room, so the stair has no head room and its top is L2\'s elevation; under R1\'s ceiling at 2700 mm its headroom is '
+  '0, at the head.', ['17.4.3', '17.5.1', '17.6.1', '2.2.1'],
+  storeys(Draw('L1', 'D').walls((0, 0), (0, 6000), (8000, 6000), (8000, 0), (0, 0)),
+          rooms={'R1': ('L1', 6000, 5000, {})}, stairs={'ST1': stair(x=1500, y=1000, rotation=30_000_000)}))
+
+VAULT_R1 = {'kind': 'vaulted', 'height': 4500 * MM, 'ridge': [[0, 0], [6000 * MM, 2000 * MM]], 'pitch': HALF}
+
+
+def loft(ceiling=None, l1=None):
+    """L1: a living room R1 from x = 0 to 4500 mm with this ceiling, and R3 beyond; L2: only a loft R2 east of
+    x = 4250 mm, its west side a separator for its railing. Nothing of L2 is over the stair."""
+    lv = copy.deepcopy(LEVELS2)
+    lv['L1'].update(l1 or {})
+    return storeys(Draw('L1', 'D').walls((0, 0), (0, 4000), (4500, 4000), (6000, 4000), (6000, 0), (4500, 0), (0, 0))
+                   .walls((4500, 0), (4500, 4000)),
+                   Draw('L2', 'U').walls((4250, 4000), (6000, 4000), (6000, 0), (4250, 0)).seps((4250, 0), (4250, 4000)),
+                   rooms={'R1': ('L1', 2000, 2000, {'ceiling': ceiling} if ceiling else {}), 'R3': ('L1', 5200, 2000, {}),
+                          'R2': ('L2', 5000, 2000, {})},
+                   stairs={'ST1': stair()}, levels=lv)
+
+
+n('stairs', 'headroom-under-a-vault', 'A stair up to a loft, under the cathedral ceiling of the room it rises in: '
+  'the ridge runs from (0, 0) to (6000 mm, 2000 mm) at 4500 mm and falls 6 in 12, and L2 has nothing over the stair. '
+  'The lanes cross the ridge line - the ceiling\'s highest line - so it splits them; the least clearance is at the '
+  'head, at the stair\'s south side, where the vault is lowest: 4500 mm less half of 7600000 / sqrt(40000000) mm, '
+  'less 2700 mm, exact in one radicand and rounded once.', ['17.6.1', '15.3.2', '2.2.1'], loft(VAULT_R1))
+n('stairs', 'headroom-under-a-tray', 'The same stair under a tray ceiling at 3000 mm with a 500 mm border and its '
+  'centre 400 mm higher: the stair\'s north side, at y = 1050 mm, is under the centre from its foot to x = 3950 mm and '
+  'under the border beyond it, which splits that lane; its south side is under the border all the way. The least '
+  'clearance is at the head, under the border: 3000 mm less 2700 mm, 384000.', ['17.6.1', '15.4.2'],
+  loft({'kind': 'tray', 'height': 3000 * MM, 'border': 500 * MM, 'depth': 400 * MM}))
+
+WINDER_Q = {'kind': 'winder', 'turn': 'left', 'angle': 'quarter', 'risersBeforeTurn': 4, 'winders': 3}
+n('stairs', 'winder-quarter', 'A quarter-turn winder stair: 4 risers east, 3 winders in the 900 mm square at the '
+  'turn, and 7 straight treads north, to its head at (2200 mm, 2800 mm). Its rise, risers and box are derived - '
+  'the box spans its first flight, the square and its second flight - and its steps, run, walkline and headroom are '
+  'not: FS-LINT-016, an info.', ['17.1.1', '17.2.1', '17.4.3', '17.7.1', '17.7.2', '10.2.1'],
+  hall_house(x0=1000, x1=2800, y1=2800, form=WINDER_Q), WELL + [('FS-LINT-016', ['ST1'])])
+n('stairs', 'winder-half', 'A half-turn winder stair turning left with a 100 mm gap: 4 risers east from (1000 mm, '
+  '600 mm), 6 winders in the turn across both flights and the gap, then 5 straight treads west to its head at '
+  '(500 mm, 1600 mm). Its box spans x = 500 mm to 2650 mm and y = 150 mm to 2050 mm; FS-LINT-016.',
+  ['17.2.1', '17.4.3', '17.7.1'],
+  hall_house(x0=400, x1=2800, y1=2100, risers=15,
+             form={'kind': 'winder', 'turn': 'left', 'angle': 'half', 'risersBeforeTurn': 4, 'winders': 6,
+                   'gap': 100 * MM}), WELL + [('FS-LINT-016', ['ST1'])])
+SPIRAL = {'kind': 'spiral', 'turn': 'left', 'diameter': 1800 * MM, 'sweep': 270_000_000}
+n('stairs', 'spiral', 'A spiral stair 1800 mm across, 800 mm wide, turning left through 270 degrees from its first '
+  'nosing line at (2000 mm, 1000 mm): its centre is 500 mm to the left, at (2000 mm, 1500 mm), and its head is turned '
+  '270 degrees about it, to (1500 mm, 1500 mm), in the well. Its box is the square around its circle; its steps are '
+  'not derived (FS-LINT-016).', ['17.2.1', '17.4.3', '17.7.1', '17.7.2'],
+  hall_house(x0=1000, x1=3000, y1=2500, x=2000, y=1000, width=800, tread=220, risers=13, form=SPIRAL),
+  WELL + [('FS-LINT-016', ['ST1'])])
+n('stairs', 'spiral-turning-right', 'A spiral stair at 45 degrees turning right through 450 degrees - more than a '
+  'full turn: its centre is 500 mm to its right, and its head is its foot turned clockwise about the centre by '
+  '450 degrees: in the direction F(45000000) from it, 45 + 90 - 450 degrees taken in (-180, 180]. Both, and its box, '
+  'are irrational and rounded once. Its width '
+  'is exactly half its diameter, which 17.2.2 allows.', ['17.2.2', '17.4.3', '2.2.1'],
+  hall_house(x0=1500, x1=4000, y1=2500, x=2500, y=1500, width=900, tread=220, risers=17,
+             rotation=45_000_000, form={**SPIRAL, 'turn': 'right', 'diameter': 1800 * MM, 'sweep': 450_000_000}),
+  WELL + [('FS-LINT-016', ['ST1'])])
+d = hall_house(handrail={'height': 900 * MM, 'sides': 'both'}, rotation=0,
+               form={'kind': 'straight'})
+n('stairs', 'defaults-omitted', 'The straight stair written with every constant default - rotation 0, form '
+  '{"kind": "straight"} and a handrail\'s sides "both": the canonical form omits all three, and keeps the handrail\'s '
+  'height, which has no default.', ['9.2.1', '17.1.1'], d, WELL)
+
+# ---- invalid stairs
+n('stairs', 'to-own-level', 'A stair from L1 to L1. FS-INV-901; its rise and risers are not tested.', ['17.1.2', '10.3.1'],
+  hall_house(to='L1', risers=1), [('FS-INV-901', ['ST1'])])
+d = hall_house()
+d['buildings']['B2'] = {}
+d['levels']['L3'] = {'building': 'B2', 'elevation': 2700 * MM, 'height': 2700 * MM}
+d['stairs']['ST1']['to'] = 'L3'
+n('stairs', 'to-another-building', 'A stair from L1 of B1 to a level of B2 at the same elevation as L2: a stair\'s two '
+  'levels are in one building. FS-INV-901.', ['17.1.2', '10.2.1'], d, [('FS-INV-901', ['ST1'])])
+d = hall_house()
+d['stairs']['ST1'].update(level='L2', to='L1', position=[1000 * MM, 2000 * MM])
+n('stairs', 'to-a-level-below', 'A stair whose to is L1, below its level L2: its rise is -2700 mm. FS-INV-902.',
+  ['17.4.1', '10.2.1'], d, [('FS-INV-902', ['ST1'])])
+d = hall_house()
+d['levels']['L2']['elevation'] = 0
+n('stairs', 'rise-zero', 'L2 at L1\'s elevation: the stair\'s rise is exactly 0, which is not greater than zero. '
+  'FS-INV-902, and FS-INV-903 is not evaluated for it.', ['17.4.1', '10.3.1'], d, [('FS-INV-902', ['ST1'])])
+n('stairs', 'one-riser', 'A straight stair of 1 riser has no tread. FS-INV-903.', ['17.4.2'],
+  hall_house(risers=1), [('FS-INV-903', ['ST1'])])
+n('stairs', 'two-risers', 'A straight stair of 2 risers, each 1350 mm: valid - how tall a riser may be is a code\'s '
+  'to say, not Core\'s - with one tread.', ['17.4.2', '17.5.1'], hall_house(risers=2), WELL)
+n('stairs', 'max-riser-above-the-rise', 'A greatest riser taller than the whole rise: 1 riser is enough, and a '
+  'straight stair of 1 riser does not fit its form. FS-INV-903.', ['17.4.2', '17.4.3'],
+  hall_house(risers=None, maxRiser=3000 * MM), [('FS-INV-903', ['ST1'])])
+n('stairs', 'l-first-flight-of-one', 'An L whose first flight is 1 riser: it has no tread before the landing. '
+  'FS-INV-903.', ['17.4.2'], l_house(form={**L_FORM, 'risersBeforeTurn': 1}), [('FS-INV-903', ['ST1'])])
+n('stairs', 'l-second-flight-of-one', 'An L of 14 risers with 13 before the turn: its second flight is 1 riser. '
+  'FS-INV-903.', ['17.4.2'], l_house(form={**L_FORM, 'risersBeforeTurn': 13}), [('FS-INV-903', ['ST1'])])
+n('stairs', 'u-flights-of-two', 'A U of 4 risers, 2 before the turn: each flight has one tread, which fits.',
+  ['17.4.2'], hall_house(x0=1000, x1=3500, y1=2200, risers=4, form={**U_FORM, 'risersBeforeTurn': 2}), WELL)
+n('stairs', 'winder-too-few-risers', 'A quarter-turn winder of 6 risers with 4 before the turn and 3 winders: '
+  '4 + 3 is more than 6. FS-INV-903.', ['17.4.2'], hall_house(x0=1000, x1=2800, y1=2800, risers=6, form=WINDER_Q),
+  [('FS-INV-903', ['ST1'])])
+n('stairs', 'spiral-too-wide', 'A spiral stair 1800 mm across and 1000 mm wide: wider than its radius. FS-INV-904.',
+  ['17.2.2'], hall_house(x0=1000, x1=3000, y1=2500, x=2000, y=1000, width=1000, risers=13, form=SPIRAL),
+  [('FS-INV-904', ['ST1'])])
+d = hall_house(risers=1)
+d['rooms']['R2']['anchor'] = [3000 * MM, 0]
+n('stairs', 'room-invariants-first', 'A stair of 1 riser to L2, where R2\'s anchor is on a wall\'s location line '
+  '(FS-INV-201): the stair\'s rise is measured from the rooms\' floors, so FS-INV-902 and FS-INV-903 are not '
+  'evaluated for it.', ['10.3.1'], d, [('FS-INV-201', ['R2'])])
+d = hall_house()
+d['stairs']['ST1']['to'] = 'L9'
+n('stairs', 'to-unresolved', 'A stair whose to names no level: FS-INV-002, and no other invariant is evaluated.',
+  ['3.2.1', '10.3.1'], d, [('FS-INV-002', ['ST1'])])
+
+
+def sch(slug, description, covers, mut):
+    d = hall_house()
+    mut(d['stairs']['ST1'])
+    n('stairs', slug, description, covers, d, SCH)
+
+
+sch('risers-and-max-riser', 'A stair with both risers and maxRiser.', ['17.1.1'], lambda s: s.update(maxRiser=1))
+sch('neither-risers-nor-max-riser', 'A stair with neither risers nor maxRiser.', ['17.1.1'], lambda s: s.pop('risers'))
+sch('risers-zero', 'A stair of 0 risers: a riser count is from 1.', ['17.1.1'], lambda s: s.update(risers=0))
+sch('width-zero', 'A stair 0 wide.', ['17.1.1'], lambda s: s.update(width=0))
+sch('tread-missing', 'A stair without a tread.', ['17.1.1'], lambda s: s.pop('tread'))
+sch('to-missing', 'A stair without to.', ['17.1.1'], lambda s: s.pop('to'))
+sch('rotation-out-of-range', 'A rotation of -180000000: the range is (-180000000, 180000000].', ['17.1.1'],
+    lambda s: s.update(rotation=-180_000_000))
+sch('nosing-unknown', 'A stair has no "nosing" member in this draft.', ['17.1.1', '1.4.1'], lambda s: s.update(nosing=25 * MM))
+sch('handrail-without-height', 'A handrail with sides and no height.', ['17.1.1'],
+    lambda s: s.update(handrail={'sides': 'left'}))
+sch('form-unknown', 'A "curved" stair: a form is one of five.', ['17.2.1'], lambda s: s.update(form={'kind': 'curved'}))
+sch('l-without-turn', 'An L-shaped stair without its turn.', ['17.2.1'],
+    lambda s: s.update(form={'kind': 'lShaped', 'risersBeforeTurn': 7}))
+sch('l-with-gap', 'An L-shaped stair has no gap.', ['17.2.1'], lambda s: s.update(form={**L_FORM, 'gap': 0}))
+sch('quarter-winder-with-gap', 'A quarter-turn winder stair has no gap.', ['17.2.1'],
+    lambda s: s.update(form={**WINDER_Q, 'gap': 0}))
+sch('winders-zero', 'A winder stair of 0 winders.', ['17.2.1'], lambda s: s.update(form={**WINDER_Q, 'winders': 0}))
+sch('spiral-sweep-zero', 'A spiral stair that turns through 0.', ['17.2.1'], lambda s: s.update(form={**SPIRAL, 'sweep': 0}))
+sch('u-gap-negative', 'A U-shaped stair with a gap of -1.', ['17.2.1'], lambda s: s.update(form={**U_FORM, 'gap': -1}))
+d = copy.deepcopy(as_02('version-0.2-with-everything'))
+d['stairs'] = {'ST1': {'level': next(iter(d['levels'])), 'to': next(iter(d['levels'])), 'position': [0, 0],
+                       'width': 1, 'tread': 1, 'risers': 2}}
+n('stairs', '0.2-document-with-stairs', 'A document that declares "0.2" and has a stairs collection, which 0.3 adds: '
+  'Core 0.2\'s schema has none.', ['1.2.6', '1.1.2'], d, SCH)
+
+# ---- circulation through a stair (14.1)
+d = v3(cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+            plan(2, 1, {'LOFT': ((0, 0), 'living'), 'BED': ((1, 0), 'sleeping')}, doors=['UV10'], level='L2', p='U'),
+            levels=LEVELS2))
+d['stairs'] = {'ST1': stair(x=500)}
+n('circulation', 'stair-joins-two-levels', 'A hall with the front door on L1, and on L2 a loft - of function living, '
+  'not circulation - with a bedroom off it. A stair rises from the hall to the loft: its foot room and its head room '
+  'are linked, so the loft and the bedroom are reachable.', ['14.1.1', '14.3.1', '17.4.3'], d)
+d = v3(cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+            plan(2, 1, {'LAND': ((0, 0), 'circulation'), 'BED': ((1, 0), 'sleeping')}, windows=['UV10'], level='L2', p='U'),
+            levels=LEVELS2))
+d['stairs'] = {'ST1': stair(x=4500)}
+n('circulation', 'stair-replaces-circulation-rooms', 'A hall on L1 and a landing on L2, both of function '
+  'circulation, but the building\'s stair rises from the living room to the bedroom, and only a window joins the '
+  'bedroom to the landing. A building with a stair is joined across its levels by its stairs alone: the bedroom is '
+  'reachable, and the landing is not (FS-LINT-012), though both halls are circulation rooms.', ['14.1.1', '14.3.1'],
+  d, [('FS-LINT-012', ['LAND'])])
+d = v3(cdoc(plan(2, 1, {'HALL': ((0, 0), 'circulation'), 'LIV': ((1, 0), 'living')}, doors=['H00', 'V10']),
+            plan(2, 1, {'LAND': ((0, 0), 'circulation'), 'BED': ((1, 0), 'sleeping')}, doors=['UV10'], level='L2', p='U'),
+            levels=LEVELS2))
+d['stairs'] = {'ST1': stair(x=750)}
+n('circulation', 'stair-head-in-no-room', 'A stair from the hall whose head, at x = 4000 mm, is on the wall between '
+  'the landing and the bedroom - in neither room: it joins nothing, and the building has a stair, so the two '
+  'circulation rooms are not joined either. Both rooms on L2 are unreachable.', ['14.1.1', '17.4.3'],
+  d, [('FS-LINT-012', ['BED']), ('FS-LINT-012', ['LAND'])])
+
 NEW = list(TESTS)
 del TESTS[:]
 

@@ -211,6 +211,8 @@ class Evaluation:
             ids = sorted(doc.openings, key=k16)
         elif kind == 'level':
             ids = sorted(doc.levels, key=k16)
+        elif kind == 'stair':
+            ids = sorted(doc.stairs, key=k16)
         else:
             ids = sorted((e for e, (x, c, _) in ctx.ext.items()
                           if ('extension' not in a or x == a['extension']) and ('collection' not in a or c == a['collection'])), key=k16)
@@ -262,6 +264,9 @@ class Evaluation:
             return {'kind': 'polygon', 'outer': d['fallbacks'][t['id']]['footprint'], 'holes': []}
         if k == 'envelope':
             return {'kind': 'polygon', 'outer': d['clearances'][t['id']][t['envelope']]['footprint'], 'holes': []}
+        if k == 'stair':                                                  # 9.4: its box, in plan
+            (x0, y0, _), (x1, y1, _) = d['stairs'][t['id']]['box']['min'], d['stairs'][t['id']]['box']['max']
+            return {'kind': 'polygon', 'outer': [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 'holes': []}
         if k == 'wall':
             w = self.ctx.doc.walls[t['id']]
             ring = plane.least_first(self.ctx.level(w['level']).g.outline(t['id']))

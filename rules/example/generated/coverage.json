@@ -38,8 +38,8 @@
       "reviewed": 0,
       "rules": 1,
       "sections": {
-        "covered": 0,
-        "deferred": 1,
+        "covered": 1,
+        "deferred": 0,
         "notCovered": 0,
         "partial": 0
       },
@@ -134,19 +134,15 @@
       "declared": "addressed",
       "domain": "stairs",
       "edition": "2024",
-      "needs": [
-        "stairRiserHeight"
-      ],
+      "needs": [],
       "newestVerification": "2026-10-05",
-      "note": "Riser heights, written ahead of stair data in Core.",
+      "note": "Riser heights of every stair.",
       "oldestVerification": "2026-10-05",
       "pack": "example",
       "reviewed": 0,
       "rules": [
         {
-          "deferred": [
-            "stairRiserHeight"
-          ],
+          "deferred": [],
           "link": "https://example.org/test-code/2024/4.1",
           "pack": "example",
           "review": "unreviewed",
@@ -159,7 +155,7 @@
         }
       ],
       "section": "§4",
-      "status": "deferred",
+      "status": "covered",
       "version": "0.1.0"
     },
     {
@@ -223,9 +219,7 @@
       "verifiedOn": "2026-10-05"
     },
     {
-      "deferred": [
-        "stairRiserHeight"
-      ],
+      "deferred": [],
       "link": "https://example.org/test-code/2024/4.1",
       "pack": "example",
       "review": "unreviewed",

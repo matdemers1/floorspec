@@ -10,7 +10,7 @@ from 1) within 2^53 - 1.
 And, for Core 0.3, a door or window type's `operation` and `clearOpening` and an opening's
 `clearOpening` (8.4.2, 8.4.3); a level's `floorThickness` and `ceilingHeight` (1.8.4), a room's
 `floor` and `ceiling` (15.1.1, 15.2.1) and a slab's `purpose` (6.7.2); and the `roofs` collection
-(16.1.1).
+(16.1.1) and the `stairs` collection (17.1.1, 17.2.1).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2" or "0.3" (1.2.6).
@@ -475,6 +475,48 @@ class _Checker:
         if not isinstance(v, bool):
             self.bad(path, 'not a boolean')
 
+    # ---- Core 0.3: chapter 17
+    def stair(self, v, path):
+        if not self.obj(v, path):
+            return
+        count = self.integer(1, MAX_LEN)
+        self.members(v, path, {'level': self.ref, 'to': self.ref, 'position': self.point, 'rotation': self.rotation,
+                               'width': self.positive, 'tread': self.positive, 'risers': count,
+                               'maxRiser': self.positive, 'form': self.stair_form, 'handrail': self.handrail,
+                               **self.common()}, ('level', 'to', 'position', 'width', 'tread'))
+        if ('risers' in v) == ('maxRiser' in v):
+            self.bad(path, 'a stair has exactly one of risers and maxRiser')
+
+    def stair_form(self, v, path):
+        if not self.obj(v, path):
+            return
+        count = self.integer(1, MAX_LEN)
+        turn = self.enum('left', 'right')
+        kind = v.get('kind')
+        if kind == 'straight':
+            self.members(v, path, {'kind': self.any_value}, ('kind',))
+        elif kind == 'lShaped':
+            self.members(v, path, {'kind': self.any_value, 'turn': turn, 'risersBeforeTurn': count},
+                         ('kind', 'turn', 'risersBeforeTurn'))
+        elif kind == 'uShaped':
+            self.members(v, path, {'kind': self.any_value, 'turn': turn, 'risersBeforeTurn': count, 'gap': self.nonneg},
+                         ('kind', 'turn', 'risersBeforeTurn'))
+        elif kind == 'winder':
+            allowed = {'kind': self.any_value, 'turn': turn, 'angle': self.enum('quarter', 'half'),
+                       'risersBeforeTurn': count, 'winders': count}
+            if v.get('angle') == 'half':
+                allowed['gap'] = self.nonneg
+            self.members(v, path, allowed, ('kind', 'turn', 'angle', 'risersBeforeTurn', 'winders'))
+        elif kind == 'spiral':
+            self.members(v, path, {'kind': self.any_value, 'turn': turn, 'diameter': self.positive,
+                                   'sweep': self.integer(1, MAX_LEN)}, ('kind', 'turn', 'diameter', 'sweep'))
+        else:
+            self.bad(path, 'bad stair form')
+
+    def handrail(self, v, path):
+        if self.obj(v, path):
+            self.members(v, path, {'height': self.positive, 'sides': self.enum('left', 'right', 'both')}, ('height',))
+
     def type_(self, v, path):
         if not self.obj(v, path):
             return
@@ -597,6 +639,7 @@ class _Checker:
             'extensionsRequired': ext_required, 'extensions': self.top_extensions, 'extras': self.any_obj,
             **({'program': self.program} if self.v02 else {}),
             **({'roofs': self.collection(self.roof)} if self.v03 else {}),
+            **({'stairs': self.collection(self.stair)} if self.v03 else {}),
         }, ('floorspec', 'project'))
 
 

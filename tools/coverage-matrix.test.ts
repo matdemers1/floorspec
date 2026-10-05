@@ -26,9 +26,9 @@ const pack = {
   rules: {
     'A-1': R('§1.1', C('roomNetArea'), '2026-10-01', { by: 'An Architect', on: '2026-10-03', credential: 'Licensed architect (ME)' }),
     'A-2': R('§1.10', C('roomLeastWidth'), '2026-09-01'),
-    'B-1': R('§2.1', C('stairHeadroom'), '2026-10-02'),
+    'B-1': R('§2.1', C('travelDistance'), '2026-10-02'),
     'C-1': R('§3.1', C('roomNetArea'), '2026-10-04'),
-    'C-2': R('§3.2', C('stairWidth'), '2026-10-04'),
+    'C-2': R('§3.2', C('countertopReceptacleReach'), '2026-10-04'),
     'D-1': R('§5.1', C('roomNetArea'), '2026-10-04'),
     'E-1': R('§9', C('roomNetArea'), '2026-10-05'),
   },
@@ -46,7 +46,7 @@ const pack = {
       jurisdiction: 'Nowhere',
       synthetic: true,
       domains: [{ id: 'rooms', title: 'Rooms' }, { id: 'heights', title: 'Heights' }],
-      coverage: [{ domain: 'rooms' }, { domain: 'heights' }, { domain: 'rooms' }, { domain: 'rooms' }, { domain: 'rooms' }, { domain: 'heights', needs: ['stairHeadroom'] }],
+      coverage: [{ domain: 'rooms' }, { domain: 'heights' }, { domain: 'rooms' }, { domain: 'rooms' }, { domain: 'rooms' }, { domain: 'heights', needs: ['travelDistance'] }],
     },
   },
 };
@@ -58,13 +58,13 @@ test('status: covered, partial, deferred with the measure named, not covered', (
   assert.equal(row('§1').status, 'covered');
   assert.deepEqual(row('§1').rules.map((r) => r.rule), ['A-1', 'A-2']);
   assert.equal(row('§2').status, 'deferred');
-  assert.deepEqual(row('§2').needs, ['stairHeadroom']);
+  assert.deepEqual(row('§2').needs, ['travelDistance']);
   assert.equal(row('§3').status, 'partial');
-  assert.deepEqual(row('§3').needs, ['stairWidth']);
+  assert.deepEqual(row('§3').needs, ['countertopReceptacleReach']);
   assert.equal(row('§4').status, 'notCovered');
   assert.equal(row('§5').status, 'partial');
   assert.equal(row('§6').status, 'deferred');
-  assert.deepEqual(row('§6').needs, ['stairHeadroom']);
+  assert.deepEqual(row('§6').needs, ['travelDistance']);
 });
 
 test('a rule within no coverage entry still gets a row, declared "undeclared"', () => {
@@ -115,7 +115,7 @@ test('the Markdown carries the notice, every section and status, and never the a
   const md = matrixMarkdown(m, 'Coverage: synthetic');
   assert.match(md, /^# Coverage: synthetic\n/);
   assert.match(md, /They are not a plan review/);
-  assert.match(md, /\| §2 \| `synthetic` \| Heights \| deferred \(needs data\): `stairHeadroom` \|/);
+  assert.match(md, /\| §2 \| `synthetic` \| Heights \| deferred \(needs data\): `travelDistance` \|/);
   assert.match(md, /\| §4 \| `synthetic` \| Rooms \| not covered \|/);
   assert.match(md, /reviewed by An Architect \(Licensed architect \(ME\)\), 2026-10-03/);
   assert.match(md, /`synthetic\/A-2` Rule at §1.10 \| \[TEST-CODE 2024 §1.10\]\(https:\/\/example.org\/§1.10\) \| mayNotMeet \| 2026-09-01 \| Tests \| unreviewed \|/);

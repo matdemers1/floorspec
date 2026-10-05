@@ -24,6 +24,7 @@ class Profile:
         self.version = version
         self.reader = reader                    # how A and the result are validated (1.2 steps 1, 6)
         self.v02 = version in ('0.2', '0.3')    # the program and extension elements are elements (0.3)
+        self.v03 = version == '0.3'             # stairs are a collection (Core 0.3, chapter 17)
         # The Core drafts whose documents have them: those the reader implements, but 0.1 (Ops 0.3).
         self.element_drafts = reader.versions - {'0.1'}
         # The validator's known extensions (Core 12.2) and the official extensions it implements

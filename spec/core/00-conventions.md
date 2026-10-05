@@ -34,12 +34,12 @@ Floorspec Core 0.3 places requirements on these kinds of thing:
 
 | Class | What it is | What it must do |
 |---|---|---|
-| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15, 16) |
+| **Document** | a JSON text claiming to be Floorspec | satisfy every requirement on documents (chapters 1–8, 11–13, 15–17) |
 | **Reader** | software that loads documents | apply defaults and the version and extension rules (1.2, 1.5, 1.6, 12.1) |
 | **Writer** | software that produces documents | produce valid documents; preserve what it does not understand (1.6, 1.7) |
 | **Canonicalizer** | software that produces the canonical form | produce exactly the bytes of chapter 9 |
 | **Validator** | software that reports validity | report the diagnostics of chapter 10, given the known extensions it is configured with (12.2) |
-| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–16 |
+| **Deriver** | software that computes geometry | produce exactly the derived values of chapters 5–7 and 11–17 |
 | **Registry entry** | the metadata of one version of an extension (12.2) | match the registry entry schema |
 
 One program is usually several of these. The conformance suite tests each class separately; the
@@ -72,11 +72,9 @@ Informative: ISO 16739-1:2024 (IFC 4.3) and IFC4 ADD2 TC1, for the mapping in An
 
 Floorspec Core 0.2 added the program, the extension mechanism in full, hosting and clearance
 envelopes, and circulation to the walls-and-rooms draft (0.7), and Core 0.3 adds the operation and
-net clear opening of door and window types and the floors and ceilings of rooms (0.6). These are
+net clear opening of door and window types, the floors and ceilings of rooms, roofs and stairs (0.6). These are
 reserved for later drafts and a 0.3 document cannot contain them:
 
-- stairs (its collection, `stairs`, is a reserved name); until stairs are defined, circulation
-  joins the levels of a building through their rooms of function `circulation` (14.1);
 - the surface of a roof with sloped edges at different pitches, or of one with two or more sloped
   edges on an outline with an oblique edge (16.4.4), and a roof's footprint that follows its walls;
 - design options (`optionSets`, and option membership on elements);
@@ -93,6 +91,11 @@ reserved for later drafts and a 0.3 document cannot contain them:
 - edit operations, which are a separate specification, Floorspec Ops;
 - clearance envelopes of any shape but a box, and clearances on an element rather than its type
   for core kinds (13.5);
+- the steps, run, walkline and headroom of a winder or a spiral stair (17.7); a nosing's
+  projection and a riser's construction; a flight of a single riser (17.4.2); landings of any shape
+  but the square or the half landing of 17.3; and obstacles to headroom other than the floors and
+  ceilings of a stair's two levels — a flight over another, as in a U-shaped stair, and slabs
+  (17.6);
 - layout solving: generating a plan from a program is what tools do with a program, not what a
   program means (11.6).
 
@@ -129,12 +132,26 @@ And roofs (chapter 16):
 - the diagnostics `FS-INV-801` to `FS-INV-805` and `FS-LINT-015` (chapter 10), and the mapping of
   roofs to IFC4 (Annex A).
 
+And for stairs (chapter 17):
+
+- **stairs**, the `stairs` collection: straight, L-shaped, U-shaped, winder and spiral stairs between
+  two levels of a building, each with its riser count or greatest riser height, its tread, width
+  and handrail (17.1, 17.2); for every stair its foot and head rooms, rise, riser count and height
+  and box, and for a straight, L-shaped or U-shaped one its steps, run, walkline and headroom
+  (17.3–17.6);
+- in circulation, a stair joins the room at its foot to the room at its head, and a building with a
+  stair no longer joins its levels through rooms of function `circulation` (14.1);
+- the diagnostics `FS-INV-901` to `FS-INV-904` and `FS-LINT-016` (chapter 10), and the mapping of
+  stairs to IFC4 (Annex A).
+
 A 0.3 reader reads 0.1 and 0.2 documents as well (1.2.6). Every member 0.3 adds is optional, and
 its absence means that nothing is declared, or what an earlier draft assumed: a 0.2 document read
 as 0.3 means exactly what it meant. Its floors, ceilings and slabs are derived from the defaults —
 a floor at the level's elevation and a flat ceiling at the level's height, the elevations 0.2 gave
 a `surface` host — so every value 0.2 derived for it is unchanged, and what is new is only that
-its floors, ceilings and slabs are derived too.
+its floors, ceilings and slabs are derived too. It has no stair, so its door graph joins its levels
+through rooms of function `circulation` exactly as 0.2's did (14.1), and its derived `stairs`, like
+its `roofs`, are empty.
 
 Statements whose meaning changed were given new IDs, and their old IDs are retired, never reused:
 

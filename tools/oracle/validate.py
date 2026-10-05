@@ -18,7 +18,7 @@ from .derive import Doc, LevelGraph, degenerate, ext_elements, opening_points, r
 from .derive import derive as derive_all
 from .jsonparse import Malformed, parse
 from .circulation import circulation_lints, derive_circulation
-from . import floors, roofs
+from . import floors, roofs, stairs
 from .program import derive_program, program_invariants, program_lints
 from .surd import Surd
 
@@ -55,6 +55,7 @@ SEVERITY = {
     'FS-LINT-008': 'warning', 'FS-LINT-009': 'warning', 'FS-LINT-010': 'warning', 'FS-LINT-011': 'warning',
     'FS-LINT-012': 'warning', 'FS-LINT-013': 'warning', 'FS-LINT-014': 'warning',
     'FS-LINT-015': 'info',                                            # roofs (Core 0.3, 16.4)
+    'FS-LINT-016': 'info',                                            # stairs (Core 0.3, 17.7)
 }
 GLTF = {'model/gltf-binary', 'model/gltf+json'}
 SYMBOL = {'image/svg+xml', 'image/png'}
@@ -96,6 +97,8 @@ REF_TABLE = [
     ('roofs', ('level',), 'levels', None),                            # 16.1 (Core 0.3)
     ('roofs', ('material',), 'materials', None),
     ('materials', ('texture', 'asset'), 'assets', None),
+    ('stairs', ('level',), 'levels', None),                     # Core 0.3, 17.1
+    ('stairs', ('to',), 'levels', None),
 ]
 
 
@@ -711,6 +714,7 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
             ds.extend(clear_opening_tier(doc))
             ds.extend(floors.invariants(doc, bad_levels, bad_rooms, diag))
             ds.extend(roofs.invariants(doc, diag))
+            ds.extend(stairs.invariants(doc, bad_levels, bad_rooms, diag))
         if reader.v02:
             ds.extend(program_invariants(value, diag))
             ds.extend(extension_tier(value, known))
@@ -736,6 +740,8 @@ def check(data: bytes, reader: Reader = READER_01, registry: bytes | None = None
         derived.update(floors.derive(doc))
         derived.update(roofs.derive(doc))
         ds.extend(roofs.lints(doc, diag))
+        derived.update(stairs.derive(doc))
+        ds.extend(stairs.lints(doc, diag))
     if extensions is not None:
         from .ext import official as ext
         eds, derived['extensions'] = ext.finish(ext_ctxs)

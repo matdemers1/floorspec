@@ -46,7 +46,8 @@ applier is configured with; the conformance suite configures none.
 In this specification an **element** is any of the three kinds of thing that have an ID in a
 document's one space of IDs (Core §3.1.3):
 
-- an element of one of Core's twelve collections (Core §1.4) — eleven, and Core 0.3's `roofs`;
+- an element of one of Core's thirteen collections (Core §1.4) — eleven, and Core 0.3's `roofs` and
+  `stairs`;
 - a **program item** (Core §11.1), in the program's `items`;
 - an **extension element** (Core §12.5), in a collection of an extension's top-level data.
 
@@ -62,8 +63,9 @@ in one that declares `"0.1"` the program is not a member and top-level extension
 **From 0.2 to 0.3.** Ops 0.3 is a new draft, not an edit of 0.2. The text of Ops 0.2 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`6f9bc07` in the
 standard's repository); its schema is at `/floorspec/schema/ops/0.2/` and its suite at
-`conformance/ops/0.2/`, and neither changes. This draft's suite is at `conformance/ops/0.3/`, which
-holds every 0.2 test on the same documents, as well as the new ones.
+`conformance/ops/0.2/`, and neither changes. This draft's schema is at `/floorspec/schema/ops/0.3/`
+and its suite at `conformance/ops/0.3/`, which holds every 0.2 test on the same documents, as well
+as the new ones.
 
 What 0.3 adds:
 
@@ -87,15 +89,22 @@ What 0.3 adds:
   invariants — an edge out of range, a roof part flat, or one whose every edge is a gable rejects
   the batch with the Core diagnostic (1.2.3) — while a roof whose surface Core 0.3 does not derive
   only carries its lint;
+- **stairs** (Core chapter 17), Core 0.3's thirteenth collection: `addElement` adds one, minting
+  an ID with the prefix `ST` (1.5), and `stairs` is among `addElement`'s collections in
+  `schema/ops/0.3/` as `roofs` is (1.1.3); a stair depends on both its levels, so removing either
+  level takes the stair with it or is blocked by it (2.2); stairs come after roofs in the inverse's
+  order (1.6); and a batch sets and unsets a stair's members like any other's, judged by Core 0.3's
+  stair invariants (`FS-INV-901` to `FS-INV-904`, 1.2.3);
 - the text says what the oracle already did in four places — the IDs minting counts (1.5), a
   room member read only as an ID or a room name (3.3), `moveWall`'s `wall` never a separator
   (4.2), and a room on another level never beside a wall (4.2, 4.10) — each pinned by a test.
 
 Ops 0.3 adds no operation and changes no member of a request, so its requests have the shape of
 Ops 0.2's, and `schema/ops/0.3/request.schema.json` is Ops 0.2's with one difference: an
-`addElement` may name the collection `roofs` (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
+`addElement` may name the collection `roofs` or `stairs` (1.1). Applied to a document that declares `"0.2"` or `"0.1"`, a request commits or is
 rejected exactly as it was under Ops 0.2, unless its batch makes the document declare `"0.3"`: a
-0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did. No statement of
+0.2 or 0.1 document has no vaulted ceiling, so `moveRoom` expands for it as it did, and no roof or
+stair, so removing a level takes or is blocked by what it was. No statement of
 0.2 changed its meaning but one, which 0.3 retires; where a table or a list it refers to has grown —
 the steps of `moveRoom`, the collections, the minting prefixes, the removal table and the order of
 the inverse among them — the statement applies to what was added too.
@@ -145,7 +154,8 @@ of `$document`, the steps of a composite — the statement applies to what was a
 ## 0.5 Not in this draft
 
 Composite operations on roofs — a roof's footprint is plan points (Core §16.1), which `moveRoom`,
-`moveWall` and `resizeRoom` do not move — and operations on stairs and design options; references inside an extension's own members,
+`moveWall` and `resizeRoom` do not move — and on stairs — drawing one, or moving one with a room (a
+stair's `position` is a plan point, which `moveRoom` does not move) — and operations on design options; references inside an extension's own members,
 which core does not read and so no removal follows (an electrical circuit that names a device);
 an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); dimension locks
 other than the two of chapter 6; operations that edit several documents at once.

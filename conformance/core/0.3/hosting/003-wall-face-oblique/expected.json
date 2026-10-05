@@ -43,6 +43,7 @@
     "circulation": {},
     "floors": {},
     "roofs": {},
-    "slabs": {}
+    "slabs": {},
+    "stairs": {}
   }
 }

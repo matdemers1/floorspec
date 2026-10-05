@@ -1,7 +1,7 @@
 """The shape of an apply request (Ops 1.1): what FS-OPS-001 rejects, for each draft.
 
 Transcribed from chapters 1, 2, 4 and 6 of each draft, and kept in step with its schema
-(schema/ops/0.1, schema/ops/0.2): check-schema runs each schema over every test's request in its
+(schema/ops/0.1, schema/ops/0.2, schema/ops/0.3): check-schema runs each schema over every test's request in its
 suite, and must agree with this module on which requests are FS-OPS-001. Every object is closed;
 every operation has exactly the members its definition lists, exactly one member of each group of
 alternatives (ONE_OF), and a member allowed only beside another only with it (NEEDS).
@@ -32,11 +32,12 @@ from .version import OPS_01, Profile
 COLLECTIONS = ('buildings', 'levels', 'junctions', 'walls', 'separators', 'openings', 'rooms',
                'slabs', 'types', 'materials', 'assets')
 ROOFS = 'roofs'                                  # Ops 0.3: Core 0.3's twelfth collection (Core 16.1)
+STAIRS = 'stairs'                                # Ops 0.3: Core 0.3's thirteenth collection (Core 17.1)
 
 
 def collections(profile: Profile) -> tuple:
-    """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` too."""
-    return COLLECTIONS + ((ROOFS,) if profile.version == '0.3' else ())
+    """The collections of Core 1.1 an applier of this draft addresses: eleven, and from Ops 0.3 `roofs` and `stairs` too."""
+    return COLLECTIONS + ((ROOFS, STAIRS) if profile.version == '0.3' else ())
 SIDES = ('north', 'south', 'east', 'west')
 SURFACES = ('wall', 'floor', 'ceiling')
 ITEMS = 'items'                                  # Ops 0.2: the program's items, as addElement names them

@@ -60,3 +60,9 @@ for (const c of load('0.3').filter((x) => x.new03))
   test(`ops 0.2 request: ${c.name} is malformed, since only 0.3 has that form`, () => {
     assert.equal(validators['0.2']!(c.request), false);
   });
+
+test('ops 0.3 request: addElement into stairs, which Core 0.3 adds, is well formed in 0.3 and malformed in 0.2', () => {
+  const add = { batch: [{ op: 'addElement', collection: 'stairs', element: { level: 'L1' } }] };
+  assert.equal(validators['0.3']!(add), true, formatErrors(validators['0.3']!.errors ?? []).join('\n'));
+  assert.equal(validators['0.2']!(add), false);
+});

@@ -1,5 +1,0 @@
-{
-  "description": "Any document: the rule waits on stair data and is not evaluated.",
-  "outcome": "deferred",
-  "document": "rules-house"
-}
