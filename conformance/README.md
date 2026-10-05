@@ -492,7 +492,9 @@ implementation that knows the extension, by one that knows none, and by one that
 official entries), `activation` (when an extension is evaluated at all), `order` (Core first, then
 the extension's schema, then its invariants, lints only for a valid document), `schema`,
 `invariants`, `lints`, `derived` and `ops` (`…-move-a-wall-and-watch-them-follow`: the Phase 5 demo,
-where moving a wall leaves the devices' bytes unchanged and moves their derived placements).
+where moving a wall leaves the devices' bytes unchanged and moves their derived placements), and
+`options` (`…-element-in-an-option`: the demo house as a Core 0.3 document with one element in an
+option, which the extension's schema accepts with its `option` member).
 
 FS_furniture's suite starts from its own document, the Phase 8 demo flat (`examples/…-p8-demo-flat`):
 a kitchen with a refrigerator, a range, a dishwasher, cabinets, a pantry and a dining table with its

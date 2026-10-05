@@ -369,6 +369,19 @@ def shared(name):
     T('schema', 'length-with-a-fraction', 'A number written with a fraction is not an integer, even when it is a whole '
       'number.', ['1.3.1'], None, [(f'FS-{code}-SCH-001', [])],
       raw=(fmt(base()) + '\n').replace(FRACTION[name][0], FRACTION[name][1], 1).encode('utf-8'))
+    if name in EXTS:
+        c, eid = OPTION_ELEMENT[name]
+
+        def optioned(d):
+            d.update(floorspec='0.3', optionSets={'OS1': {'primary': 'OP1', 'name': 'Utility'}},
+                     options={'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}})
+            coll(d, name, c)[eid]['option'] = 'OP1'
+        T('options', 'element-in-an-option', f'The house as a Core 0.3 document with an option set: {eid} is in option A, '
+          f'the primary, and option B leaves it out (Core 19). {name}\'s data matches its schema with the element\'s '
+          f'`option` member - a Core member, checked by Core - and {name} is evaluated in each checked design: '
+          'valid, nothing reported, and the primary design derived.', ['1.2.1', '1.2.4', '1.3.1'], ed(optioned),
+          check=lambda r: ensure(name in r['derived']['extensions']
+                                 and r['derived']['options']['OS1']['options']['OP1']['members'] == [eid], r['derived']['options']))
 
 
 # what each suite's shared tests reach for
@@ -388,6 +401,7 @@ LINT = {ELEC: lambda d: coll(d, ELEC, 'panels')['X1'].pop('clearances'),
 FRACTION = {ELEC: ('"rating": 200', '"rating": 200.0'), PLMB: ('"capacity": 189000', '"capacity": 189000.0'),
             MECH: ('"airflow": 94000', '"airflow": 94000.0'), LOWV: ('"ports": 2', '"ports": 2.0')}
 DERIVE = {ELEC: '6.1.1', PLMB: '5.1.1', MECH: '5.1.1', LOWV: '5.1.1'}
+OPTION_ELEMENT = {ELEC: ('switches', 'X26'), PLMB: ('fixtures', 'X25'), MECH: ('terminals', 'X12'), LOWV: ('outlets', 'X16')}
 BASE = {x: demo for x in EXTS}
 HOUSE = {x: 'demo house' for x in EXTS}
 PHASE = {x: 'Phase 5 demo' for x in EXTS}
