@@ -724,8 +724,8 @@ def design_values(value: dict, reader: Reader, ext_ctxs, extensions):
         derived.update(derive_02(doc))
     if reader.v03:
         derived.update(floors.derive(doc))
-        derived.update(roofs.derive(doc))
-        ds.extend(roofs.lints(doc, diag))
+        derived.update(roofs.derive(doc, reader.v04))
+        ds.extend(roofs.lints(doc, diag, reader.v04))
         derived.update(stairs.derive(doc, reader.v04))
         ds.extend(stairs.lints(doc, diag, reader.v04))
         derived.update(finishes.derive(doc))                            # 18.6

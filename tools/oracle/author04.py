@@ -23,6 +23,7 @@ import re
 import sys
 
 import tools.oracle.author03 as v03                    # declares the 0.3 suite: v03.BASE + v03.NEW
+import tools.oracle.author04_roofs as roofs04          # roofs (16.4, 16.5): the weighted straight skeleton
 from tools.oracle.author03 import (HALLS, L_FORM, LEVELS2, SPIRAL, U_FORM, WELL, WINDER_Q, Draw, hall_house, lower,
                                    stair, storeys, upper)
 from tools.oracle.author_lib import MM, REPO, TESTS, _diag, cov, t, write_all
@@ -34,7 +35,7 @@ SCH = [('FS-SCH-001', [])]
 # ============================================================================= the 0.3 suite, re-targeted
 
 RETIRED = {'FS-CORE-1.2.5': 'FS-CORE-1.2.7', 'FS-CORE-1.2.6': 'FS-CORE-1.2.8', 'FS-CORE-17.7.1': 'FS-CORE-17.7.3',
-           'FS-CORE-17.7.2': None}
+           'FS-CORE-17.7.2': None, **roofs04.RETIRED}
 VERSION_TESTS = {
     # slug: (new floorspec value, new description)
     'version-is-a-number': (0.4, '"floorspec": 0.4 is a number, not the string "0.4". FS-DOC-001 applies only to a '
@@ -129,7 +130,7 @@ def retarget(tc):
         description, covers, diags = STEPPED[slug]
         tc['description'], tc['covers'], tc['diags'] = description, cov(*covers), [_diag(*x) for x in diags]
     tc['slug'] = SLUGS.get(slug, slug)
-    return tc
+    return roofs04.retarget(tc)
 
 
 SUITE03 = v03.BASE + v03.NEW
@@ -316,6 +317,8 @@ sch('newel-on-an-l-stair', 'An L-shaped stair has a landing, not a newel the tre
 sch('newel-on-a-spiral', 'A spiral stair\'s column is the space its treads leave: it has no newel member.',
     ['17.2.3', '17.2.1'], lambda s: s.update(form={**SPIRAL, 'newel': NEWEL}))
 sch('newel-on-a-u-stair', 'A U-shaped stair has no newel.', ['17.2.3'], lambda s: s.update(form={**U_FORM, 'newel': NEWEL}))
+
+roofs04.declare()
 
 NEW = list(TESTS)
 del TESTS[:]
