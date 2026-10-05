@@ -192,28 +192,37 @@ directories keep their numbers; the 0.1 suite is published and does not change.
 
 ## Floorspec Ops
 
-The Ops suite tests an **applier** (Ops 0.2): software that applies a batch of operations to a
+The Ops suites test an **applier** (Ops §0.2): software that applies a batch of operations to a
 document. A test gives it a document A and an apply request, and says what it must return.
+**Ops 0.2** (`ops/0.2/`) is the suite of the current text and the one `pnpm coverage` gates; it
+holds every Ops 0.1 test re-targeted to 0.2 (on the same Core 0.1 documents) and, after them in
+each group, the tests of what 0.2 adds. **Ops 0.1** (`ops/0.1/`) is kept exactly as published at
+`3bf4f35`.
 
 ```text
 conformance/
-  ops/0.1/<group>/<NNN-slug>/
+  ops/0.2/<group>/<NNN-slug>/
     test.json        what the test is and which FS-OPS statements it covers
     input.json       document A, byte for byte - valid, except in tests that expect FS-OPS-002
     request.json     the apply request (1.1): { "batch": [ … ], "context"?: { "locks"?, "retired"? } }
     expected.json    what a conformant applier returns
     output.json      B's canonical form (Core 9.2), byte for byte - present exactly when the batch commits
+  ops/0.1/…          the Ops 0.1 suite, as published; unchanged
 ```
 
 Groups: `transactions` (the request, the six steps, all or nothing, the result), `ids` (minting
 and named IDs), `primitives`, `references` (lengths, points, vectors, selectors, sides,
 positions), `composites`, `normalization` (merging, snap rounding, re-hosting, join cleanup),
-`locks`, `diagnostics` and `inverse`. The realistic edits an agent makes are here by name:
+`locks`, `diagnostics` and `inverse`, and in 0.2 `program` (program items, adjacencies, briefs,
+areas) and `hosting` (extension elements: placing, moving, removing, following their hosts, split
+walls). The realistic edits an agent makes are here by name:
 `composites/…-make-the-kitchen-two-feet-wider` (a resize whose side continues past the room, so
 it jogs), `…-make-the-dining-room-wider` (corner ends), `…-shrink-the-kitchen-from-the-south` (a T
 at the continuing end), `…-add-a-door-between-kitchen-and-dining`,
 `normalization/…-draw-a-wall-across-two-walls`, `…-drag-a-corner-onto-another`,
-`…-opening-rehosted` and `…-opening-straddles`.
+`…-opening-rehosted` and `…-opening-straddles`; and in 0.2 `program/…-draw-a-bubble-diagram`,
+`hosting/…-move-a-wall-and-watch-them-follow` (the Phase 5 demo), `…-split-a-wall-under-its-outlets`
+and `…-remove-a-wall-and-keep-the-furniture`.
 
 ### expected.json
 
@@ -248,22 +257,29 @@ committed batch - exactly output.json's bytes and the expected members above.
 ### How the suite is checked
 
 `python3.13 -m tools.oracle.regenerate` recomputes every Ops test from input.json and
-request.json with the oracle's applier (`tools/oracle/ops/`), cross-checks `status` and
+request.json with the oracle's applier (`tools/oracle/ops/`) - `ops/0.1` as Ops 0.1 applies it,
+`ops/0.2` as Ops 0.2 does - cross-checks `status` and
 `diagnostics` (written by hand, never rewritten), and compares `hash`, `created`, `removed`,
 `resolved`, `inverse` and output.json (which `--write` rewrites). For every committed test it
 also checks what the specification promises of any result: B is in canonical form (1.3.1);
 applying the batch again gives the same bytes (1.3.2); applying `resolved` to A in place of the
 batch, with the same context, commits the same B (1.4.1); and applying `inverse` to B commits a
-document whose canonical form is A's (1.6.1). `pnpm schema:check` applies the request schema
-(`schema/ops/0.1/`) to every request.json: it must reject exactly the requests whose expected
-diagnostics are `[FS-OPS-001]`, and accept every other; and every document A outside the
-FS-OPS-002 tests must match the Core schema.
+document whose canonical form is A's (1.6.1). `pnpm schema:check` applies each draft's request
+schema (`schema/ops/0.1/`, `schema/ops/0.2/`) to every request.json of its suite: it must reject
+exactly the requests whose expected diagnostics are `[FS-OPS-001]`, and accept every other; and
+every document A outside the FS-OPS-002 tests must match the Core schema of its draft (a document
+declaring `"0.1"` Core 0.1's). The Ops 0.2 suite assumes a validator configured with no known
+extensions (Core 0.2, 12.2).
 
-The tests are declared in `tools/oracle/ops_author.py`, with every expected status and diagnostic
-written by hand, and the values that matter - resolved integers, where a junction ends up, which
-wall an opening is on - asserted by hand in each test's `check`. `python3.13 -m tools.oracle.ops_author`
-rewrites the suite from it and fails if the oracle disagrees with a hand-written expectation.
-Add new tests at the end of their group, so existing directories keep their numbers.
+The tests are declared in `tools/oracle/ops_author.py` (Ops 0.1) and `tools/oracle/ops_author02.py`
+(Ops 0.2, which takes every 0.1 declaration and re-targets it before adding its own), with every
+expected status and diagnostic written by hand, and the values that matter - resolved integers,
+where a junction ends up, which wall an opening is on, that a hosted element derives the same
+placement - asserted by hand in each test's `check`. `python3.13 -m tools.oracle.ops_author` and
+`python3.13 -m tools.oracle.ops_author02` rewrite their suites and fail if the oracle disagrees
+with a hand-written expectation; CI runs every author script and fails if the suite on disk is not
+exactly what it declares. Add new tests at the end of their group in `ops_author02.py`, so existing
+directories keep their numbers; the 0.1 suite is published and does not change.
 
 The suite follows the 0.1 text where it settles what earlier drafts left open - the order of the
 checks (1.2, 7.1), one diagnostic per failing opening or lock (7.1.2), what `$document` addresses
