@@ -1,18 +1,17 @@
-"""Re-verify the whole conformance suite - Floorspec Core 0.1 and 0.2, Floorspec Ops 0.1 and 0.2,
+"""Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2 and 0.3, Floorspec Ops 0.1, 0.2 and 0.3,
 every official extension's suite (conformance/ext/<NAME>/<version>/) and Floorspec Rules 0.1
 (conformance/rules/0.1/, by tools/oracle/rules/suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
     python3.13 -m tools.oracle.regenerate --write    rewrite what the oracle computes (below)
 
-The Ops suites are verified by tools/oracle/ops/suite.py - conformance/ops/0.1 applied as Ops 0.1
-(as published) and conformance/ops/0.2 as Ops 0.2: status and diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
+The Ops suites are verified by tools/oracle/ops/suite.py - conformance/ops/<v> applied as Ops <v>: status and diagnostics are cross-checked, hash, created, removed, resolved, inverse and output.json are
 recomputed (and rewritten with --write), and every committed result is checked for 1.3.1, 1.3.2,
 1.4.1 and 1.6.1.
 
-For every test directory under conformance/core/0.1 - read as a Core 0.1 reader reads it - and
-under conformance/core/0.2 - read as a Core 0.2 reader, which also reads 0.1 documents (1.2.4),
-configured with the test's registry.json as its known extensions when the test has one (12.2) -
+For every test directory under conformance/core/<v> - read as a Core <v> reader reads it: 0.1
+alone; 0.2, which also reads 0.1 documents; 0.3, which also reads 0.1 and 0.2 documents (1.2.6) -
+configured with the test's registry.json as its known extensions when the test has one (12.2),
 it recomputes, from input.json (and registry.json) alone:
 
 - `valid` and `diagnostics` - these are written by hand and only ever cross-checked here; --write
@@ -32,11 +31,10 @@ import sys
 from .ops.suite import verify_all as verify_ops
 from .ops.version import PROFILES as OPS_VERSIONS
 from .report import dumps
-from .validate import READER_01, READER_02, check
+from .validate import READER_01, READER_02, READERS, check
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SUITES = {'0.1': (os.path.join(ROOT, 'conformance', 'core', '0.1'), READER_01),
-          '0.2': (os.path.join(ROOT, 'conformance', 'core', '0.2'), READER_02)}
+SUITES = {v: (os.path.join(ROOT, 'conformance', 'core', v), reader) for v, reader in READERS.items()}
 SUITE = SUITES['0.1'][0]
 
 
@@ -48,7 +46,8 @@ def test_dirs(suite=SUITE):
 
 def reader_for(path: str):
     """The reader and known extensions a test directory is checked with."""
-    reader = READER_02 if os.sep + os.path.join('core', '0.2') + os.sep in os.path.abspath(path) + os.sep else READER_01
+    where = os.path.abspath(path) + os.sep
+    reader = next((r for v, r in READERS.items() if os.sep + os.path.join('core', v) + os.sep in where), READER_01)
     registry = None
     rp = os.path.join(path, 'registry.json')
     if os.path.exists(rp):

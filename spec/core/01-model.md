@@ -38,27 +38,31 @@ top-level members; this is what lets a reader tell an unknown extension from a m
 The `floorspec` member declares the version of Floorspec Core the document targets, as
 `"<major>.<minor>"`. Patch releases of the specification are editorial and are not declared.
 
-A document that targets this draft MUST declare `"floorspec": "0.2"`. {#FS-CORE-1.2.3 MUST}
+A document that targets this draft MUST declare `"floorspec": "0.3"`. {#FS-CORE-1.2.5 MUST}
 
 A reader MUST reject a document that declares a version the reader does not implement, with the
 diagnostic `FS-DOC-001`. {#FS-CORE-1.2.2 MUST}
 
-A reader that implements this draft MUST also read a document that declares `"0.1"`: it MUST
-apply Core 0.1's schema to it at the schema tier, and otherwise read it as a 0.2 document in which
-every member that this draft adds is absent. {#FS-CORE-1.2.4 MUST}
+A reader that implements this draft MUST also read a document that declares `"0.1"` or `"0.2"`: it MUST apply the schema of the draft the document declares to it at the schema tier, and otherwise read it as a 0.3 document in which every member that a later draft than the one it declares adds is absent. {#FS-CORE-1.2.6 MUST}
 
-The members this draft adds are the top-level `program` (11.1), a room's `brief` (11.3), the
+The members 0.2 added are the top-level `program` (11.1), a room's `brief` (11.3), the
 declaration object in `extensionsUsed` (12.1), a door or window type's `clearances` (13.5) and the
-`collections` member of top-level extension data (12.5). Each is optional, and its absence means
-what a 0.1 document means without it: an empty program, a room that fulfils no program item, a
-version string, no clearances, and extension data that core does not look inside. So reading a 0.1
-document this way is exact: a document valid under 0.1, read by a validator configured with no
-known extensions (12.2), is valid under 0.2 with the same diagnostics, the same derived values
-(with nothing derived for a program, hosts or clearances), the same canonical form and the same
-content hash — except for circulation (chapter 14), which needs no new member: it is derived for
-the document's rooms, and its lints are reported when the plan has doors but no way in. In a 0.1 document, top-level extension data is opaque, as 0.1 says, even where it
-has a member named `collections`. Core 0.1's schema rejects every member 0.2 adds, so a document
-that declares `"0.1"` and uses one is invalid (`FS-SCH-001`).
+`collections` member of top-level extension data (12.5). The members 0.3 adds are a door or window
+type's `operation` and `clearOpening` (8.4) and an opening's `clearOpening` (7.1). Each is
+optional, and its absence means what a document of an earlier draft means without it: an empty
+program, a room that fulfils no program item, a version string, no clearances, extension data
+that core does not look inside, an operation that is not declared and no declared clear opening.
+So reading an earlier document this way is exact: a document valid under 0.2, read by a validator
+configured with the same known extensions (12.2), is valid under 0.3 with the same diagnostics,
+the same derived values, the same canonical form and the same content hash; and a document valid
+under 0.1, read by a validator configured with no known extensions, is valid under 0.3 with the
+same diagnostics, the same derived values (with nothing derived for a program, hosts, clearances
+or clear openings), the same canonical form and the same content hash — except for circulation
+(chapter 14), which needs no new member: it is derived for the document's rooms, and its lints
+are reported when the plan has doors but no way in. In a 0.1 document, top-level extension data is
+opaque, as 0.1 says, even where it has a member named `collections`. Core 0.1's schema rejects
+every member 0.2 and 0.3 add, and Core 0.2's every member 0.3 adds, so a document that declares
+`"0.1"` or `"0.2"` and uses one is invalid (`FS-SCH-001`).
 
 > [!note] Versioning policy
 > Floorspec follows Semantic Versioning. While the major version is 0, any draft may change

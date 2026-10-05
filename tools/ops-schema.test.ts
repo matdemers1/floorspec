@@ -17,7 +17,8 @@ interface Case {
   new?: boolean;
   request: unknown;
 }
-const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json' };
+// Ops 0.3's requests have Ops 0.2's shape (Ops 0.4), so the same cases hold for it.
+const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.2.json' };
 const load = (v: OpsVersion) => JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', FIXTURES[v]), 'utf8')) as Case[];
 const validators = Object.fromEntries(OPS_VERSIONS.map((v) => [v, requestValidator(undefined, v)]));
 

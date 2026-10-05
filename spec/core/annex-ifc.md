@@ -22,6 +22,9 @@ back can be reconciled element by element (FLR-ADR-012).
 | Separator | `IfcVirtualElement` | `IfcRelContainedInSpatialStructure`; `IfcRelSpaceBoundary` (`PhysicalOrVirtualBoundary` `VIRTUAL`) to the spaces either side |
 | Opening | `IfcOpeningElement` | `IfcRelVoidsElement` (wall → opening); an opening with a fill adds `IfcDoor` or `IfcWindow` and `IfcRelFillsElement` (opening → door or window) |
 | Door type, window type | `IfcDoorType`, `IfcWindowType` | `IfcRelDefinesByType` → the `IfcDoor` or `IfcWindow` |
+| Door type's `operation` | `IfcDoorType.OperationType` (`IfcDoorTypeOperationEnum`) | by name, below; `NOTDEFINED` when no operation is declared |
+| Window type's `operation` | `IfcWindowType.PartitioningType` (`IfcWindowTypePartitioningEnum`) and the `OperationType` of each `IfcWindowPanelProperties` (`IfcWindowPanelOperationEnum`) | by name, below; `NOTDEFINED` when no operation is declared |
+| Clear opening | — | no IFC4 attribute holds a declared net clear opening; it travels as the property set `Floorspec_ClearOpening` (`ClearWidth`, `ClearHeight`, `ClearArea`, converted to millimetres and square metres) on the `IfcDoorType` or `IfcWindowType`, and on the `IfcDoor` or `IfcWindow` of an opening that overrides it |
 | Room | `IfcSpace` (`PredefinedType` `INTERNAL`, or `EXTERNAL` for function `exterior`) | `IfcRelAggregates` (storey → space); `Name` = `name`; footprint = the derived room polygon; the room function as `Floorspec_Room.Function`; `IfcRelSpaceBoundary` to bounding walls and separators |
 | Room finishes | `IfcCovering` | `IfcRelCoversSpaces` (space → covering) for floor and ceiling finishes; `IfcRelCoversBldgElements` for a wall finish |
 | Slab | `IfcSlab` (`PredefinedType` `FLOOR`) | `IfcRelContainedInSpatialStructure`; body = `boundary` extruded down by `thickness` from the level's elevation plus `offset` |
@@ -38,3 +41,34 @@ back can be reconciled element by element (FLR-ADR-012).
 | Hosted element, `surface` | the element's entity | `IfcRelContainedInSpatialStructure` (space → element): the room's `IfcSpace` contains it |
 | Hosted element, `free` | the element's entity | `IfcRelContainedInSpatialStructure` (storey → element) |
 | Clearance envelope | — | not exported. Envelopes are derived from types and hosts, so an importer derives them again; exporting them as `IfcVirtualElement` would add elements with space-boundary semantics that IFC tools would treat as walls of a space |
+
+**Door operations.** The left or right of an IFC4 operation type is the hand IFC4 defines for it;
+an exporter takes it from the opening's `hinge` and `swing` (7.1), and writes the door's own
+`OperationType` on the `IfcDoor`.
+
+| Floorspec | `IfcDoorTypeOperationEnum` |
+|---|---|
+| `swing` | `SINGLE_SWING_LEFT` or `SINGLE_SWING_RIGHT` |
+| `doubleSwing` | `DOUBLE_DOOR_SINGLE_SWING` |
+| `doubleActing` | `DOUBLE_SWING_LEFT` or `DOUBLE_SWING_RIGHT` |
+| `bypassSlide` | `DOUBLE_DOOR_SLIDING` |
+| `pocket`, `surfaceSlide` | `SLIDING_TO_LEFT` or `SLIDING_TO_RIGHT` |
+| `bifold` | `FOLDING_TO_LEFT` or `FOLDING_TO_RIGHT` |
+| `overhead` | `USERDEFINED`, with `UserDefinedOperationType` `"overhead"` |
+| `cased` | `USERDEFINED`, with `UserDefinedOperationType` `"cased"` |
+
+**Window operations.** Core 0.3 records no casement's or tilt-turn's hand and no pivot's axis
+(8.4), so a core-only exporter writes `OTHEROPERATION` where the hand or the axis decides the
+value.
+
+| Floorspec | `IfcWindowTypePartitioningEnum` | Panels' `IfcWindowPanelOperationEnum` |
+|---|---|---|
+| `fixed` | `SINGLE_PANEL` | `FIXEDCASEMENT` |
+| `casement` | `SINGLE_PANEL` | `SIDEHUNGLEFTHAND` or `SIDEHUNGRIGHTHAND` |
+| `awning` | `SINGLE_PANEL` | `TOPHUNG` |
+| `hopper` | `SINGLE_PANEL` | `BOTTOMHUNG` |
+| `singleHung` | `DOUBLE_PANEL_HORIZONTAL` | `FIXEDCASEMENT` above, `SLIDINGVERTICAL` below |
+| `doubleHung` | `DOUBLE_PANEL_HORIZONTAL` | `SLIDINGVERTICAL`, both |
+| `horizontalSlider` | `DOUBLE_PANEL_VERTICAL` | `SLIDINGHORIZONTAL`, and `FIXEDCASEMENT` or `SLIDINGHORIZONTAL` |
+| `tiltTurn` | `SINGLE_PANEL` | `TILTANDTURNLEFTHAND` or `TILTANDTURNRIGHTHAND` |
+| `pivot` | `SINGLE_PANEL` | `PIVOTHORIZONTAL` or `PIVOTVERTICAL` |

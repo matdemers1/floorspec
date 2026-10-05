@@ -20,9 +20,9 @@ from .surd import Surd
 
 def ext_elements(d: dict):
     """Core 0.2, 12.5: (extension, collection, ID, element) for every extension element - only in a
-    document that declares 0.2 (1.2.4); in a 0.1 document, extension data is opaque."""
+    document that declares 0.2 or 0.3 (1.2.6); in a 0.1 document, extension data is opaque."""
     out = []
-    if d.get('floorspec') != '0.2':
+    if d.get('floorspec') not in ('0.2', '0.3'):
         return out
     for ext, data in d.get('extensions', {}).items():
         if isinstance(data, dict) and isinstance(data.get('collections'), dict):
@@ -108,6 +108,15 @@ class Doc:
         height = o.get('height', t.get('height'))
         sill = o.get('sill', t.get('sill', 0))
         return width, height, sill
+
+    # 7.2 / 8.2 (0.3): resolved whole - an opening's own replaces its type's
+    def clear_opening(self, oid):
+        """The effective clear opening, exactly as declared, or None."""
+        o = self.openings[oid]
+        if 'clearOpening' in o:
+            return o['clearOpening']
+        t = self.types.get(o['fill'], {}) if 'fill' in o else {}
+        return t.get('clearOpening')
 
     def join(self, jid):
         return self.junctions[jid].get('join', {'kind': 'mitre'})
@@ -453,5 +462,8 @@ def derive(doc: Doc) -> dict:
         sill_el = doc.base_elevation(o['wall']) + sill
         openings[oid] = {'start': list(rpoint(s)), 'end': list(rpoint(e)),
                          'sillElevation': sill_el, 'headElevation': sill_el + height}
+        clear = doc.clear_opening(oid)                                      # 7.4.2 (0.3): as declared
+        if clear is not None:
+            openings[oid]['clearOpening'] = {k: clear[k] for k in ('width', 'height', 'area') if k in clear}
     return {'walls': walls, 'junctionFills': fills, 'rooms': rooms, 'unanchored': unanchored,
             'openings': openings}

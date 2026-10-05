@@ -9,27 +9,34 @@ adjusted to match an implementation.
 
 ```text
 conformance/
-  core/0.2/<group>/<NNN-slug>/
+  core/0.3/<group>/<NNN-slug>/
     test.json        what the test is and which statements it covers
     input.json       the document under test, byte for byte (it may be malformed on purpose)
-    registry.json    optional: the validator's known extensions (Core 0.2, 12.2) - an array of registry entries
+    registry.json    optional: the validator's known extensions (Core 12.2) - an array of registry entries
     expected.json    what a conformant implementation reports and derives
     canonical.json   the canonical form (9.2) — present exactly when the input is valid
+  core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
   ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
 ```
 
-**Core 0.2** (`core/0.2/`) is the suite of the current spec text, and the one `pnpm coverage`
-gates it against. It holds every Core 0.1 test re-targeted to 0.2 — same group, same number,
-declaring `"0.2"`, covering `FS-CORE-1.2.3` and `FS-CORE-1.6.9` where the 0.1 test covered the
-retired `1.2.1` and `1.6.5` — and, after them in each group, the tests of what 0.2 adds. A 0.2
-reader also reads 0.1 documents (1.2.4), and `model/061-read-0.1-document` and the tests after it
-show that it reads them exactly as 0.1 does. **Core 0.1** (`core/0.1/`) is the suite of the
-published 0.1 text, kept as it was so that a 0.1 implementation can still be tested against it.
+**Core 0.3** (`core/0.3/`) is the suite of the current spec text, and the one `pnpm coverage`
+gates it against. It holds every Core 0.2 test re-targeted to 0.3 — same group, same number,
+declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
+it, and shows a 0.3 reader reading 0.1), covering `FS-CORE-1.2.5` and `FS-CORE-1.2.6` where the
+0.2 test covered the retired `1.2.3` and `1.2.4` — and, after them in each group, the tests of what
+0.3 adds: operations and clear openings. A 0.3 reader also reads 0.2 documents (1.2.6), and
+`model/070-read-0.2-document` shows that it reads one exactly as 0.2 does.
+
+**Core 0.2** (`core/0.2/`) and **Core 0.1** (`core/0.1/`) are the suites of the published 0.2 and
+0.1 texts, kept as they were so that an implementation of either can still be tested against it.
+The 0.2 suite holds every 0.1 test re-targeted to 0.2 and the tests of what 0.2 added; a 0.2
+reader also reads 0.1 documents, and its `model/061-read-0.1-document` and the tests after it show
+that it reads them exactly as 0.1 does.
 
 Groups follow the chapters: `model`, `units`, `identity`, `taxonomy`, `walls`, `joins`, `rooms`,
-`openings`, `types`, `serialization`, `diagnostics`, and in 0.2 `program`, `extensions`, `hosting`,
+`openings`, `types`, `serialization`, `diagnostics`, and from 0.2 `program`, `extensions`, `hosting`,
 `clearances` and `circulation`. `examples` holds whole, plausible models - `examples/001-three-room-house` is the
 Phase 1 exit demo.
 
@@ -108,7 +115,9 @@ are illustrative only.
 - `rooms` — every room: its room polygon (6.2) and net area (6.4).
 - `unanchored` — every bounded face with no anchor and a room polygon that is not degenerate,
   sorted by level ID and then by first vertex.
-- `openings` — every opening's derived placement (7.4).
+- `openings` — every opening's derived placement (7.4) and, from 0.3, its clear opening (7.4.2),
+  exactly as declared: `"clearOpening": { "width": …, "height": … }`, with `"area"` only when one is
+  declared, and no `clearOpening` member at all for an opening that resolves none.
 - A **ring** is an array of points that starts at its least vertex (least `x`, then least `y`)
   and runs counter-clockwise for an outer ring or a junction fill, clockwise for a hole. Holes
   are sorted by their first vertex.
@@ -177,7 +186,7 @@ python3.13 -m unittest discover tools/oracle   # the oracle's own tests
 python3.13 -m tools.oracle.author              # rewrite the suite from its declarations
 ```
 
-`regenerate` reads `core/0.1` as a Core 0.1 reader and `core/0.2` as a Core 0.2 reader, and
+`regenerate` reads `core/0.1` as a Core 0.1 reader, `core/0.2` as a Core 0.2 reader and `core/0.3` as a Core 0.3 reader, and
 recomputes every expected result from `input.json` (and `registry.json`) alone and compares it with what is on
 disk: `valid` and `diagnostics` (written by hand, so only ever cross-checked), `hash`, `derived` and
 `canonical.json` (which it can rewrite with `--write`). For every valid document it also checks that
@@ -186,42 +195,49 @@ the canonical form canonicalizes to itself and derives the same values and hash 
 The suite assumes a reader that implements no extension: a document whose `extensionsRequired`
 is well formed (distinct names, each in `extensionsUsed`) and not empty is rejected with
 `FS-DOC-002`, once for each name. It assumes a validator configured with no known extensions
-(Core 0.2, 12.2) except in a test that has a `registry.json`: there, the validator is configured
+(Core 12.2) except in a test that has a `registry.json`: there, the validator is configured
 with exactly the entries in it. A test that expects `[FS-CFG-001]` has known extensions that are
 not a valid registry, and a conformant validator reports that and nothing else, whatever the
 document.
 
-The tests are declared in `tools/oracle/author.py` (Core 0.1) and `tools/oracle/author02.py`
-(Core 0.2, which takes every 0.1 declaration and re-targets it before adding its own), with every
-expected diagnostic written by hand; `python3.13 -m tools.oracle.author` and
-`python3.13 -m tools.oracle.author02` rewrite their suites and fail if the oracle disagrees with a
-hand-written diagnostic. Add new tests at the end of their group in `author02.py`, so existing
-directories keep their numbers; the 0.1 suite is published and does not change.
+The tests are declared in `tools/oracle/author.py` (Core 0.1), `tools/oracle/author02.py` (Core
+0.2, which takes every 0.1 declaration and re-targets it before adding its own) and
+`tools/oracle/author03.py` (Core 0.3, which does the same with every 0.2 declaration), with every
+expected diagnostic written by hand; `python3.13 -m tools.oracle.author`, `…author02` and
+`…author03` rewrite their suites and fail if the oracle disagrees with a hand-written diagnostic.
+Add new tests at the end of their group in `author03.py`, so existing directories keep their
+numbers; the 0.1 and 0.2 suites are published and do not change.
 
 ## Floorspec Ops
 
 The Ops suites test an **applier** (Ops §0.2): software that applies a batch of operations to a
 document. A test gives it a document A and an apply request, and says what it must return.
-**Ops 0.2** (`ops/0.2/`) is the suite of the current text and the one `pnpm coverage` gates; it
-holds every Ops 0.1 test re-targeted to 0.2 (on the same Core 0.1 documents) and, after them in
-each group, the tests of what 0.2 adds. **Ops 0.1** (`ops/0.1/`) is kept exactly as published at
-`3bf4f35`.
+**Ops 0.3** (`ops/0.3/`) is the suite of the current text and the one `pnpm coverage` gates; it
+holds every Ops 0.2 test on the same documents (Ops 0.3 retires no statement), the five tests that
+pin what the text says as the oracle does - declared after 0.2 was published, and so first
+published with 0.3 - and, after them in each group, the tests of what 0.3 adds: Core 0.3
+documents, whose operations and clear openings a batch edits with `setProperty` and
+`unsetProperty`. **Ops 0.2** (`ops/0.2/`, which holds every Ops 0.1 test re-targeted to 0.2 and the
+tests of what 0.2 added) is kept exactly as published at `6f9bc07`, and **Ops 0.1** (`ops/0.1/`)
+exactly as published at `3bf4f35`. Ops 0.3's requests have Ops 0.2's shape: it has no request
+schema of its own, and its suite is checked against `schema/ops/0.2/`.
 
 ```text
 conformance/
-  ops/0.2/<group>/<NNN-slug>/
+  ops/0.3/<group>/<NNN-slug>/
     test.json        what the test is and which FS-OPS statements it covers
     input.json       document A, byte for byte - valid, except in tests that expect FS-OPS-002
     request.json     the apply request (1.1): { "batch": [ … ], "context"?: { "locks"?, "retired"? } }
     expected.json    what a conformant applier returns
     output.json      B's canonical form (Core 9.2), byte for byte - present exactly when the batch commits
+  ops/0.2/…          the Ops 0.2 suite, as published; unchanged
   ops/0.1/…          the Ops 0.1 suite, as published; unchanged
 ```
 
 Groups: `transactions` (the request, the six steps, all or nothing, the result), `ids` (minting
 and named IDs), `primitives`, `references` (lengths, points, vectors, selectors, sides,
 positions), `composites`, `normalization` (merging, snap rounding, re-hosting, join cleanup),
-`locks`, `diagnostics` and `inverse`, and in 0.2 `program` (program items, adjacencies, briefs,
+`locks`, `diagnostics` and `inverse`, and from 0.2 `program` (program items, adjacencies, briefs,
 areas) and `hosting` (extension elements: placing, moving, removing, following their hosts, split
 walls). The realistic edits an agent makes are here by name:
 `composites/…-make-the-kitchen-two-feet-wider` (a resize whose side continues past the room, so
@@ -266,28 +282,29 @@ committed batch - exactly output.json's bytes and the expected members above.
 
 `python3.13 -m tools.oracle.regenerate` recomputes every Ops test from input.json and
 request.json with the oracle's applier (`tools/oracle/ops/`) - `ops/0.1` as Ops 0.1 applies it,
-`ops/0.2` as Ops 0.2 does - cross-checks `status` and
+`ops/0.2` as Ops 0.2 does, `ops/0.3` as Ops 0.3 does - cross-checks `status` and
 `diagnostics` (written by hand, never rewritten), and compares `hash`, `created`, `removed`,
 `resolved`, `inverse` and output.json (which `--write` rewrites). For every committed test it
 also checks what the specification promises of any result: B is in canonical form (1.3.1);
 applying the batch again gives the same bytes (1.3.2); applying `resolved` to A in place of the
 batch, with the same context, commits the same B (1.4.1); and applying `inverse` to B commits a
 document whose canonical form is A's (1.6.1). `pnpm schema:check` applies each draft's request
-schema (`schema/ops/0.1/`, `schema/ops/0.2/`) to every request.json of its suite: it must reject
+schema (`schema/ops/0.1/`, `schema/ops/0.2/`, which is Ops 0.3's too) to every request.json of its suite: it must reject
 exactly the requests whose expected diagnostics are `[FS-OPS-001]`, and accept every other; and
 every document A outside the FS-OPS-002 tests must match the Core schema of its draft (a document
-declaring `"0.1"` Core 0.1's). The Ops 0.2 suite assumes a validator configured with no known
-extensions (Core 0.2, 12.2).
+declaring an earlier draft that draft's). The Ops 0.2 and 0.3 suites assume a validator
+configured with no known extensions (Core 12.2).
 
-The tests are declared in `tools/oracle/ops_author.py` (Ops 0.1) and `tools/oracle/ops_author02.py`
-(Ops 0.2, which takes every 0.1 declaration and re-targets it before adding its own), with every
+The tests are declared in `tools/oracle/ops_author.py` (Ops 0.1), `tools/oracle/ops_author02.py`
+(Ops 0.2, which takes every 0.1 declaration and re-targets it before adding its own) and
+`tools/oracle/ops_author03.py` (Ops 0.3, which carries every 0.2 declaration forward), with every
 expected status and diagnostic written by hand, and the values that matter - resolved integers,
 where a junction ends up, which wall an opening is on, that a hosted element derives the same
-placement - asserted by hand in each test's `check`. `python3.13 -m tools.oracle.ops_author` and
-`python3.13 -m tools.oracle.ops_author02` rewrite their suites and fail if the oracle disagrees
+placement - asserted by hand in each test's `check`. `python3.13 -m tools.oracle.ops_author`,
+`…ops_author02` and `…ops_author03` rewrite their suites and fail if the oracle disagrees
 with a hand-written expectation; CI runs every author script and fails if the suite on disk is not
-exactly what it declares. Add new tests at the end of their group in `ops_author02.py`, so existing
-directories keep their numbers; the 0.1 suite is published and does not change.
+exactly what it declares. Add new tests at the end of their group in `ops_author03.py`, so existing
+directories keep their numbers; the 0.1 and 0.2 suites are published and do not change.
 
 The suite follows the 0.1 text where it settles what earlier drafts left open - the order of the
 checks (1.2, 7.1), one diagnostic per failing opening or lock (7.1.2), what `$document` addresses
@@ -345,14 +362,14 @@ it in every valid test that evaluates it.
 The Rules suite, `rules/0.1/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
 packs against a document under a jurisdiction profile. It is run by an evaluator that implements the
 four official extensions at 0.1.0, configured with the test's `registry.json` as its known
-extensions - or with none, when the test has none - exactly as a Core 0.2 validator is. `pnpm
+extensions - or with none, when the test has none - exactly as a Core 0.3 validator is. `pnpm
 coverage` gates FS-RULES 0.1 against it.
 
 ```text
 conformance/
   rules/0.1/<group>/<NNN-slug>/
     test.json        what the test is and which FS-RULES statements it covers
-    input.json       the document (Core 0.2, with official extensions where the test needs them)
+    input.json       the document (Core 0.2, with official extensions where the test needs them; Core 0.3 where it needs clear openings)
     registry.json    optional: the evaluator's known extensions
     request.json     a report test: the evaluation request (Rules §1.1) - packs, profile, units
     measures.json    a measure test: { "units"?: …, "calls": [ { "target", "measure", "args"? }, … ] }
@@ -380,6 +397,10 @@ and the bedroom without a window), and the measure groups `measures-rooms`, `mea
 `measures-elements`, `measures-envelopes`, `measures-walllines` and `measures-circuits-and-levels`,
 built on one plan - **the rules house**: a bedroom, a living room and a utility room in a row, with a
 panel, a boiler, a smoke alarm and two receptacles - so that most values can be checked by hand.
+The net clear measures (Rules §6.5) are tested on the rules house as a Core 0.3 document whose door
+and window types declare their operation and clear opening (`measures-openings/…-net-clear-openings`,
+`selection/…-net-clear-escape-opening` and the tests after it). The official extensions at 0.1.0
+are evaluated only for a document that declares `"0.2"`, so those tests read no extension.
 
 The tests are declared in `tools/oracle/rules_author.py`, with every expected diagnostic and every
 expected finding (pack, rule, subject) written by hand, and every measure value that a reviewer can

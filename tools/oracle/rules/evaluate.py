@@ -10,7 +10,7 @@ from .. import canon, plane, registry as reg
 from ..derive import Doc
 from ..ext import official
 from ..jsonparse import Malformed, parse
-from ..validate import READER_02, check
+from ..validate import READER_03, check
 from . import display, structure
 from .context import Ctx
 from .measures import DEFERRED, MEASURES, a_coll, a_ext, a_function, compute, get, PURPOSES
@@ -171,7 +171,7 @@ class Evaluation:
             typ = m.type_of(args)
             r = {'type': typ, 'value': _json_value(typ, value), 'display': display.value(typ, value, self.ctx.units, args.get('unit'))}
             if m.involved:
-                r['involved'] = sorted(involved)
+                r['involved'] = sorted(involved, key=k16)                      # 9.7: UTF-16 code units
             self.cache[key] = (r, value)
         return self.cache[key]
 
@@ -281,8 +281,9 @@ class Evaluation:
             if s is not None and key not in drawn:
                 drawn.add(key)
                 shapes.append(s)
-        for i in involved:
-            kind = 'wall' if i in ctx.doc.walls else 'element' if i in ctx.ext else None
+        for i in involved:                                              # 9.4: every involved ID with a shape
+            kind = ('wall' if i in ctx.doc.walls else 'element' if i in ctx.ext else 'opening' if i in ctx.doc.openings
+                    else 'room' if i in ctx.doc.rooms else None)
             if kind is None or (kind, i, None) in drawn:
                 continue
             drawn.add((kind, i, None))
@@ -351,7 +352,7 @@ def _report(**members):
 
 
 def check_document(document: bytes, registry: bytes | None):
-    return check(document, READER_02, registry, official.implemented(*ALL_OFFICIAL))
+    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL))
 
 
 def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:

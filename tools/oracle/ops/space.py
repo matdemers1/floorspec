@@ -28,13 +28,15 @@ def isd(v) -> bool:
     return isinstance(v, dict)
 
 
-def declares_02(doc: dict) -> bool:
-    return doc.get('floorspec') == '0.2'
+def declares_02(doc: dict, profile: Profile) -> bool:
+    """Whether the document declares a Core draft that has program items and extension elements -
+    "0.2", or under Ops 0.3 "0.2" or "0.3"."""
+    return doc.get('floorspec') in profile.element_drafts
 
 
 def items(doc: dict, profile: Profile) -> dict:
     """The program's items, or {} where there are none to address."""
-    if not (profile.v02 and declares_02(doc)):
+    if not (profile.v02 and declares_02(doc, profile)):
         return {}
     program = doc.get('program')
     its = program.get('items') if isd(program) else None
@@ -44,7 +46,7 @@ def items(doc: dict, profile: Profile) -> dict:
 def ext_collections(doc: dict, profile: Profile):
     """(extension, collection name, collection) for every extension collection, by extension name and
     then collection name."""
-    if not (profile.v02 and declares_02(doc)):
+    if not (profile.v02 and declares_02(doc, profile)):
         return []
     out = []
     exts = doc.get('extensions')
@@ -66,7 +68,7 @@ def places(doc: dict, profile: Profile):
     """(place, container) for every place an element can be, in a fixed order: the eleven
     collections, the program's items, then the extension collections."""
     out = [((c,), coll(doc, c)) for c in COLLECTIONS]
-    if profile.v02 and declares_02(doc):
+    if profile.v02 and declares_02(doc, profile):
         out.append(((ITEMS,), items(doc, profile)))
         out.extend(((EXT, x, c), coll_) for x, c, coll_ in ext_collections(doc, profile))
     return out

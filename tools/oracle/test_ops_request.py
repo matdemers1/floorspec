@@ -10,7 +10,7 @@ import unittest
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.errors import OpsError
 from tools.oracle.ops.request import check_request
-from tools.oracle.ops.version import OPS_01, OPS_02
+from tools.oracle.ops.version import OPS_01, OPS_02, OPS_03
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', 'fixtures')
 
@@ -39,6 +39,12 @@ class RequestTest(unittest.TestCase):
         for c in load('ops-requests-0.2.json'):
             with self.subTest(c['name']):
                 self.assertEqual(malformed(c['request'], OPS_02), c['malformed'])
+
+    def test_fixture_02_holds_for_03(self):
+        """Ops 0.3 adds no operation and no member: its requests have Ops 0.2's shape (Ops 0.4)."""
+        for c in load('ops-requests-0.2.json'):
+            with self.subTest(c['name']):
+                self.assertEqual(malformed(c['request'], OPS_03), c['malformed'])
 
     def test_02_forms_are_malformed_in_01(self):
         for c in load('ops-requests-0.2.json'):

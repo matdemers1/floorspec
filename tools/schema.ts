@@ -1,7 +1,7 @@
 /**
  * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
- * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1 and
- * 0.2), Floorspec Ops's apply-request schemas for each draft (0.1 and 0.2), whose rejections are
+ * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1, 0.2
+ * and 0.3), Floorspec Ops's apply-request schemas (0.1 and 0.2; Ops 0.3 uses 0.2's), whose rejections are
  * FS-OPS-001, and the registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its
  * tests.
  */
@@ -10,10 +10,10 @@ import { join, relative } from 'node:path';
 import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js';
 
 /** The Core drafts this repository publishes, oldest first. */
-export const CORE_VERSIONS = ['0.1', '0.2'] as const;
+export const CORE_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type CoreVersion = (typeof CORE_VERSIONS)[number];
 /** The draft the spec text in spec/core/ is. */
-export const CURRENT_CORE: CoreVersion = '0.2';
+export const CURRENT_CORE: CoreVersion = '0.3';
 
 export const coreSchemaBase = (v: CoreVersion) => `https://d3cloud.io/floorspec/schema/core/${v}/`;
 export const coreRootId = (v: CoreVersion) => `${coreSchemaBase(v)}floorspec.schema.json`;
@@ -27,16 +27,21 @@ export const REGISTRY_ID = 'https://d3cloud.io/floorspec/schema/registry/0.1/ext
 export const registrySchemaDir = join(import.meta.dirname, '..', 'schema', 'registry', '0.1');
 
 /** The Ops drafts this repository publishes, oldest first. */
-export const OPS_VERSIONS = ['0.1', '0.2'] as const;
+export const OPS_VERSIONS = ['0.1', '0.2', '0.3'] as const;
 export type OpsVersion = (typeof OPS_VERSIONS)[number];
 /** The draft the spec text in spec/ops/ is. */
-export const CURRENT_OPS: OpsVersion = '0.2';
+export const CURRENT_OPS: OpsVersion = '0.3';
 /** The Core draft each Ops draft operates on: its document A is valid under that draft's reader. */
-export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2' };
+export const OPS_CORE: Record<OpsVersion, CoreVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.3' };
+/** The Ops request schemas, schema/ops/<v>/, oldest first. */
+export const OPS_SCHEMA_VERSIONS = ['0.1', '0.2'] as const;
+export type OpsSchemaVersion = (typeof OPS_SCHEMA_VERSIONS)[number];
+/** The request schema each Ops draft's requests match: Ops 0.3 adds no operation and no member (Ops 0.4), so it has 0.2's. */
+export const OPS_SCHEMA: Record<OpsVersion, OpsSchemaVersion> = { '0.1': '0.1', '0.2': '0.2', '0.3': '0.2' };
 
-export const opsSchemaBase = (v: OpsVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
-export const opsRootId = (v: OpsVersion) => `${opsSchemaBase(v)}request.schema.json`;
-export const opsSchemaDirOf = (v: OpsVersion) => join(import.meta.dirname, '..', 'schema', 'ops', v);
+export const opsSchemaBase = (v: OpsSchemaVersion) => `https://d3cloud.io/floorspec/schema/ops/${v}/`;
+export const opsRootId = (v: OpsSchemaVersion) => `${opsSchemaBase(v)}request.schema.json`;
+export const opsSchemaDirOf = (v: OpsSchemaVersion) => join(import.meta.dirname, '..', 'schema', 'ops', v);
 
 export const OPS_SCHEMA_BASE = opsSchemaBase('0.1');
 export const OPS_ROOT_ID = opsRootId('0.1');
@@ -97,14 +102,23 @@ export function registryValidator(ajv = createAjv(loadSchemaFiles(registrySchema
 }
 
 /**
- * The schema tier of a reader of Core 0.2 (FS-CORE-1.2.4): a document that declares "0.1" is
- * checked against Core 0.1's schema, and every other document against 0.2's.
+ * The schema tier of a reader of one Core draft (by default the newest of `validators`), which reads
+ * every earlier draft too (FS-CORE-1.2.6 of 0.3, 1.2.4 of 0.2): a document that declares a draft
+ * the reader implements is checked against that draft's schema, and every other document against
+ * the reader's own.
  */
-export function versionedValidator(validators: Record<CoreVersion, ValidateFunction>): ValidateFunction {
-  const pick = (doc: unknown) =>
-    doc !== null && typeof doc === 'object' && !Array.isArray(doc) && (doc as Record<string, unknown>).floorspec === '0.1'
-      ? validators['0.1']
-      : validators['0.2'];
+export function versionedValidator(
+  validators: Partial<Record<CoreVersion, ValidateFunction>>,
+  reader: CoreVersion = CORE_VERSIONS.filter((v) => validators[v]).at(-1)!,
+): ValidateFunction {
+  const implemented = CORE_VERSIONS.slice(0, CORE_VERSIONS.indexOf(reader) + 1);
+  const pick = (doc: unknown) => {
+    const declared = doc !== null && typeof doc === 'object' && !Array.isArray(doc) ? (doc as Record<string, unknown>).floorspec : undefined;
+    const v = implemented.find((x) => x === declared) ?? reader;
+    const f = validators[v];
+    if (!f) throw new Error(`no validator for Core ${v}`);
+    return f;
+  };
   const f = ((doc: unknown) => {
     const v = pick(doc);
     const ok = v(doc) as boolean;
@@ -114,10 +128,10 @@ export function versionedValidator(validators: Record<CoreVersion, ValidateFunct
   return f;
 }
 
-/** The validator of a Floorspec Ops apply request, of one draft (0.1 by default). */
+/** The validator of a Floorspec Ops apply request, of one draft (0.1 by default), with that draft's request schema. */
 export function requestValidator(ajv?: Ajv2020, v: OpsVersion = '0.1'): ValidateFunction {
-  const id = opsRootId(v);
-  const validate = (ajv ?? createAjv(loadSchemaFiles(opsSchemaDirOf(v)))).getSchema(id);
+  const id = opsRootId(OPS_SCHEMA[v]);
+  const validate = (ajv ?? createAjv(loadSchemaFiles(opsSchemaDirOf(OPS_SCHEMA[v])))).getSchema(id);
   if (!validate) throw new Error(`schema ${id} is not loaded`);
   return validate;
 }
