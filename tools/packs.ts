@@ -19,7 +19,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import type { ValidateFunction } from 'ajv/dist/2020.js';
-import { createAjv, formatErrors, hasDuplicateMember, loadSchemaFiles, rulesId, rulesSchemaDir, type Json } from './schema.ts';
+import { CURRENT_RULES, createAjv, formatErrors, hasDuplicateMember, loadSchemaFiles, rulesId, rulesSchemaDir, type Json, type RulesVersion } from './schema.ts';
 
 export const REPO = join(import.meta.dirname, '..');
 export const RULES_DIR = join(REPO, 'rules');
@@ -29,7 +29,7 @@ export const CERTIFICATION = 'original-paraphrase-v1';
 type Obj = { [key: string]: Json };
 
 export interface Manifest {
-  floorspecRules: '0.1';
+  floorspecRules: RulesVersion;
   name: string;
   version: string;
   title: string;
@@ -155,9 +155,9 @@ export interface FormatValidators {
 let cached: FormatValidators | undefined;
 export function formatValidators(): FormatValidators {
   if (cached) return cached;
-  const ajv = createAjv(loadSchemaFiles(rulesSchemaDir('0.1')));
+  const ajv = createAjv(loadSchemaFiles(rulesSchemaDir(CURRENT_RULES)));
   const get = (name: string) => {
-    const f = ajv.getSchema(rulesId('0.1', name));
+    const f = ajv.getSchema(rulesId(CURRENT_RULES, name));
     if (!f) throw new Error(`schema ${name} is not loaded`);
     return f;
   };

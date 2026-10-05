@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 import { matrixOutputs, writeOrCheck, type MatrixOutput } from './coverage-matrix.ts';
 import { failing, formatFinding, lintContext, lintPack, lintRepository } from './lint-rules.ts';
 import { buildPack, canonicalJson, formatValidators, loadPack, officialRegistry, packDirs, REPO, RULES_DIR, type Fixture, type PackSource, type RuleSource } from './packs.ts';
-import { formatErrors, type Json } from './schema.ts';
+import { CURRENT_RULES, formatErrors, type Json } from './schema.ts';
 
 export interface FixtureCase {
   pack: string;
@@ -52,10 +52,10 @@ export function fixtureCases(src: PackSource, built: Json, registry = officialRe
         fixture: f,
         registry: known.filter((x) => registry.has(x)).map((x) => registry.get(x)!),
         request: {
-          floorspecRules: '0.1',
+          floorspecRules: CURRENT_RULES,
           packs: [built],
           profile: {
-            floorspecRules: '0.1',
+            floorspecRules: CURRENT_RULES,
             name: `Fixture profile: ${r.rule.citation.code} ${r.rule.citation.edition}`,
             adopts: [{ code: r.rule.citation.code, edition: r.rule.citation.edition }],
           },

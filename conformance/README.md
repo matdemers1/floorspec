@@ -572,15 +572,24 @@ its schema's `#/$defs/coreElements`.
 
 ## Floorspec Rules
 
-The Rules suite, `rules/0.1/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
+The Rules suite, `rules/0.2/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
 packs against a document under a jurisdiction profile. It is run by an evaluator that implements the
 official extensions at 0.1.0 (FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage and FS_furniture), configured with the test's `registry.json` as its known
-extensions - or with none, when the test has none - exactly as a Core 0.3 validator is. `pnpm
-coverage` gates FS-RULES 0.1 against it.
+extensions - or with none, when the test has none - exactly as a Core 0.4 validator is. `pnpm
+coverage` gates FS-RULES 0.2 against it. It holds every test of `rules/0.1/` - the suite of Rules 0.1,
+kept as it was published at `8a99d02` and run by an evaluator of 0.1 reading documents as Core 0.3
+does - carried forward on the same documents, its requests, packs and profiles declaring `"0.2"`
+(the two tests of a draft the evaluator does not implement now name `"0.3"`), and the tests of what 0.2
+adds: `stairForm`, `stairWalklineGoing` and `stairNarrowGoing` on winder and spiral stairs of Core 0.4
+documents (`measures-stairs/…-winder-measures` and after), synthetic rules on them, and a request and a
+pack of Rules 0.1, which an evaluator of 0.2 reads as it reads any other draft's: not at all. Under 0.2
+a spiral stair has a headroom Core 0.4 derives, so the two 0.1 tests on the rules house's stairs
+measure it. The tests are declared in `tools/oracle/rules_author.py` (0.1) and
+`tools/oracle/rules_author02.py` (0.2, which carries every 0.1 declaration forward).
 
 ```text
 conformance/
-  rules/0.1/<group>/<NNN-slug>/
+  rules/0.2/<group>/<NNN-slug>/
     test.json        what the test is and which FS-RULES statements it covers
     input.json       the document (Core 0.2, with official extensions where the test needs them; Core 0.3 where it needs clear openings)
     registry.json    optional: the evaluator's known extensions

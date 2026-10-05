@@ -17,7 +17,7 @@ const ev = (rule: string, subjects = 1, findings = 0) => ({ pack: 'example', rul
 const finding = (rule: string, id: string) => ({ pack: 'example', rule, subject: { id } });
 
 test('each fixture is a request for the built pack under a profile adopting the rule\'s cited edition', () => {
-  assert.equal(cases.length, 6);
+  assert.equal(cases.length, 18);
   const c = find('SMOKE-ALARM', 'pass');
   const req = c.request as { packs: { name: string }[]; profile: { adopts: unknown[] } };
   assert.equal(req.packs[0]!.name, 'example');

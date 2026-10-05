@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import re
 
+from . import draft
+
 MAXI = 2 ** 53 - 1
 SEMVER = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?"
 _CMP = r"(>=|>|<=|<|=|\^|~)?" + SEMVER
@@ -138,7 +140,7 @@ def pack(v) -> bool:
     if not _obj(v, ('floorspecRules', 'name', 'version', 'title', 'license', 'rules'),
                 ('floorspecRules', 'name', 'version', 'title', 'license', 'description', 'rules', 'coverage', 'extras')):
         return False
-    return (v['floorspecRules'] == '0.1' and _str(v['name'], PACK_NAME, hi=64) and _str(v['version'], SEMVER)
+    return (v['floorspecRules'] == draft.current() and _str(v['name'], PACK_NAME, hi=64) and _str(v['version'], SEMVER)
             and title(v['title']) and v['license'] == 'CC-BY-4.0' and ('description' not in v or text(v['description']))
             and isinstance(v['rules'], dict) and all(_str(k, ID) and rule(r) for k, r in v['rules'].items())
             and ('coverage' not in v or (isinstance(v['coverage'], list) and all(coverage_entry(c) for c in v['coverage'])))
@@ -160,7 +162,7 @@ def profile(v) -> bool:
     if not _obj(v, ('floorspecRules', 'name', 'adopts'),
                 ('floorspecRules', 'name', 'jurisdiction', 'adopts', 'asOf', 'packs', 'amendments', 'extras')):
         return False
-    if not (v['floorspecRules'] == '0.1' and title(v['name']) and ('jurisdiction' not in v or title(v['jurisdiction']))
+    if not (v['floorspecRules'] == draft.current() and title(v['name']) and ('jurisdiction' not in v or title(v['jurisdiction']))
             and ('asOf' not in v or _str(v['asOf'], DATE)) and ('extras' not in v or isinstance(v['extras'], dict))):
         return False
     if not (isinstance(v['adopts'], list) and all(
@@ -208,7 +210,7 @@ def profile_ok(v) -> bool:
 
 def request(v) -> bool:
     return (_obj(v, ('floorspecRules', 'packs'), ('floorspecRules', 'packs', 'profile', 'units', 'design'))
-            and v['floorspecRules'] == '0.1' and isinstance(v['packs'], list)
+            and v['floorspecRules'] == draft.current() and isinstance(v['packs'], list)
             and ('units' not in v or v['units'] in ('imperial', 'metric'))
             and ('design' not in v or (isinstance(v['design'], dict)                    # 1.1: Core 19.6
                                        and all(isinstance(o, str) for o in v['design'].values()))))

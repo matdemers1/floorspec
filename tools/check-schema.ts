@@ -43,6 +43,7 @@ import {
   checkRulesSuite,
   defaultProfile,
   extensionSchemas,
+  RULES_CORE,
   RULES_VERSIONS,
   rulesSchemaDir,
   rulesValidators,
@@ -161,9 +162,10 @@ for (const x of extensionSchemas(root)) {
 // 6. Floorspec Rules: its schemas, the default profile of 10.6, and its suite.
 for (const v of RULES_VERSIONS) {
   const rv = rulesValidators(compile(`rules/${v}`, loadSchemaFiles(rulesSchemaDir(v))), v);
-  const profile0 = defaultProfile(root);
+  // The spec text is the current draft's; an earlier draft's default profile is the same, declaring it.
+  const profile0 = { ...(defaultProfile(root) as Record<string, unknown>), floorspecRules: v };
   if (!rv.profile(profile0)) problems.push(`spec/rules/10-profiles.md: the default profile does not match the profile schema:\n    ${formatErrors(rv.profile.errors ?? []).join('\n    ')}`);
-  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, '0.3'), registry, profile0, root);
+  const rules = checkRulesSuite(join(root, 'conformance', 'rules', v), rv, versionedValidator(cores, RULES_CORE[v]), registry, profile0, root);
   problems.push(...rules.problems);
   console.log(`schema: rules/${v}: ${rules.checked} conformance tests checked against the request, profile, pack, report and Core schemas`);
 }

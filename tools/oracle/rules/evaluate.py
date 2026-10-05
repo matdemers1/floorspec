@@ -1,5 +1,6 @@
-"""The evaluator of Floorspec Rules 0.1 (spec/rules): a request, a document and the known extensions
-in; the report of chapter 9 out, as bytes (9.8). The steps are those of 1.3, in order."""
+"""The evaluator of Floorspec Rules 0.1 and 0.2 (spec/rules): a request, a document and the known
+extensions in; the report of chapter 9 out, as bytes (9.8). The steps are those of 1.3, in order. The
+draft is chosen per call (draft.py): 0.1 by default, as published; evaluate(..., version='0.2')."""
 
 from __future__ import annotations
 
@@ -11,13 +12,13 @@ from ..derive import Doc
 from ..ext import official
 from ..jsonparse import Malformed, parse
 from .. import options
-from ..validate import READER_03, check
-from . import display, structure
+from ..validate import check
+from . import display, draft, structure
 from .context import Ctx
 from .measures import DEFERRED, MEASURES, a_coll, a_ext, a_function, compute, get, PURPOSES
 
 DEFAULT_PROFILE = {
-    'floorspecRules': '0.1', 'name': 'Model Codes (latest)',
+    'name': 'Model Codes (latest)',
     'adopts': [{'code': 'IFGC', 'edition': '2024'}, {'code': 'IMC', 'edition': '2024'}, {'code': 'IPC', 'edition': '2024'},
                {'code': 'IRC', 'edition': '2024'}, {'code': 'NEC', 'edition': '2026'}],
 }
@@ -351,14 +352,14 @@ def applying_amendments(profile):
 
 # ============================================================================ the pipeline (1.3)
 def _report(**members):
-    base = {'floorspecRules': '0.1', 'notice': structure.NOTICE, 'diagnostics': [], 'evaluated': [], 'notEvaluated': [],
+    base = {'floorspecRules': draft.current(), 'notice': structure.NOTICE, 'diagnostics': [], 'evaluated': [], 'notEvaluated': [],
             'coverage': [], 'findings': []}
     base.update(members)
     return base
 
 
 def check_document(document: bytes, registry: bytes | None, design=None):
-    return check(document, READER_03, registry, official.implemented(*ALL_OFFICIAL), design=design)
+    return check(document, draft.reader(), registry, official.implemented(*ALL_OFFICIAL), design=design)
 
 
 def design_doc(document: bytes, design):
@@ -370,7 +371,18 @@ def design_doc(document: bytes, design):
     return options.view(d, chosen)
 
 
-def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
+def default_profile():
+    """10.6: the default profile, of the current draft."""
+    return {'floorspecRules': draft.current(), **DEFAULT_PROFILE}
+
+
+def evaluate(document: bytes, registry: bytes | None, request: bytes, version: str = '0.1') -> dict:
+    """The report (9.1) an evaluator of Rules `version` returns."""
+    with draft.using(version):
+        return _evaluate(document, registry, request)
+
+
+def _evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
     # 1. the request
     try:
         req, codes = parse(request)
@@ -380,7 +392,7 @@ def evaluate(document: bytes, registry: bytes | None, request: bytes) -> dict:
         return _report(diagnostics=[diag('FS-RULES-001')])
     units = req.get('units', 'imperial')
     # 2. the profile
-    profile = req.get('profile', DEFAULT_PROFILE)
+    profile = req.get('profile', default_profile())
     if not structure.profile_ok(profile):
         return _report(units=units, diagnostics=[diag('FS-RULES-002')])
     # 3. the document
@@ -478,8 +490,13 @@ def report_bytes(report: dict) -> bytes:
     return (canon.pretty(report) + '\n').encode('utf-8')
 
 
-def call_measures(document: bytes, registry: bytes | None, calls: dict) -> dict:
-    """The measure results (4.7) of a measure test's calls."""
+def call_measures(document: bytes, registry: bytes | None, calls: dict, version: str = '0.1') -> dict:
+    """The measure results (4.7) of a measure test's calls, by an evaluator of Rules `version`."""
+    with draft.using(version):
+        return _call_measures(document, registry, calls)
+
+
+def _call_measures(document: bytes, registry: bytes | None, calls: dict) -> dict:
     result, _, _ = check_document(document, registry)
     assert result['valid'], result['diagnostics']
     doc = Doc(_parsed(document))

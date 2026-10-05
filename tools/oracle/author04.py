@@ -222,6 +222,16 @@ n('stairs', 'winders-only', 'A winder stair whose first riser rises onto the fir
   ['17.7.3', '17.4.2'],
   house(x0=1000, x1=2800, y1=2800, risers=4, form={**WQN, 'risersBeforeTurn': 1}), WELL)
 # headroom of tapered treads (17.6)
+def spiral_under_a_floor():
+    """The spiral stair of stairs/016 under L2's 300 mm floor, rising into a well north of y = 1500 mm."""
+    return v4(storeys(lower(), Draw('L2', 'U').walls((0, 0), (0, 4000), (1000, 4000), (3000, 4000), (6000, 4000), (6000, 0),
+                                                   (0, 0)).seps((1000, 4000), (1000, 1500), (3000, 1500), (3000, 4000)),
+                      rooms={'R1': ('L1', 3000, 2500, {}), 'R2': ('L2', 4500, 3000, {})},
+                      stairs={'ST1': stair(x=2000, y=1000, width=800, tread=220, risers=13, form=SPIRAL)},
+                      levels={'L1': {**LEVELS2['L1'], 'ceilingHeight': 2400 * MM},
+                              'L2': {**LEVELS2['L2'], 'floorThickness': 300 * MM}}))
+
+
 n('stairs', 'winder-under-the-floor', 'The quarter-turn winder stair with a newel under L2\'s floor, 300 mm thick, '
   'which covers the whole turn: the well starts only at y = 1700 mm. Its winders are level at their tops, and their '
   'lanes - the edges of their outlines and their walkline chords - are under the floor\'s bottom at 2400 mm; the least '
@@ -236,13 +246,7 @@ n('stairs', 'spiral-under-a-floor', 'The spiral stair of 1800 mm under L2\'s 300
   'starts at y = 1500 mm, its centre\'s line: the treads of its first half-turn, south of that line, are under the '
   'floor, and its lanes - each tread\'s edges and its walkline chord, level at its top - meet the floor\'s bottom, '
   'at 2400 mm; the least clearance is where the treads pass under the edge of the well.',
-  ['17.6.2', '17.7.3'],
-  v4(storeys(lower(), Draw('L2', 'U').walls((0, 0), (0, 4000), (1000, 4000), (3000, 4000), (6000, 4000), (6000, 0),
-                                            (0, 0)).seps((1000, 4000), (1000, 1500), (3000, 1500), (3000, 4000)),
-             rooms={'R1': ('L1', 3000, 2500, {}), 'R2': ('L2', 4500, 3000, {})},
-             stairs={'ST1': stair(x=2000, y=1000, width=800, tread=220, risers=13, form=SPIRAL)},
-             levels={'L1': {**LEVELS2['L1'], 'ceilingHeight': 2400 * MM},
-                     'L2': {**LEVELS2['L2'], 'floorThickness': 300 * MM}})), WELL)
+  ['17.6.2', '17.7.3'], spiral_under_a_floor(), WELL)
 # the opening a stair needs (17.6)
 n('stairs', 'opening', 'The straight stair designed for 1800 mm of headroom. The floor above has its bottom at 2400 '
   'mm, 3072000, so a step needs it open when its top is above 600 mm, 768000: the third tread\'s, 740571.43, is not, and '

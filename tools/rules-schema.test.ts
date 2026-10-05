@@ -95,9 +95,10 @@ test('a duplicate member name is found, wherever it is', () => {
   assert.equal(hasDuplicateMember('{"a": 1, "b": {"a": "\\"a\\""}}'), false);
 });
 
-test('the default profile is the one of 10.6, and matches the profile schema', () => {
+test('the default profile is the one of 10.6, and matches the profile schema of its draft', () => {
   const p = defaultProfile() as { name: string; adopts: { code: string; edition: string }[] };
-  accepts(rv.profile, p);
+  accepts(rulesValidators(undefined, '0.2').profile, p);
+  accepts(rv.profile, { ...p, floorspecRules: '0.1' });
   assert.equal(p.name, 'Model Codes (latest)');
   assert.deepEqual(p.adopts.map((a) => `${a.code} ${a.edition}`), ['IFGC 2024', 'IMC 2024', 'IPC 2024', 'IRC 2024', 'NEC 2026']);
 });

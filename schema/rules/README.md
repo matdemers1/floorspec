@@ -7,7 +7,9 @@ profile schema rejects `FS-RULES-002`, a pack the pack schema rejects `FS-RULES-
 
 ## Files
 
-One directory per draft; **Rules 0.1** is in [`0.1/`](0.1/), the current draft (`spec/rules/`).
+One directory per draft: **Rules 0.1** is in [`0.1/`](0.1/), as published at `8a99d02`, and **Rules
+0.2**, the current draft (`spec/rules/`), in [`0.2/`](0.2/) — 0.1's files with their `$id`s moved and
+`floorspecRules` declaring `"0.2"` (`defs.schema.json`).
 
 | File | Describes | Spec |
 |---|---|---|
@@ -22,6 +24,7 @@ One directory per draft; **Rules 0.1** is in [`0.1/`](0.1/), the current draft (
 What a schema cannot say is checked by an evaluator: whether a rule is well typed (3.9), whether a
 pack's or a profile's text says that a design meets a code (2.5, 10.1), and whether a profile adopts
 one code twice on one date (10.1). `pnpm schema:check` holds the schemas to the suite
-(`conformance/rules/0.1/`) and to the default profile of 10.6.
+(`conformance/rules/0.1/` and `0.2/`, each with its own draft's schemas) and to the default profile
+of 10.6.
 
 Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/rules/<draft>/<file>`.

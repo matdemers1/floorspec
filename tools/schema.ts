@@ -464,10 +464,12 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
 }
 
 /** The Floorspec Rules drafts this repository publishes, oldest first. */
-export const RULES_VERSIONS = ['0.1'] as const;
+export const RULES_VERSIONS = ['0.1', '0.2'] as const;
 export type RulesVersion = (typeof RULES_VERSIONS)[number];
 /** The draft the spec text in spec/rules/ is. */
-export const CURRENT_RULES: RulesVersion = '0.1';
+export const CURRENT_RULES: RulesVersion = '0.2';
+/** The Core draft whose reader each Rules draft reads documents with (Rules 1.2). */
+export const RULES_CORE: Record<RulesVersion, CoreVersion> = { '0.1': '0.3', '0.2': '0.4' };
 
 export const rulesSchemaBase = (v: RulesVersion) => `https://d3cloud.io/floorspec/schema/rules/${v}/`;
 export const rulesId = (v: RulesVersion, name: string) => `${rulesSchemaBase(v)}${name}.schema.json`;
@@ -482,9 +484,10 @@ export interface RulesValidators {
   measureResult: ValidateFunction;
 }
 
-export function rulesValidators(ajv = createAjv(loadSchemaFiles(rulesSchemaDir('0.1'))), v: RulesVersion = '0.1'): RulesValidators {
+export function rulesValidators(ajv?: Ajv2020, v: RulesVersion = '0.1'): RulesValidators {
+  const loaded = ajv ?? createAjv(loadSchemaFiles(rulesSchemaDir(v)));
   const get = (id: string) => {
-    const f = ajv.getSchema(id);
+    const f = loaded.getSchema(id);
     if (!f) throw new Error(`schema ${id} is not loaded`);
     return f;
   };

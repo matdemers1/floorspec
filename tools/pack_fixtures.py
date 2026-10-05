@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sys
 
+from tools.oracle.rules.draft import CURRENT, DRAFTS
 from tools.oracle.rules.evaluate import evaluate, report_bytes
 
 
@@ -23,7 +24,9 @@ def main() -> int:
     for case in data['cases']:
         registry = case.get('registry')
         registry_bytes = None if registry is None else json.dumps(registry).encode('utf-8')
-        report = evaluate(case['document'].encode('utf-8'), registry_bytes, json.dumps(case['request']).encode('utf-8'))
+        version = case['request'].get('floorspecRules') if case['request'].get('floorspecRules') in DRAFTS else CURRENT
+        report = evaluate(case['document'].encode('utf-8'), registry_bytes, json.dumps(case['request']).encode('utf-8'),
+                          version)
         reports.append(report_bytes(report).decode('utf-8'))
     json.dump({'reports': reports}, sys.stdout)
     return 0

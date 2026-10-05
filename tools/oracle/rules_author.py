@@ -1477,11 +1477,11 @@ def _json_bytes(v) -> bytes:
     return (fmt(v) + '\n').encode('utf-8')
 
 
-def run(tc, doc_bytes, registry_bytes, request_bytes):
-    """(expected bytes, problems) of one test."""
+def run(tc, doc_bytes, registry_bytes, request_bytes, version='0.1'):
+    """(expected bytes, problems) of one test, by an evaluator of Rules `version`."""
     problems = []
     if tc['kind'] == 'measures':
-        out = call_measures(doc_bytes, registry_bytes, tc['calls'])
+        out = call_measures(doc_bytes, registry_bytes, tc['calls'], version)
         got = [r['value'] for r in out['results']]
         for i, (want, have) in enumerate(zip(tc['expect'], got)):
             if want is not ... and want != have:
@@ -1494,7 +1494,7 @@ def run(tc, doc_bytes, registry_bytes, request_bytes):
             except Exception as e:                       # noqa: BLE001
                 problems.append(f'hand-written check failed: {type(e).__name__}: {e}')
         return report_bytes(out), problems
-    report = evaluate(doc_bytes, registry_bytes, request_bytes)
+    report = evaluate(doc_bytes, registry_bytes, request_bytes, version)
     if report['diagnostics'] != sorted(tc['diags'], key=lambda d: (d['code'], d.get('packIndex', -1), d.get('pack', ''), d.get('rule', ''))):
         problems.append(f'diagnostics: hand {json.dumps(tc["diags"])}\n    oracle {json.dumps(report["diagnostics"])}')
     found = sorted((f['pack'], f['rule'], f['subject']['id']) for f in report['findings'])
@@ -1508,9 +1508,12 @@ def run(tc, doc_bytes, registry_bytes, request_bytes):
     return report_bytes(report), problems
 
 
-def write_all(prune=False):
+def write_all(prune=False, tests=None, suite=SUITE, version='0.1'):
+    """Writes the suite of Rules `version` - 0.1's by default, as published."""
+    SUITE = suite                                                               # noqa: N806
+    tests = TESTS if tests is None else tests
     counters, failures, seen = {}, 0, set()
-    for tc in TESTS:
+    for tc in tests:
         g = tc['group']
         counters[g] = counters.get(g, 0) + 1
         d = os.path.join(SUITE, g, f"{counters[g]:03d}-{tc['slug']}")
@@ -1537,7 +1540,7 @@ def write_all(prune=False):
             request_bytes = tc['raw_request'] if tc['raw_request'] is not None else _json_bytes(tc['request'])
             with open(os.path.join(d, 'request.json'), 'wb') as f:
                 f.write(request_bytes)
-        expected, problems = run(tc, doc_bytes, registry_bytes, request_bytes)
+        expected, problems = run(tc, doc_bytes, registry_bytes, request_bytes, version)
         if assures(expected.decode('utf-8')):
             problems.append('the expected output matches the assurance pattern (9.5.2)')
         with open(os.path.join(d, 'expected.json'), 'wb') as f:
@@ -1553,7 +1556,7 @@ def write_all(prune=False):
                 if os.path.join(SUITE, g, n) not in seen:
                     print('removing', os.path.join(SUITE, g, n))
                     shutil.rmtree(os.path.join(SUITE, g, n))
-    print(f'{len(TESTS)} tests, {failures} mismatches')
+    print(f'{len(tests)} tests, {failures} mismatches')
     return failures
 
 

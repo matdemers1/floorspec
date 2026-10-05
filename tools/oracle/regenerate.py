@@ -1,6 +1,6 @@
 """Re-verify the whole conformance suite - Floorspec Core 0.1, 0.2, 0.3 and 0.4, Floorspec Ops 0.1, 0.2 and 0.3,
-every official extension's suite (conformance/ext/<NAME>/<version>/), Floorspec Rules 0.1
-(conformance/rules/0.1/, by tools/oracle/rules/suite.py) and the migration suites of chapter 20 of Core
+every official extension's suite (conformance/ext/<NAME>/<version>/), Floorspec Rules 0.1 and 0.2
+(conformance/rules/<v>/, by tools/oracle/rules/suite.py) and the migration suites of chapter 20 of Core
 0.3 and 0.4 (conformance/migration/<v>/, by tools/oracle/migration_suite.py) - against the oracle.
 
     python3.13 -m tools.oracle.regenerate            check; exit 1 on any difference
@@ -194,9 +194,12 @@ def main(argv) -> int:
         n, errors = verify_ext(name, suite, write)
         ext_counts[f'{name} {os.path.basename(suite)}'] = (n, len(errors))
         ops_errors.extend(errors)
-    from .rules.suite import verify_all as verify_rules
-    rules_n, rules_errors = verify_rules(write)
-    ops_errors.extend(rules_errors)
+    from .rules.suite import SUITES as RULES_SUITES, verify_all as verify_rules
+    rules_counts = {}
+    for version in RULES_SUITES:
+        rules_n, rules_errors = verify_rules(write, version)
+        rules_counts[version] = (rules_n, len(rules_errors))
+        ops_errors.extend(rules_errors)
     from .migration_suite import SUITES as MIGRATION_SUITES, verify_all as verify_migration
     migration_counts = {}
     for version in MIGRATION_SUITES:
@@ -211,7 +214,8 @@ def main(argv) -> int:
         print(f'Ops {version}: {n} tests, {k} differences from the oracle')
     for label, (n, k) in ext_counts.items():
         print(f'{label}: {n} tests, {k} differences from the oracle')
-    print(f'Rules 0.1: {rules_n} tests, {len(rules_errors)} differences from the oracle')
+    for version, (n, k) in rules_counts.items():
+        print(f'Rules {version}: {n} tests, {k} differences from the oracle')
     for version, (n, k) in migration_counts.items():
         print(f'Migration (Core {version}, chapter 20): {n} tests, {k} differences from the oracle')
     return 1 if all_errors or ops_errors else 0
