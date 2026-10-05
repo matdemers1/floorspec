@@ -90,6 +90,7 @@ members of the document.
 | `wallFinish` | reference to a material | absent | the finish of the walls that face this room |
 | `floorFinish` | reference to a material | absent | the floor finish |
 | `ceilingFinish` | reference to a material | absent | the ceiling finish |
+| `brief` | reference to a program item | absent: the room fulfils no item | the program item this room fulfils (11.3) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 ## 6.6 Lints

@@ -3,7 +3,7 @@
 ## 1.1 The document
 
 A Floorspec document is a JSON object. Its members are the version declaration, the project, an
-optional site, the element collections, the extension declarations and extras.
+optional site, the element collections, the program, the extension declarations and extras.
 
 | Member | Type | Default | Defined in |
 |---|---|---|---|
@@ -21,9 +21,10 @@ optional site, the element collections, the extension declarations and extras.
 | `types` | collection of Type | `{}` | 8.1 |
 | `materials` | collection of Material | `{}` | 8.5 |
 | `assets` | collection of Asset | `{}` | 8.6 |
-| `extensionsUsed` | object: extension name → version | `{}` | 1.6 |
+| `program` | Program | `{}` | 11.1 |
+| `extensionsUsed` | object: extension name → version, or declaration (12.1) | `{}` | 1.6, 12.1 |
 | `extensionsRequired` | array of extension names | `[]` | 1.6 |
-| `extensions` | object: extension name → extension data | `{}` | 1.6 |
+| `extensions` | object: extension name → extension data | `{}` | 1.6, 12.5 |
 | `extras` | object | `{}` | 1.7 |
 
 A document MUST be a JSON object. {#FS-CORE-1.1.1 MUST}
@@ -37,10 +38,26 @@ top-level members; this is what lets a reader tell an unknown extension from a m
 The `floorspec` member declares the version of Floorspec Core the document targets, as
 `"<major>.<minor>"`. Patch releases of the specification are editorial and are not declared.
 
-A document that targets this draft MUST declare `"floorspec": "0.1"`. {#FS-CORE-1.2.1 MUST}
+A document that targets this draft MUST declare `"floorspec": "0.2"`. {#FS-CORE-1.2.3 MUST}
 
 A reader MUST reject a document that declares a version the reader does not implement, with the
 diagnostic `FS-DOC-001`. {#FS-CORE-1.2.2 MUST}
+
+A reader that implements this draft MUST also read a document that declares `"0.1"`: it MUST
+apply Core 0.1's schema to it at the schema tier, and otherwise read it as a 0.2 document in which
+every member that this draft adds is absent. {#FS-CORE-1.2.4 MUST}
+
+The members this draft adds are the top-level `program` (11.1), a room's `brief` (11.3), the
+declaration object in `extensionsUsed` (12.1), a door or window type's `clearances` (13.5) and the
+`collections` member of top-level extension data (12.5). Each is optional, and its absence means
+what a 0.1 document means without it: an empty program, a room that fulfils no program item, a
+version string, no clearances, and extension data that core does not look inside. So reading a 0.1
+document this way is exact: a document valid under 0.1, read by a validator configured with no
+known extensions (12.2), is valid under 0.2 with the same diagnostics, the same derived values
+(with nothing derived for a program, hosts or clearances), the same canonical form and the same
+content hash. In a 0.1 document, top-level extension data is opaque, as 0.1 says, even where it
+has a member named `collections`. Core 0.1's schema rejects every member 0.2 adds, so a document
+that declares `"0.1"` and uses one is invalid (`FS-SCH-001`).
 
 > [!note] Versioning policy
 > Floorspec follows Semantic Versioning. While the major version is 0, any draft may change
@@ -117,12 +134,14 @@ ratified extension), `EXT_acoustics` (a multi-implementer extension) or a vendor
 capitals or digits reserved in the registry.
 
 - `extensionsUsed` maps the name of every extension the document uses to the version of that
-  extension it targets.
+  extension it targets — as a version string, or as a declaration object that also names the
+  extension's schema (12.1).
 - `extensionsRequired` lists the extensions a reader must implement to read the document
   correctly. A document lists an extension here when ignoring it would change what the core data
   means; otherwise the extension is optional.
 - An element's `extensions` member, and the document's top-level `extensions` member, map an
-  extension name to that extension's data.
+  extension name to that extension's data. Top-level extension data may hold the extension's own
+  kinds of element, in its `collections` member (12.5).
 
 Every extension name MUST match the pattern `^(FS|EXT|[A-Z0-9]{2,8})_[A-Za-z0-9]+$`. {#FS-CORE-1.6.1 MUST}
 
@@ -139,17 +158,21 @@ A reader MUST reject a document whose `extensionsRequired` names an extension th
 implement, with the diagnostic `FS-DOC-002`. {#FS-CORE-1.6.4 MUST}
 
 A reader MUST accept a document that uses optional extensions it does not implement, and MUST
-NOT let their data affect anything it derives. {#FS-CORE-1.6.5 MUST}
+NOT let their data affect anything it derives, except the core members of their extension
+elements — `fallback`, `host` and `clearances` (12.5) — from which it derives exactly what
+chapters 12 and 13 define, and nothing else. {#FS-CORE-1.6.9 MUST}
 
 A writer MUST preserve the data of every extension it does not implement, unchanged. {#FS-CORE-1.6.6 MUST}
 
 > [!note] What an extension may and may not do
 > An extension's own specification defines its schema, its version and its conformance tests. It
 > may add members to core kinds, add kinds of its own (under its name in the top-level
-> `extensions` object) and add taxonomy terms. Every kind it adds carries a fallback — a bounding
-> box, and optionally a glTF asset and a 2D symbol — so that a reader without the extension can
-> still show that something is there. It never changes the meaning of core data. The registry
-> and the lifecycle (Proposal, Draft, Release Candidate, Ratified) are described in `registry/`.
+> `extensions` object, 12.5) and add taxonomy terms. Every kind it adds carries a fallback — a
+> bounding box, and optionally a glTF asset and a 2D symbol — so that a reader without the
+> extension can still show that something is there. It never changes the meaning of core data.
+> Chapter 12 defines the mechanism in full: declarations, registry entries and dependencies,
+> extension elements and fallbacks. The lifecycle (Proposal, Draft, Release Candidate, Ratified)
+> is described in `registry/`.
 
 ## 1.7 Extras
 

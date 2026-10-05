@@ -29,10 +29,12 @@ The canonical form of a document is produced in two steps.
 
 1. **Omit constant defaults.** Working from the innermost objects outwards, remove every member
    that this specification gives a constant default (1.5) and whose value equals that default —
-   including a collection or object that has become empty, if its default is `{}`. Members with a
-   derived default, and typed properties (8.2), are never removed. The content of extension data
-   and of `extras` is never changed; an `extensions` or `extras` member is removed only when it is
-   `{}`.
+   including a collection or object that has become empty, if its default is `{}`, and an array
+   that has become empty, if its default is `[]`. Members with a derived default, and typed
+   properties (8.2), are never removed. Write every declaration object in `extensionsUsed` that
+   has no `schema` member as its version string (12.1). The content of extension data — including
+   the extension elements in it (12.5) — and of `extras` is never changed; an `extensions` or
+   `extras` member is removed only when it is `{}`.
 2. **Write.** Serialize the result as JSON with these rules, which are exactly those of
    ECMAScript's `JSON.stringify(value, null, 2)` applied to a value whose object members have been
    sorted, followed by one line feed:
