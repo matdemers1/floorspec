@@ -1,15 +1,29 @@
 /**
- * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core 0.1's document schema
- * - the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - and Floorspec Ops 0.1's
- * apply-request schema, whose rejections are FS-OPS-001. Used by `pnpm schema:check` and its tests.
+ * The normative JSON Schemas (FLR-ADR-006), loaded into ajv: Floorspec Core's document schemas -
+ * the schema tier (tier 3, FS-SCH-001) of chapter 10 and nothing else - for each draft (0.1 and
+ * 0.2), Floorspec Ops 0.1's apply-request schema, whose rejections are FS-OPS-001, and the
+ * registry entry schema (Core 0.2, 12.2). Used by `pnpm schema:check` and its tests.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js';
 
-export const SCHEMA_BASE = 'https://d3cloud.io/floorspec/schema/core/0.1/';
-export const ROOT_ID = `${SCHEMA_BASE}floorspec.schema.json`;
-export const schemaDir = join(import.meta.dirname, '..', 'schema', 'core', '0.1');
+/** The Core drafts this repository publishes, oldest first. */
+export const CORE_VERSIONS = ['0.1', '0.2'] as const;
+export type CoreVersion = (typeof CORE_VERSIONS)[number];
+/** The draft the spec text in spec/core/ is. */
+export const CURRENT_CORE: CoreVersion = '0.2';
+
+export const coreSchemaBase = (v: CoreVersion) => `https://d3cloud.io/floorspec/schema/core/${v}/`;
+export const coreRootId = (v: CoreVersion) => `${coreSchemaBase(v)}floorspec.schema.json`;
+export const coreSchemaDir = (v: CoreVersion) => join(import.meta.dirname, '..', 'schema', 'core', v);
+
+export const SCHEMA_BASE = coreSchemaBase('0.1');
+export const ROOT_ID = coreRootId('0.1');
+export const schemaDir = coreSchemaDir('0.1');
+
+export const REGISTRY_ID = 'https://d3cloud.io/floorspec/schema/registry/0.1/extension.schema.json';
+export const registrySchemaDir = join(import.meta.dirname, '..', 'schema', 'registry', '0.1');
 
 export const OPS_SCHEMA_BASE = 'https://d3cloud.io/floorspec/schema/ops/0.1/';
 export const OPS_ROOT_ID = `${OPS_SCHEMA_BASE}request.schema.json`;
@@ -23,7 +37,7 @@ export interface SchemaFile {
   schema: Record<string, Json>;
 }
 
-/** Every `*.schema.json` file of Core 0.1, sorted by file name. */
+/** Every `*.schema.json` file of one directory (Core 0.1 by default), sorted by file name. */
 export function loadSchemaFiles(dir = schemaDir): SchemaFile[] {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.schema.json'))
@@ -53,10 +67,38 @@ export function createAjv(files = loadSchemaFiles()) {
   return ajv;
 }
 
-export function rootValidator(ajv = createAjv()): ValidateFunction {
-  const validate = ajv.getSchema(ROOT_ID);
-  if (!validate) throw new Error(`schema ${ROOT_ID} is not loaded`);
+export function rootValidator(ajv = createAjv(), id = ROOT_ID): ValidateFunction {
+  const validate = ajv.getSchema(id);
+  if (!validate) throw new Error(`schema ${id} is not loaded`);
   return validate;
+}
+
+/** The validator of one Core draft's document schema. */
+export function coreValidator(v: CoreVersion, ajv = createAjv(loadSchemaFiles(coreSchemaDir(v)))): ValidateFunction {
+  return rootValidator(ajv, coreRootId(v));
+}
+
+/** The validator of a registry entry (Core 0.2, 12.2). */
+export function registryValidator(ajv = createAjv(loadSchemaFiles(registrySchemaDir))): ValidateFunction {
+  return rootValidator(ajv, REGISTRY_ID);
+}
+
+/**
+ * The schema tier of a reader of Core 0.2 (FS-CORE-1.2.4): a document that declares "0.1" is
+ * checked against Core 0.1's schema, and every other document against 0.2's.
+ */
+export function versionedValidator(validators: Record<CoreVersion, ValidateFunction>): ValidateFunction {
+  const pick = (doc: unknown) =>
+    doc !== null && typeof doc === 'object' && !Array.isArray(doc) && (doc as Record<string, unknown>).floorspec === '0.1'
+      ? validators['0.1']
+      : validators['0.2'];
+  const f = ((doc: unknown) => {
+    const v = pick(doc);
+    const ok = v(doc) as boolean;
+    f.errors = v.errors;
+    return ok;
+  }) as unknown as ValidateFunction;
+  return f;
 }
 
 /** The validator of a Floorspec Ops 0.1 apply request. */
@@ -87,7 +129,7 @@ export interface SchemaResult {
   errors: ErrorObject[];
 }
 
-/** Applies the Core 0.1 schema to a JSON text that is already known to be well formed (9.1). */
+/** Applies a Core schema (0.1 by default) to a JSON text that is already known to be well formed (9.1). */
 export function validateText(text: string, validate = rootValidator()): SchemaResult {
   const valid = validate(parseForSchema(text)) as boolean;
   return { valid, errors: valid ? [] : [...(validate.errors ?? [])] };
@@ -154,12 +196,14 @@ export interface SuiteResult {
 }
 
 /**
- * Checks the schema against a conformance suite directory (conformance/core/0.1). For every test
- * whose input is well-formed JSON and whose expected diagnostics have no FS-JSON- or FS-DOC- code,
- * the schema must reject the input when the expected diagnostics are exactly [FS-SCH-001], and
- * accept it otherwise. A suite that does not exist yet has no tests.
+ * Checks the schema against a conformance suite directory (conformance/core/0.1 or 0.2). For every
+ * test whose input is well-formed JSON and whose expected diagnostics have no FS-CFG-, FS-JSON- or
+ * FS-DOC- code, the schema must reject the input when the expected diagnostics are exactly
+ * [FS-SCH-001], and accept it otherwise. A test's registry.json - the known extensions of Core 0.2,
+ * 12.2 - must match the registry entry schema, unless the test expects [FS-CFG-001]. A suite that
+ * does not exist yet has no tests.
  */
-export function checkSuite(suite: string, validate = rootValidator(), base = suite): SuiteResult {
+export function checkSuite(suite: string, validate = rootValidator(), base = suite, validateEntry?: ValidateFunction): SuiteResult {
   const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
   const dirs = (dir: string): string[] => {
     if (!existsSync(dir)) return [];
@@ -188,7 +232,20 @@ export function checkSuite(suite: string, validate = rootValidator(), base = sui
       result.problems.push(`${name}: expected.json: ${(e as Error).message}`);
       continue;
     }
-    if (codes.some((c) => c.startsWith('FS-JSON-') || c.startsWith('FS-DOC-'))) {
+    const registryPath = join(dir, 'registry.json');
+    if (existsSync(registryPath) && !codes.includes('FS-CFG-001')) {
+      if (!validateEntry) result.problems.push(`${name}: has registry.json, which this suite does not take`);
+      else {
+        const entries = JSON.parse(readFileSync(registryPath, 'utf8')) as unknown;
+        if (!Array.isArray(entries)) result.problems.push(`${name}: registry.json is not an array of registry entries`);
+        else
+          entries.forEach((e, i) => {
+            if (!validateEntry(e))
+              result.problems.push(`${name}: registry.json entry ${i} does not match the registry entry schema:\n    ${formatErrors(validateEntry.errors ?? []).join('\n    ')}`);
+          });
+      }
+    }
+    if (codes.some((c) => c.startsWith('FS-JSON-') || c.startsWith('FS-DOC-') || c.startsWith('FS-CFG-'))) {
       result.skipped++;
       continue;
     }
