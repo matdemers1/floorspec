@@ -20,7 +20,7 @@ conformance/
                      then run by a package validator, given exactly these files at these paths
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
 ```
 
@@ -459,7 +459,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -478,9 +478,11 @@ Two kinds of test share the suite:
   `registry.json`, `expected.json`, `canonical.json`). `expected.json` is Core's, and its `derived`
   has one more member, always present: `extensions`, mapping each extension the run evaluated
   (each specification's §1.2) to what it derives — `{}` when none was, as in a test without
-  `registry.json`.
+  `registry.json`. As in Core 0.3's suite, a test with a `package/` directory is run by a package
+  validator given its files (Core §18.4), and one with `design.json` derives that design (Core §19.6).
 - **Ops tests**, in the group `ops`, laid out as Ops 0.2's (`test.json`, `input.json`,
-  `request.json`, `registry.json`, `expected.json`, `output.json`), applied by an applier whose
+  `request.json`, `registry.json`, `expected.json`, `output.json`), applied as Ops 0.2 — as Ops 0.3
+  for a document that declares `"0.3"`, as the Core reader is chosen — by an applier whose
   validator is that implementation, configured with `registry.json`. A batch whose result breaks
   one of the extension's invariants is rejected with that diagnostic (Ops §1.2 step 6).
 
@@ -492,10 +494,20 @@ the extension's schema, then its invariants, lints only for a valid document), `
 `invariants`, `lints`, `derived` and `ops` (`…-move-a-wall-and-watch-them-follow`: the Phase 5 demo,
 where moving a wall leaves the devices' bytes unchanged and moves their derived placements).
 
-The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house,
-with every expected diagnostic written by hand and the derived values that matter — a circuit's
-loads and connected load, a panel's spaces, the room each device is in, a stack's connections —
-asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
+FS_furniture's suite starts from its own document, the Phase 8 demo flat (`examples/…-p8-demo-flat`):
+a kitchen with a refrigerator, a range, a dishwasher, cabinets, a pantry and a dining table with its
+chairs, a bedroom with a bed, a nightstand and a wardrobe, and a laundry with a washer and a dryer —
+every item the starter library's (`registry/FS_furniture/library/`), with the library's own model
+and symbol files and default envelopes. Besides the groups above it has `options` (kitchen options
+A and B as Core 0.3 design options: the primary design, the design that chooses B, and an invariant
+found only in B's design) and `package` (the flat run by a package validator given the library's
+files, and given a wrong one); its `ops` group places, moves and removes items, and places one into
+option B as Ops 0.3 with `context.option`.
+
+The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
+(the demo flat, for FS_furniture), with every expected diagnostic written by hand and the derived
+values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
+in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
 JSON Schema keywords the official schemas use (`tools/oracle/ext/jsonschema.py`).
 `python3.13 -m tools.oracle.ext_author` rewrites the extension suites, `python3.13 -m
@@ -507,7 +519,7 @@ it in every valid test that evaluates it.
 
 The Rules suite, `rules/0.1/`, tests an **evaluator** (Rules §0.2): software that evaluates rule
 packs against a document under a jurisdiction profile. It is run by an evaluator that implements the
-four official extensions at 0.1.0, configured with the test's `registry.json` as its known
+official extensions at 0.1.0 (FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage and FS_furniture), configured with the test's `registry.json` as its known
 extensions - or with none, when the test has none - exactly as a Core 0.3 validator is. `pnpm
 coverage` gates FS-RULES 0.1 against it.
 

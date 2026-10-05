@@ -1,5 +1,5 @@
-"""The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical and
-FS_lowvoltage 0.1.0 - as the script that writes them.
+"""The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
+FS_lowvoltage and FS_furniture 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -9,16 +9,22 @@ of the Core draft each document declares - 0.2, or 0.3 for a document declaring 
 <NAME> 0.1.0 and no other extension), configured with the test's
 registry.json as its known extensions, or with none when the test has no registry.json. Most tests
 are validator and deriver tests, laid out as Core's (input.json, registry.json, expected.json,
-canonical.json; expected.json's `derived` has an `extensions` member); the tests in `ops` are Ops
-0.2 tests (input.json, request.json, registry.json, expected.json, output.json), applied by an
-applier whose validator is that implementation.
+canonical.json; expected.json's `derived` has an `extensions` member; a test run by a package
+validator has a package/ directory, and one that derives another design than the primary a
+design.json, as Core's do); the tests in `ops` are Ops tests (input.json, request.json,
+registry.json, expected.json, output.json), applied as Ops 0.2 - Ops 0.3 for a document declaring
+"0.3" - by an applier whose validator is that implementation.
 
 Almost every test starts from one document: the Phase 5 demo house (demo() below) - a kitchen, a
 bath and a utility room with a panel, kitchen receptacles on two 20 A circuits, a toilet, a wall-hung
 lavatory, an electric water heater on a 240 V circuit, a gas furnace and range on a meter, a bath
 fan a switch controls, and data, doorbell, speaker and security devices run to a structured media
-enclosure - and breaks one rule of it. Every expected diagnostic is written by hand and
-cross-checked against the oracle; the derived values that matter are asserted by hand in `check`.
+enclosure - and breaks one rule of it. FS_furniture's start from its own: the Phase 8 demo flat
+(flat() below) - a kitchen with a refrigerator, a range, a dishwasher, cabinets and a dining table
+with its chairs, a bedroom with a bed, a nightstand and a wardrobe, and a laundry with a washer and a
+dryer - every item from the starter library (registry/FS_furniture/library/), its model and symbol
+the library's own files. Every expected diagnostic is written by hand and cross-checked against the
+oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
 import json
@@ -31,16 +37,17 @@ from tools.oracle.ext import official
 from tools.oracle.jsonparse import parse
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.suite import dumps as ops_dumps, expected_view, properties
-from tools.oracle.ops.version import OPS_02
+from tools.oracle.ops.version import OPS_02, OPS_03
 from tools.oracle.report import dumps
 from tools.oracle.validate import SEVERITY, check, ext_reader
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 MM, FT = 1280, 390144
 H = 2700 * MM
-ELEC, PLMB, MECH, LOWV = 'FS_electrical', 'FS_plumbing', 'FS_mechanical', 'FS_lowvoltage'
-EXTS = (ELEC, PLMB, MECH, LOWV)
-CODE = {ELEC: 'ELEC', PLMB: 'PLMB', MECH: 'MECH', LOWV: 'LOWV'}
+ELEC, PLMB, MECH, LOWV, FURN = 'FS_electrical', 'FS_plumbing', 'FS_mechanical', 'FS_lowvoltage', 'FS_furniture'
+EXTS = (ELEC, PLMB, MECH, LOWV)          # the building systems of the Phase 5 demo house
+ALL = EXTS + (FURN,)                      # every official extension, each with a suite
+CODE = {ELEC: 'ELEC', PLMB: 'PLMB', MECH: 'MECH', LOWV: 'LOWV', FURN: 'FURN'}
 SEV = {**SEVERITY, **official.SEVERITY}
 
 
@@ -224,19 +231,38 @@ def cov(name, ids):
     return [i if i.startswith('FS-') else f'FS-{CODE[name]}-{i}' for i in ids]
 
 
-def V(name, group, slug, description, covers, doc, diags=(), registry=KNOWN, check=None, raw=None):
+def hand(diags):
+    """Hand-written diagnostics: (code, elements) or (code, elements, design) (Core 0.3, 19.5.2)."""
+    out = []
+    for c, e, *design in diags:
+        x = {'code': c, 'severity': SEV.get(c, 'error'), 'elements': sorted(set(e))}
+        if design:
+            x['design'] = design[0]
+        out.append(x)
+    return out
+
+
+def V(name, group, slug, description, covers, doc, diags=(), registry=KNOWN, check=None, raw=None, package=None,
+      design=None):
     """A validator and deriver test. registry: KNOWN (the extension's own entry), None (no known
-    extensions) or a list of entries. check(result) is a hand-written assertion."""
+    extensions) or a list of entries. package: the files of the document's package, {path: bytes},
+    for a package validator (Core 0.3, 18.4). design: the design to derive (Core 0.3, 19.6), written
+    as design.json. check(result) is a hand-written assertion."""
     TESTS.append(dict(kind='core', ext=name, group=group, slug=slug, description=description, covers=cov(name, covers),
                       doc=doc, raw=raw, registry=[entry(name)] if registry is KNOWN else registry, check=check,
-                      diags=[{'code': c, 'severity': SEV.get(c, 'error'), 'elements': sorted(set(e))} for c, e in diags]))
+                      package=package, design=design, diags=hand(diags)))
 
 
 def O(name, slug, description, covers, a, request, status='committed', diags=(), check=None):
-    """An Ops 0.2 test, applied by an applier that implements the extension and knows it."""
+    """An Ops test - Ops 0.2, or Ops 0.3 for a document declaring "0.3" - applied by an applier that
+    implements the extension and knows it."""
     TESTS.append(dict(kind='ops', ext=name, group='ops', slug=slug, description=description, covers=cov(name, covers),
-                      doc=a, request=request, registry=[entry(name)], status=status, check=check,
-                      diags=[{'code': c, 'severity': SEV.get(c, 'error'), 'elements': sorted(set(e))} for c, e in diags]))
+                      doc=a, request=request, registry=[entry(name)], status=status, check=check, diags=hand(diags)))
+
+
+def ops_profile(doc):
+    """The Ops draft an extension suite's Ops test is applied as: Ops 0.3 for a document declaring "0.3"."""
+    return OPS_03 if isinstance(doc, dict) and doc.get('floorspec') == '0.3' else OPS_02
 
 
 def ensure(cond, what):
@@ -258,9 +284,9 @@ def placements(d, name):
 
 
 def same_as_02(name):
-    """A check: what the run derives for the extension is what it derives for the demo house declaring "0.2"."""
+    """A check: what the run derives for the extension is what it derives for its demo declaring "0.2"."""
     def check_(r):
-        data = json.dumps(demo()).encode('utf-8')
+        data = json.dumps(BASE[name]()).encode('utf-8')
         r02, _, _ = check(data, ext_reader(data), json.dumps([entry(name)]).encode('utf-8'), official.implemented(name))
         ensure(r['derived']['extensions'] == r02['derived']['extensions'] and list(r['derived']['extensions']) == [name],
                r['derived']['extensions'])
@@ -277,65 +303,72 @@ def moved(a, b, name, eid):
 def shared(name):
     code = CODE[name]
     T = lambda *a, **k: V(name, *a, **k)    # noqa: E731
-    T('examples', 'p5-demo-house', f'The Phase 5 demo house, read by an implementation of {name} that knows it: a panel, '
-      'kitchen receptacles on two 20 A circuits, a toilet, a lavatory, an electric water heater on a 240 V circuit, a '
-      'gas furnace and range, a bath fan, and low-voltage devices run to a structured media enclosure. It is valid, '
-      f'reports nothing, and derives {name}\'s values as `derived.extensions.{name}`.',
-      ['1.2.1', '1.2.3', '1.2.4', '1.3.1', DERIVE[name]], demo(), check=DEMO_CHECK[name])
+    base = BASE[name]
+
+    def ed(fn):
+        d = base()
+        fn(d)
+        return d
+    slug, text = EXAMPLE[name]
+    T('examples', slug, text, ['1.2.1', '1.2.3', '1.2.4', '1.3.1', DERIVE[name]], base(), check=DEMO_CHECK[name])
     T('examples', 'core-only-reader', f'The same house read with no known extensions: {name} is not evaluated, so '
       'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every extension '
       'element\'s fallback, host and clearances (Core 1.6.9): their fallbacks, placements and clearances.',
-      ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2', 'FS-CORE-13.4.1', 'FS-CORE-13.5.2'], demo(), registry=None,
-      check=lambda r: ensure(r['derived']['extensions'] == {} and 'X1' in r['derived']['fallbacks']
-                             and r['derived']['placements']['X6']['facing'] == -90000000
-                             and 'service' in r['derived']['clearances']['X8'], r['derived']['extensions']))
-    T('examples', 'all-four-known', f'The house read with all four official entries known, by an implementation of '
-      f'{name} alone: the other three are checked only as Core 12 checks a known extension, and only {name} is '
-      'evaluated and derived.', ['1.2.1', '1.2.4'], demo(), registry=[entry(x) for x in EXTS],
-      check=lambda r: ensure(list(r['derived']['extensions']) == [name], list(r['derived']['extensions'])))
+      ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2', 'FS-CORE-13.4.1', 'FS-CORE-13.5.2'], base(), registry=None,
+      check=CORE_ONLY_CHECK[name])
+    if name in EXTS:
+        T('examples', 'all-four-known', f'The house read with all four official entries known, by an implementation of '
+          f'{name} alone: the other three are checked only as Core 12 checks a known extension, and only {name} is '
+          'evaluated and derived.', ['1.2.1', '1.2.4'], base(), registry=[entry(x) for x in EXTS],
+          check=lambda r: ensure(list(r['derived']['extensions']) == [name], list(r['derived']['extensions'])))
+    else:
+        T('examples', 'all-official-known', f'The flat read with every official entry known, by an implementation of '
+          f'{name} alone: the others are checked only as Core 12 checks a known extension, and only {name} is '
+          'evaluated and derived.', ['1.2.1', '1.2.4'], base(), registry=[entry(x) for x in ALL],
+          check=lambda r: ensure(list(r['derived']['extensions']) == [name], list(r['derived']['extensions'])))
     T('activation', 'unknown-data-not-evaluated', f'{name}\'s data does not match its schema, but no extension is '
       'known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
-      edit(lambda d: ext(d, name).update(colour='red')), registry=None)
+      ed(lambda d: ext(d, name).update(colour='red')), registry=None)
     T('activation', 'another-version-known', f'The document uses {name} at 0.2.0, which is known (a later entry), but '
       'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
-      ['1.2.1'], edit(lambda d: (ext(d, name).update(colour='red'), d['extensionsUsed'].update({name: '0.2.0'}))),
+      ['1.2.1'], ed(lambda d: (ext(d, name).update(colour='red'), d['extensionsUsed'].update({name: '0.2.0'}))),
       registry=[entry(name, '0.2.0')])
     T('activation', 'version-without-patch', f'"0.1" equals 0.1.0 (Core 12.3), so {name} is evaluated: its data breaks '
       f'the schema, FS-{code}-SCH-001.', ['1.2.1', '1.3.1'],
-      edit(lambda d: (ext(d, name).update(colour='red'), d['extensionsUsed'].update({name: '0.1'}))),
+      ed(lambda d: (ext(d, name).update(colour='red'), d['extensionsUsed'].update({name: '0.1'}))),
       [(f'FS-{code}-SCH-001', [])])
     T('activation', 'declaration-object', f'A declaration object with a schema URI is its version string (Core 12.1.3): '
       f'{name} is evaluated.', ['1.2.1', '1.3.1'],
-      edit(lambda d: (ext(d, name).update(colour='red'),
-                      d['extensionsUsed'].update({name: {'version': '0.1.0', 'schema': entry(name)['schema']}}))),
+      ed(lambda d: (ext(d, name).update(colour='red'),
+                    d['extensionsUsed'].update({name: {'version': '0.1.0', 'schema': entry(name)['schema']}}))),
       [(f'FS-{code}-SCH-001', [])])
     T('activation', 'core-0.1-document', f'A document declaring "0.1" has no extension elements and its extension data is '
       f'opaque (Core 1.2.4): {name} is not evaluated, even though it is known.', ['1.2.1'],
       {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {name: '0.1.0'},
        'extensions': {name: {'colour': 'red'}}})
-    T('activation', 'core-0.3-document', f'The demo house declaring Core "0.3", a draft {name} 0.1.0 lists (1.1): {name} is '
-      'evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2". The suite reads a '
+    T('activation', 'core-0.3-document', f'The {HOUSE[name]} declaring Core "0.3", a draft {name} 0.1.0 lists (1.1): {name} is '
+      f'evaluated, reports nothing, and derives exactly what it derives for the {HOUSE[name].split()[-1]} declaring "0.2". The suite reads a '
       'document declaring "0.3" as a Core 0.3 reader.', ['1.2.1', '1.2.3', '1.2.4', DERIVE[name]],
-      edit(lambda d: d.update(floorspec='0.3')), check=same_as_02(name))
-    T('activation', 'core-0.3-invariants', f'The same "0.3" house with {name}\'s data breaking one of its invariants: '
+      ed(lambda d: d.update(floorspec='0.3')), check=same_as_02(name))
+    T('activation', 'core-0.3-invariants', f'The same "0.3" {HOUSE[name].split()[-1]} with {name}\'s data breaking one of its invariants: '
       f'{name} is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3'],
-      edit(lambda d: (d.update(floorspec='0.3'), BREAK[name](d))), BREAK_DIAG[name])
+      ed(lambda d: (d.update(floorspec='0.3'), BREAK[name](d))), BREAK_DIAG[name])
     T('order', 'core-error-first', 'A Core invariant breaks - an element 13\' along the 12\' wall W2, FS-INV-501 - '
       f'and so does {name}\'s schema: Core\'s error is reported, and {name} is not evaluated.', ['1.2.2'],
-      edit(lambda d: (ext(d, name).update(colour='red'), WALL_ELEMENT[name](d)['host'].update(wall='W2', offset=13 * FT))),
+      ed(lambda d: (ext(d, name).update(colour='red'), WALL_ELEMENT[name](d)['host'].update(wall='W2', offset=13 * FT))),
       [('FS-INV-501', [WALL_ELEMENT_ID[name]])])
     T('order', 'schema-before-invariants', f'The data breaks the schema and an invariant: only FS-{code}-SCH-001.',
-      ['1.2.2', '1.3.1'], edit(lambda d: (ext(d, name).update(colour='red'), BREAK[name](d))), [(f'FS-{code}-SCH-001', [])])
+      ['1.2.2', '1.3.1'], ed(lambda d: (ext(d, name).update(colour='red'), BREAK[name](d))), [(f'FS-{code}-SCH-001', [])])
     T('order', 'no-lints-when-invalid', f'An invariant breaks and a lint would apply too: the document is invalid, so no '
-      f'lint is reported, {name}\'s or Core\'s.', ['1.2.2', '1.2.3'], edit(lambda d: (BREAK[name](d), LINT[name](d))),
+      f'lint is reported, {name}\'s or Core\'s.', ['1.2.2', '1.2.3'], ed(lambda d: (BREAK[name](d), LINT[name](d))),
       BREAK_DIAG[name])
     T('schema', 'data-not-an-object', f'{name}\'s top-level data is an array: Core allows any JSON there, {name}\'s '
-      'schema does not.', ['1.3.1'], edit(lambda d: d['extensions'].update({name: []})), [(f'FS-{code}-SCH-001', [])])
+      'schema does not.', ['1.3.1'], ed(lambda d: d['extensions'].update({name: []})), [(f'FS-{code}-SCH-001', [])])
     T('schema', 'unknown-collection-member', 'An element has a member its kind does not define.', ['1.3.1'],
-      edit(lambda d: WALL_ELEMENT[name](d).update(colour='red')), [(f'FS-{code}-SCH-001', [])])
+      ed(lambda d: WALL_ELEMENT[name](d).update(colour='red')), [(f'FS-{code}-SCH-001', [])])
     T('schema', 'length-with-a-fraction', 'A number written with a fraction is not an integer, even when it is a whole '
       'number.', ['1.3.1'], None, [(f'FS-{code}-SCH-001', [])],
-      raw=(fmt(demo()) + '\n').replace(FRACTION[name][0], FRACTION[name][1], 1).encode('utf-8'))
+      raw=(fmt(base()) + '\n').replace(FRACTION[name][0], FRACTION[name][1], 1).encode('utf-8'))
 
 
 # what each suite's shared tests reach for
@@ -355,6 +388,17 @@ LINT = {ELEC: lambda d: coll(d, ELEC, 'panels')['X1'].pop('clearances'),
 FRACTION = {ELEC: ('"rating": 200', '"rating": 200.0'), PLMB: ('"capacity": 189000', '"capacity": 189000.0'),
             MECH: ('"airflow": 94000', '"airflow": 94000.0'), LOWV: ('"ports": 2', '"ports": 2.0')}
 DERIVE = {ELEC: '6.1.1', PLMB: '5.1.1', MECH: '5.1.1', LOWV: '5.1.1'}
+BASE = {x: demo for x in EXTS}
+HOUSE = {x: 'demo house' for x in EXTS}
+PHASE = {x: 'Phase 5 demo' for x in EXTS}
+EXAMPLE = {x: ('p5-demo-house', f'The Phase 5 demo house, read by an implementation of {x} that knows it: a panel, '
+               'kitchen receptacles on two 20 A circuits, a toilet, a lavatory, an electric water heater on a 240 V circuit, a '
+               'gas furnace and range, a bath fan, and low-voltage devices run to a structured media enclosure. It is valid, '
+               f'reports nothing, and derives {x}\'s values as `derived.extensions.{x}`.') for x in EXTS}
+CORE_ONLY_CHECK = {x: lambda r: ensure(r['derived']['extensions'] == {} and 'X1' in r['derived']['fallbacks']
+                                       and r['derived']['placements']['X6']['facing'] == -90000000
+                                       and 'service' in r['derived']['clearances']['X8'], r['derived']['extensions'])
+                   for x in EXTS}
 
 
 def check_elec(r):
@@ -404,11 +448,12 @@ def follow_check(name, ids):
     return check_
 
 
-def shared_ops(name, ids):
-    O(name, 'move-a-wall-and-watch-them-follow', f'The Phase 5 demo: the Kitchen\'s west wall W1 moved 1\' west, by an '
+def shared_ops(name, ids, which=None):
+    which = f'the elements on W1 ({", ".join(ids)})' if which is None else which
+    O(name, 'move-a-wall-and-watch-them-follow', f'The {PHASE[name]}: the Kitchen\'s west wall W1 moved 1\' west, by an '
       f'applier that implements {name} and knows it. No element changes - every host is relative - and the result is '
-      f'valid under {name}; the elements on W1 ({", ".join(ids)}) now derive placements 1\' further west.',
-      ['1.2.1', 'FS-OPS-2.7.1', 'FS-OPS-4.2.1'], demo(), {'batch': [{'op': 'moveWall', 'wall': 'W1', 'by': "1'"}]},
+      f'valid under {name}; {which} now derive placements 1\' further west.',
+      ['1.2.1', 'FS-OPS-2.7.1', 'FS-OPS-4.2.1'], BASE[name](), {'batch': [{'op': 'moveWall', 'wall': 'W1', 'by': "1'"}]},
       check=follow_check(name, ids))
 
 
@@ -741,6 +786,431 @@ L('derived', 'ports-by-medium', 'A second outlet X28 with four data ports, run t
 shared_ops(LOWV, ['X16'])
 
 
+# ============================================================================= FS_furniture
+
+LIBRARY = os.path.join(REPO, 'registry', 'FS_furniture', 'library')
+with open(os.path.join(LIBRARY, 'library.json'), encoding='utf-8') as _f:
+    LIB = json.load(_f)['items']
+
+
+def lib_file(item, part):
+    """The bytes of a library item's model or symbol."""
+    with open(os.path.join(LIBRARY, LIB[item][part]['path']), 'rb') as f:
+        return f.read()
+
+
+def lib_asset(item, part, byte_length=False):
+    """The asset of a library item's model or symbol, packaged at furniture/<file>."""
+    f = LIB[item][part]
+    a = {'path': 'furniture/' + f['path'].split('/')[-1], 'sha256': f['sha256'], 'mediaType': f['mediaType']}
+    if byte_length:
+        a['byteLength'] = f['byteLength']
+    return a
+
+
+def wall_host(wall, side, offset, height=0):
+    return {'mode': 'wallFace', 'wall': wall, 'side': side, 'offset': offset, 'height': height}
+
+
+def floor_host(room, x, y, rotation=None):
+    h = {'mode': 'surface', 'room': room, 'surface': 'floor', 'position': [x, y]}
+    if rotation is not None:
+        h['rotation'] = rotation
+    return h
+
+
+def free_host(x, y, rotation=None, level='L1'):
+    h = {'mode': 'free', 'level': level, 'position': [x, y]}
+    if rotation is not None:
+        h['rotation'] = rotation
+    return h
+
+
+def item(lib, host, level='L1', **members):
+    """An element made from the starter library's item `lib`, as a writer makes one (spec.md 7): its
+    category, catalogue, name, seats, box and default envelopes from the library, its model and
+    symbol the assets M-<lib> and S-<lib>, placed on `host`."""
+    src = LIB[lib]['element']
+    el = {'fallback': {'level': level, 'box': copy.deepcopy(src['fallback']['box']), 'asset': f'M-{lib}', 'symbol': f'S-{lib}'}}
+    if host is not None:
+        el['host'] = host
+    for k in ('category', 'catalogue', 'name', 'seats', 'clearances'):
+        if k in src:
+            el[k] = copy.deepcopy(src[k])
+    el.update(members)
+    return el
+
+
+def assets_of(d, byte_length=False):
+    """The model and symbol assets of every library item the document's FS_furniture elements use."""
+    used = sorted({el['fallback'][k][2:] for c in ext(d, FURN)['collections'].values() for el in c.values()
+                   for k in ('asset', 'symbol') if el['fallback'].get(k, '')[:2] in ('M-', 'S-')})
+    out = {}
+    for lib in used:
+        out[f'M-{lib}'] = lib_asset(lib, 'model', byte_length)
+        out[f'S-{lib}'] = lib_asset(lib, 'symbol', byte_length)
+    return out
+
+
+def put(d, kind, eid, el):
+    """Adds an FS_furniture element, and the assets of its library item."""
+    coll(d, FURN, kind)[eid] = el
+    d['assets'] = {**d['assets'], **{k: v for k, v in assets_of(d).items() if k not in d['assets']}}
+    return d
+
+
+MM_ = lambda v: v * MM                    # noqa: E731
+
+
+def flat():
+    """The Phase 8 demo flat, 24' x 16', on L1, with every wall 100 mm thick and drawn clockwise:
+
+        J2 ------ W2 ------ J3 ---- W3 ---- J4
+        |                   |               |
+        W1   Kitchen R1     W9  Bedroom R2  W4
+        |                   |               |
+        |                   J7 ---- W10 --- J8
+        |                   |               |
+        |                   W8  Laundry R3  W5
+        |                   |               |
+        J1 ------ W7 ------ J6 ---- W6 ---- J5
+
+    J1 (0, 0), J2 (0, 16'), J3 (12', 16'), J4 (24', 16'), J5 (24', 0), J6 (12', 0), J7 (12', 7'),
+    J8 (24', 7'). Against the Kitchen's north wall W2, from the west: a refrigerator X1, a base cabinet
+    X2 with a wall cabinet X6 above it, a range X3, a base cabinet X4 and a dishwasher X5; a pantry
+    X15 on its west wall W1; a dining table X7 with two chairs X8 and X9. In the Bedroom a bed X10
+    against W3 with a nightstand X11, and a wardrobe X12 on W4; in the Laundry a washer X13 and a
+    dryer X14 on W6. Every item is the starter library's, every one in the convention of spec.md 3.1,
+    and every one stands against a wall on a wallFace host but the table and its chairs, which stand
+    on the Kitchen's floor."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Phase 8 demo flat'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'types': {'WT': {'kind': 'wallType', 'layers': [{'thickness': 100 * MM, 'function': 'core'}]}},
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 16 * FT), 'J3': J(12 * FT, 16 * FT), 'J4': J(24 * FT, 16 * FT),
+                      'J5': J(24 * FT, 0), 'J6': J(12 * FT, 0), 'J7': J(12 * FT, 7 * FT), 'J8': J(24 * FT, 7 * FT)},
+        'walls': {'W1': W('J1', 'J2'), 'W2': W('J2', 'J3'), 'W3': W('J3', 'J4'), 'W4': W('J4', 'J8'),
+                  'W5': W('J8', 'J5'), 'W6': W('J5', 'J6'), 'W7': W('J6', 'J1'), 'W8': W('J6', 'J7'),
+                  'W9': W('J7', 'J3'), 'W10': W('J7', 'J8')},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 8 * FT], 'name': 'Kitchen', 'function': 'kitchen'},
+                  'R2': {'level': 'L1', 'anchor': [18 * FT, 12 * FT], 'name': 'Bedroom', 'function': 'sleeping'},
+                  'R3': {'level': 'L1', 'anchor': [18 * FT, 3 * FT], 'name': 'Laundry', 'function': 'laundry'}},
+        'assets': {},
+        'extensionsUsed': {FURN: '0.1.0'},
+        'extensions': {FURN: {'collections': {
+            'appliances': {
+                'X1': item('refrigerator-900', wall_host('W2', 'right', MM_(500))),
+                'X3': item('range-760', wall_host('W2', 'right', MM_(1930))),
+                'X5': item('dishwasher-600', wall_host('W2', 'right', MM_(3210))),
+                'X13': item('washer-690', wall_host('W6', 'right', 3 * FT)),
+                'X14': item('dryer-690', wall_host('W6', 'right', 3 * FT + MM_(700)))},
+            'casework': {
+                'X2': item('base-cabinet-600', wall_host('W2', 'right', MM_(1250))),
+                'X4': item('base-cabinet-600', wall_host('W2', 'right', MM_(2610))),
+                'X6': item('wall-cabinet-600', wall_host('W2', 'right', MM_(1250), MM_(1400))),
+                'X15': item('tall-cabinet-600', wall_host('W1', 'right', MM_(1200)))},
+            'pieces': {
+                'X7': item('dining-table-1500', floor_host('R1', 6 * FT, 7 * FT)),
+                'X8': item('dining-chair-450', floor_host('R1', 6 * FT - MM_(550), 7 * FT), **{'with': 'X7'}),
+                'X9': item('dining-chair-450', floor_host('R1', 6 * FT + MM_(1450), 7 * FT, 180000000), **{'with': 'X7'}),
+                'X10': item('bed-queen-1600', wall_host('W3', 'right', 5 * FT)),
+                'X11': item('nightstand-500', wall_host('W3', 'right', 5 * FT + MM_(1100)), **{'with': 'X10'}),
+                'X12': item('wardrobe-1000', wall_host('W4', 'right', 7 * FT))}}}},
+    }
+    d['assets'] = assets_of(d)
+    return d
+
+
+def fedit(fn):
+    """The Phase 8 demo flat, changed by fn(d) in place."""
+    d = flat()
+    fn(d)
+    return d
+
+
+FK = lambda d, c: coll(d, FURN, c)                                                 # noqa: E731
+APP = lambda d: FK(d, 'appliances')                                                # noqa: E731
+PCS = lambda d: FK(d, 'pieces')                                                    # noqa: E731
+CSW = lambda d: FK(d, 'casework')                                                  # noqa: E731
+KITCHEN = ['X1', 'X15', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9']
+
+
+def area(*mm2):
+    """The decimal string of a sum of rectangles' areas, each given in square millimetres."""
+    return str(sum(mm2) * MM * MM)
+
+
+def check_furn(r):
+    x = r['derived']['extensions'][FURN]
+    ensure(x['items']['X1'] == {'kind': 'appliances', 'category': 'refrigerator', 'width': MM_(900), 'depth': MM_(700),
+                                'height': MM_(1780), 'room': 'R1'}, x['items']['X1'])
+    ensure(x['items']['X6'] == {'kind': 'casework', 'category': 'wallCabinet', 'width': MM_(600), 'depth': MM_(350),
+                                'height': MM_(750), 'room': 'R1'}, x['items']['X6'])
+    # the floor each room's items stand on: the wall cabinet X6 hangs, so it is not counted
+    ensure(x['rooms'] == {
+        'R1': {'items': KITCHEN, 'floorArea': area(900 * 700, 600 * 600, 760 * 650, 600 * 600, 600 * 600, 1500 * 900,
+                                                   450 * 500, 450 * 500, 600 * 600)},
+        'R2': {'items': ['X10', 'X11', 'X12'], 'floorArea': area(1600 * 2050, 500 * 450, 1000 * 600)},
+        'R3': {'items': ['X13', 'X14'], 'floorArea': area(690 * 650, 690 * 650)}}, x['rooms'])
+    ensure(x['groups'] == {'X10': ['X11'], 'X7': ['X8', 'X9']}, x['groups'])
+    # Core derives the refrigerator's door swing, 900 mm deep, in front of it, facing south into the Kitchen
+    door = r['derived']['clearances']['X1']['door']
+    ensure(door['purpose'] == 'swing' and door['bottom'] == 0 and door['top'] == MM_(1780), door)
+    face = 16 * FT - MM_(50)
+    ensure(door['footprint'] == [[MM_(50), face - MM_(1600)], [MM_(950), face - MM_(1600)], [MM_(950), face - MM_(700)],
+                                 [MM_(50), face - MM_(700)]], door['footprint'])
+
+
+BASE[FURN] = flat
+HOUSE[FURN] = 'demo flat'
+PHASE[FURN] = 'Phase 8 demo'
+EXAMPLE[FURN] = ('p8-demo-flat', 'The Phase 8 demo flat, read by an implementation of FS_furniture that knows it: a '
+                 'kitchen with a refrigerator, a range, a dishwasher, base and wall cabinets, a pantry and a dining table '
+                 'with two chairs, a bedroom with a bed, a nightstand and a wardrobe, and a laundry with a washer and a '
+                 'dryer - every one the starter library\'s item, with its model, its symbol and its default envelopes. It is '
+                 'valid, reports nothing - the chairs in the table\'s envelope and the nightstand beside the bed are with '
+                 'them, and the wall cabinet hangs clear of the counter - and derives FS_furniture\'s values as '
+                 '`derived.extensions.FS_furniture`: each item\'s kind, category, dimensions and room, each room\'s items '
+                 'and the floor they stand on, and the groups.')
+CORE_ONLY_CHECK[FURN] = lambda r: ensure(
+    r['derived']['extensions'] == {} and 'X1' in r['derived']['fallbacks']
+    and r['derived']['placements']['X1']['facing'] == -90000000 and 'door' in r['derived']['clearances']['X1'],
+    r['derived']['extensions'])
+WALL_ELEMENT_ID[FURN] = 'X1'
+WALL_ELEMENT[FURN] = lambda d: APP(d)['X1']
+BREAK[FURN] = lambda d: PCS(d)['X8'].update({'with': 'W1'})
+BREAK_DIAG[FURN] = [('FS-FURN-INV-002', ['X8'])]
+LINT[FURN] = lambda d: APP(d)['X1'].pop('clearances')
+FRACTION[FURN] = ('"seats": 6', '"seats": 6.0')
+DERIVE[FURN] = '6.1.1'
+DEMO_CHECK[FURN] = check_furn
+
+shared(FURN)
+F = lambda *a, **k: V(FURN, *a, **k)    # noqa: E731
+
+
+def plumbing_fixture(d, eid='X16', offset=MM_(3210)):
+    """An FS_plumbing fixture behind the dishwasher: the connection of its water and drain."""
+    d['extensionsUsed'][PLMB] = '0.1.0'
+    d['extensions'][PLMB] = {'collections': {'fixtures': {eid: {
+        'fallback': {'level': 'L1', 'box': box(0, -50, 0, 50, 50, 100)}, 'host': wall_host('W2', 'right', offset, MM_(100)),
+        'fixture': 'dishwasher', 'supply': ['hot'], 'drain': 'K1'}}}, 'stacks': {'K1': {'levels': ['L1']}}}
+
+
+def door(d):
+    """A 900 mm door O1 in W10, 300 mm from J7, swinging into the Laundry, its type's swing a box (Core 13.5)."""
+    d['types']['DT'] = {'kind': 'doorType', 'width': MM_(900), 'height': MM_(2000),
+                        'clearances': {'swing': env('swing', box(0, -450, 0, 900, 450, 2000))}}
+    d['openings'] = {'O1': {'wall': 'W10', 'offset': MM_(300), 'fill': 'DT', 'swing': 'right'}}
+
+
+F('schema', 'category-of-another-kind', '"refrigerator" is a category of appliances, not of pieces (2.5).', ['1.3.1'],
+  fedit(lambda d: PCS(d)['X7'].update(category='refrigerator')), [('FS-FURN-SCH-001', [])])
+F('schema', 'element-without-category', 'Every element says what it is.', ['1.3.1'],
+  fedit(lambda d: APP(d)['X5'].pop('category')), [('FS-FURN-SCH-001', [])])
+F('schema', 'seats-zero', 'A piece seats at least one person when it says how many.', ['1.3.1'],
+  fedit(lambda d: PCS(d)['X7'].update(seats=0)), [('FS-FURN-SCH-001', [])])
+F('schema', 'seats-on-an-appliance', 'Only a piece has seats.', ['1.3.1'],
+  fedit(lambda d: APP(d)['X1'].update(seats=1)), [('FS-FURN-SCH-001', [])])
+F('schema', 'connections-empty', 'An appliance\'s connections, when present, name at least one element.', ['1.3.1'],
+  fedit(lambda d: APP(d)['X5'].update(connections=[])), [('FS-FURN-SCH-001', [])])
+F('schema', 'connections-repeated', 'An appliance names each connection once.', ['1.3.1'],
+  fedit(lambda d: (plumbing_fixture(d), APP(d)['X5'].update(connections=['X16', 'X16']))), [('FS-FURN-SCH-001', [])])
+F('schema', 'collection-not-of-the-kind', 'FS_furniture has no collection "rugs": Core reports it first, as FS-INV-604 '
+  'of a known extension (Core 12.4.1), and FS_furniture is not evaluated.', ['1.2.2', 'FS-CORE-12.4.1'],
+  fedit(lambda d: ext(d, FURN)['collections'].update(rugs={})), [('FS-INV-604', [])])
+F('schema', 'appliance-without-a-model', 'Every kind of FS_furniture requires a model in its fallback (1.1): the '
+  'refrigerator without one is FS-INV-603 of a known extension (Core 12.4.2), and FS_furniture is not evaluated.',
+  ['1.2.2', 'FS-CORE-12.4.2'], fedit(lambda d: APP(d)['X1']['fallback'].pop('asset')), [('FS-INV-603', ['X1'])])
+F('schema', 'piece-without-a-symbol-unknown', 'The same requirement is a known extension\'s: read with no known '
+  'extensions, a chair without a symbol is valid, and nothing of FS_furniture is evaluated.', ['1.2.1'],
+  fedit(lambda d: PCS(d)['X8']['fallback'].pop('symbol')), registry=None,
+  check=lambda r: ensure(r['derived']['extensions'] == {}, r['derived']['extensions']))
+F('schema', 'symbol-a-jpeg', 'A plan symbol is SVG or PNG (Core 12.6.1): the refrigerator\'s, made a JPEG, is '
+  'FS-INV-506, and FS_furniture is not evaluated.', ['1.2.2', 'FS-CORE-12.6.1'],
+  fedit(lambda d: d['assets']['S-refrigerator-900'].update(mediaType='image/jpeg')), [('FS-INV-506', ['X1'])])
+
+F('invariants', 'connection-to-its-own-extension', 'The dishwasher names the base cabinet X4 as a connection: an '
+  'element of FS_furniture, not of the system that serves it.', ['4.4.1'],
+  fedit(lambda d: APP(d)['X5'].update(connections=['X4'])), [('FS-FURN-INV-001', ['X5'])])
+F('invariants', 'connections-to-a-wall-and-to-nothing', 'The dishwasher names the wall W2 and X99, which does not '
+  'exist: once for each.', ['4.4.1'], fedit(lambda d: APP(d)['X5'].update(connections=['W2', 'X99'])),
+  [('FS-FURN-INV-001', ['X5']), ('FS-FURN-INV-001', ['X5'])])
+F('invariants', 'connections-to-other-extensions', 'The dishwasher names the FS_plumbing fixture X16 that supplies and '
+  'drains it and the FS_electrical receptacle X17 that powers it. Neither extension is known or implemented: the IDs '
+  'are checked against the document\'s extension elements, and both are. Valid.', ['4.4.1', '1.2.1'],
+  fedit(lambda d: (plumbing_fixture(d), d['extensionsUsed'].update({ELEC: '0.1.0'}),
+                   d['extensions'].update({ELEC: {'collections': {'receptacles': {'X17': on_wall('W2', 'right', MM_(3210), 300, PLATE, amps=15)}}}}),
+                   APP(d)['X5'].update(connections=['X16', 'X17']))),
+  check=lambda r: ensure(list(r['derived']['extensions']) == [FURN]
+                         and r['derived']['extensions'][FURN]['items']['X5']['room'] == 'R1', r['derived']['extensions']))
+F('invariants', 'with-a-wall', 'A chair with the wall W1.', ['4.3.1'],
+  fedit(lambda d: PCS(d)['X8'].update({'with': 'W1'})), [('FS-FURN-INV-002', ['X8'])])
+F('invariants', 'with-itself', 'A chair with itself.', ['4.3.1'],
+  fedit(lambda d: PCS(d)['X8'].update({'with': 'X8'})), [('FS-FURN-INV-002', ['X8'])])
+F('invariants', 'with-an-element-of-another-extension', 'A chair with the FS_plumbing fixture X16: an element, but '
+  'not of FS_furniture.', ['4.3.1'],
+  fedit(lambda d: (plumbing_fixture(d), PCS(d)['X8'].update({'with': 'X16'}))), [('FS-FURN-INV-002', ['X8'])])
+F('invariants', 'with-an-element-that-is-with-another', 'The bed is made to go with the table, so the nightstand, '
+  'with the bed, names an element that has a with of its own: grouping is one level deep. The bed itself is fine.',
+  ['4.3.1'], fedit(lambda d: PCS(d)['X10'].update({'with': 'X7'})), [('FS-FURN-INV-002', ['X11'])])
+F('invariants', 'table-on-the-ceiling', 'The dining table on the Kitchen\'s ceiling, as a surface host may put a '
+  'light: nothing of FS_furniture hangs from a ceiling.', ['4.1.1'],
+  fedit(lambda d: PCS(d)['X7']['host'].update(surface='ceiling')), [('FS-FURN-INV-003', ['X7'])])
+
+F('lints', 'refrigerator-without-a-door-swing', 'The refrigerator has no swing envelope (4.2).', ['1.2.3'],
+  fedit(lambda d: APP(d)['X1'].pop('clearances')), [('FS-FURN-LINT-001', ['X1'])])
+F('lints', 'bed-with-only-swings', 'The bed\'s two envelopes are made swings: it has none of its category\'s purpose, '
+  'access.', ['1.2.3'],
+  fedit(lambda d: [e.update(purpose='swing') for e in PCS(d)['X10']['clearances'].values()]), [('FS-FURN-LINT-001', ['X10'])])
+F('lints', 'refrigerator-inside-the-wall', 'The refrigerator\'s box starts 100 mm behind the face it stands against.',
+  ['1.2.3'], fedit(lambda d: APP(d)['X1']['fallback']['box']['min'].__setitem__(0, MM_(-100))), [('FS-FURN-LINT-002', ['X1'])])
+F('lints', 'wall-cabinet-standing-free', 'The wall cabinet stands free on the floor, facing south: a wall cabinet hangs '
+  'on a wall face. It still does not count towards the floor area.', ['1.2.3', '6.1.1'],
+  fedit(lambda d: CSW(d)['X6'].update(host=free_host(4 * FT, MM_(600), -90000000))), [('FS-FURN-LINT-003', ['X6'])],
+  check=lambda r: ensure(r['derived']['extensions'][FURN]['rooms']['R1']['floorArea'] == area(
+      900 * 700, 600 * 600, 760 * 650, 600 * 600, 600 * 600, 1500 * 900, 450 * 500, 450 * 500, 600 * 600), r))
+F('lints', 'refrigerator-door-into-a-coffee-table', 'A coffee table X16 stands in front of the refrigerator: the door '
+  'swing runs into it (4.5).', ['1.2.3'],
+  fedit(lambda d: put(d, 'pieces', 'X16', item('coffee-table-1200', floor_host('R1', MM_(100), MM_(3500))))),
+  [('FS-FURN-LINT-004', ['X1', 'X16'])])
+F('lints', 'door-swing-into-a-dresser', 'A door O1 from the Bedroom swings into the Laundry, where a dresser X16 stands '
+  'in its swing: an opening\'s envelope runs into it as an element\'s does. (With a door, the flat\'s circulation is '
+  'evaluated, and it has no entry: Core\'s FS-LINT-014.)', ['1.2.3'],
+  fedit(lambda d: (door(d), put(d, 'pieces', 'X16', item('dresser-1200', floor_host('R3', MM_(4400), MM_(1200), 90000000))))),
+  [('FS-FURN-LINT-004', ['O1', 'X16']), ('FS-LINT-014', ['B1'])])
+F('lints', 'bookcase-in-a-panels-working-space', 'An FS_electrical panel X16 on the Laundry\'s east wall, with its '
+  'working space, and a bookcase X17 in it. FS_electrical is neither known nor implemented, but its envelope is '
+  'Core\'s (Core 13.5): it runs into the bookcase.', ['1.2.3'],
+  fedit(lambda d: (d['extensionsUsed'].update({ELEC: '0.1.0'}),
+                   d['extensions'].update({ELEC: {'collections': {'panels': {'X16': on_wall(
+                       'W5', 'right', MM_(600), 1200, box(0, -200, -400, 100, 200, 400),
+                       clearances={'working': env('workingSpace', box(0, -400, -1200, 1000, 400, 800))})}}}}),
+                   put(d, 'pieces', 'X17', item('bookcase-900', floor_host('R3', MM_(6600), MM_(1900), -90000000))))),
+  [('FS-FURN-LINT-004', ['X16', 'X17'])])
+F('lints', 'two-chairs-in-one-place', 'A third chair X16 where X8 stands, not with the table: it collides with X8, and '
+  'the table\'s envelope runs into it.', ['1.2.3'],
+  fedit(lambda d: put(d, 'pieces', 'X16', item('dining-chair-450', floor_host('R1', 6 * FT - MM_(550), 7 * FT)))),
+  [('FS-FURN-LINT-004', ['X16', 'X7']), ('FS-FURN-LINT-005', ['X16', 'X8'])])
+F('lints', 'grouped-chairs-may-overlap', 'The same third chair, with the table: grouped with the table and with X8, '
+  'so neither lint applies.', ['1.2.3', '6.1.1'],
+  fedit(lambda d: put(d, 'pieces', 'X16', item('dining-chair-450', floor_host('R1', 6 * FT - MM_(550), 7 * FT), **{'with': 'X7'}))),
+  check=lambda r: ensure(r['derived']['extensions'][FURN]['groups']['X7'] == ['X16', 'X8', 'X9'], r))
+F('lints', 'microwave-on-the-counter', 'A microwave X16 on the base cabinet X4, its bottom on the counter at 900 mm: '
+  'the two only touch, so they do not collide. It is built in, so the floor area does not count it.', ['1.2.3', '6.1.1'],
+  fedit(lambda d: put(d, 'appliances', 'X16', item('microwave-600', wall_host('W2', 'right', MM_(2610), MM_(900))))),
+  check=lambda r: ensure(r['derived']['extensions'][FURN]['rooms']['R1'] == {
+      'items': ['X1', 'X15', 'X16', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8', 'X9'],
+      'floorArea': area(900 * 700, 600 * 600, 760 * 650, 600 * 600, 600 * 600, 1500 * 900, 450 * 500, 450 * 500, 600 * 600)}, r))
+
+F('derived', 'outside-and-unhosted', 'An armchair X16 standing free outside the flat, and a bookcase X17 with no host, '
+  'placed by its fallback alone: both are items, and neither is in a room.', ['6.1.1'],
+  fedit(lambda d: (put(d, 'pieces', 'X16', item('armchair-850', free_host(-6 * FT, 4 * FT))),
+                   put(d, 'pieces', 'X17', item('bookcase-900', None)))),
+  check=lambda r: ensure(r['derived']['extensions'][FURN]['items']['X16'] == {
+      'kind': 'pieces', 'category': 'armchair', 'width': MM_(850), 'depth': MM_(850), 'height': MM_(850)}
+      and 'room' not in r['derived']['extensions'][FURN]['items']['X17']
+      and list(r['derived']['extensions'][FURN]['rooms']) == ['R1', 'R2', 'R3'], r['derived']['extensions'][FURN]))
+
+
+def kitchen_options(d):
+    """Core 0.3 design options: the Kitchen's option set OS1, with option A (OP1, the primary) keeping the
+    refrigerator X1 on the north wall, and option B (OP2) a refrigerator X16 on the west wall W1 instead."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Kitchen'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    APP(d)['X1']['option'] = 'OP1'
+    APP(d)['X16'] = item('refrigerator-900', wall_host('W1', 'right', MM_(3300)), option='OP2')
+
+
+def in_design(eid, room, absent):
+    def check_(r):
+        x = r['derived']['extensions'][FURN]
+        ensure(x['items'][eid]['room'] == room and absent not in x['items'] and eid in x['rooms'][room]['items'], x)
+        o = r['derived']['options']['OS1']
+        ensure(o['options']['OP1']['members'] == ['X1'] and o['options']['OP2']['members'] == ['X16'], o)
+    return check_
+
+
+F('options', 'kitchen-option-a', 'Kitchen option A and B as Core 0.3 design options (Core 19): the refrigerator X1 '
+  'is in A, the primary, and a refrigerator X16 on the west wall is in B. The primary design is derived: X1 is in '
+  'the Kitchen, and X16 is not an item of it.', ['1.2.1', '1.2.4', '6.1.1', 'FS-CORE-19.3.1'],
+  fedit(kitchen_options), check=in_design('X1', 'R1', 'X16'))
+F('options', 'kitchen-option-b', 'The same document, deriving the design that chooses B (design.json): X16 is the '
+  'Kitchen\'s refrigerator, facing east from W1, and X1 is not an item of it.', ['1.2.4', '6.1.1', 'FS-CORE-19.3.1'],
+  fedit(kitchen_options), design={'OS1': 'OP2'},
+  check=lambda r: (in_design('X16', 'R1', 'X1')(r),
+                   ensure(r['derived']['placements']['X16']['facing'] == 0, r['derived']['placements']['X16'])))
+F('options', 'invariant-in-option-b', 'Option B\'s refrigerator is with the wall W9: FS_furniture is evaluated in each '
+  'checked design, so FS-FURN-INV-002 is reported for option B\'s design, with `design`.', ['1.2.1', '1.2.3', '4.3.1'],
+  fedit(lambda d: (kitchen_options(d), APP(d)['X16'].update({'with': 'W9'}))), [('FS-FURN-INV-002', ['X16'], 'OP2')])
+
+F('package', 'library-files-in-the-package', 'The flat as a Core 0.3 document whose assets declare their byteLength, '
+  'run by a package validator given the starter library\'s files at the paths its assets name (Core 18.4): every '
+  'model and symbol is there, with the digest and length the library gives. Valid.',
+  ['1.2.1', 'FS-CORE-18.4.2', 'FS-CORE-18.4.3'],
+  fedit(lambda d: d.update(floorspec='0.3', assets=assets_of(d, byte_length=True))),
+  package={lib_asset(lib, part)['path']: lib_file(lib, part) for lib in sorted({a[2:] for a in flat()['assets']})
+           for part in ('model', 'symbol')})
+F('package', 'a-model-that-is-not-the-librarys', 'The same package, with the range\'s model at the path of the '
+  'refrigerator\'s: its digest and its length are not the asset\'s (FS-INV-1006, FS-INV-1007), and FS_furniture is not '
+  'evaluated.', ['1.2.2', 'FS-CORE-18.4.3'],
+  fedit(lambda d: d.update(floorspec='0.3', assets=assets_of(d, byte_length=True))),
+  [('FS-INV-1006', ['M-refrigerator-900']), ('FS-INV-1007', ['M-refrigerator-900'])],
+  package={**{lib_asset(lib, part)['path']: lib_file(lib, part) for lib in sorted({a[2:] for a in flat()['assets']})
+              for part in ('model', 'symbol')},
+           'furniture/refrigerator-900.glb': lib_file('range-760', 'model')})
+
+shared_ops(FURN, ['X1', 'X15', 'X2', 'X3', 'X4', 'X5', 'X6'],
+           'the pantry on W1 (X15), and the refrigerator, cabinets, range and dishwasher on W2 (X1 to X6), measured from '
+           'W2\'s start J2, which moved,')
+
+
+def without_x1(d):
+    del APP(d)['X1']
+
+
+def placed_like_flat(r, B):
+    ensure(B['extensions'][FURN] == flat()['extensions'][FURN], B['extensions'][FURN]['collections']['appliances'].get('X1'))
+
+
+FRIDGE = {k: v for k, v in item('refrigerator-900', None).items()}
+FRIDGE['fallback'] = {k: v for k, v in FRIDGE['fallback'].items() if k != 'level'}
+
+O(FURN, 'place-a-refrigerator', 'The flat without its refrigerator; placeElement puts the starter library\'s '
+  'refrigerator on the Kitchen\'s north wall, on the face toward the Kitchen, 500 mm from its start, at height 0. The '
+  'result is the flat, byte for byte in FS_furniture\'s data, and valid under FS_furniture.',
+  ['1.2.1', 'FS-OPS-4.10.1'], fedit(without_x1),
+  {'batch': [{'op': 'placeElement', 'extension': FURN, 'collection': 'appliances', 'id': 'X1',
+              'host': {'mode': 'wallFace', 'wall': 'W2', 'toward': 'Kitchen', 'at': '500mm from start', 'height': 0},
+              'element': FRIDGE}]},
+  check=placed_like_flat)
+O(FURN, 'move-the-refrigerator', 'moveElement moves the refrigerator to the Kitchen\'s west wall, 3300 mm from its '
+  'start: it now faces east, and its door swing goes with it.', ['1.2.1', 'FS-OPS-4.10.1'], flat(),
+  {'batch': [{'op': 'moveElement', 'element': 'X1',
+              'host': {'mode': 'wallFace', 'wall': 'W1', 'toward': 'Kitchen', 'at': '3300mm from start', 'height': 0}}]},
+  check=lambda r, B: ensure(placements(B, FURN)['X1']['facing'] == 0
+                            and APP(B)['X1']['host'] == wall_host('W1', 'right', MM_(3300)), APP(B)['X1']))
+O(FURN, 'remove-the-table-is-rejected', 'Removing the dining table leaves its two chairs with an element that is gone: '
+  'the result breaks 4.3.1, and an applier that implements FS_furniture and knows it rejects the batch (Ops 1.2.3).',
+  ['4.3.1', '1.2.1', 'FS-OPS-1.2.3'], flat(), {'batch': [{'op': 'removeElement', 'id': 'X7'}]}, 'rejected',
+  [('FS-FURN-INV-002', ['X8']), ('FS-FURN-INV-002', ['X9'])])
+O(FURN, 'remove-the-table-and-its-chairs', 'The same removal with the chairs removed in the same batch: it commits.',
+  ['4.3.1', '1.2.1'], flat(),
+  {'batch': [{'op': 'removeElement', 'id': 'X8'}, {'op': 'removeElement', 'id': 'X9'}, {'op': 'removeElement', 'id': 'X7'}]},
+  check=lambda r, B: ensure(sorted(r['removed']) == ['X7', 'X8', 'X9'], r['removed']))
+O(FURN, 'place-a-refrigerator-in-option-b', 'Kitchen options A and B in a Core 0.3 document, applied as Ops 0.3 with '
+  'context.option B: placeElement puts option B\'s refrigerator on the west wall, and the applier adds it to B (Ops '
+  '2.8.1). Both designs are valid under FS_furniture.', ['1.2.1', 'FS-OPS-2.8.1'],
+  fedit(lambda d: (kitchen_options(d), APP(d).pop('X16'))),
+  {'context': {'option': 'OP2'},
+   'batch': [{'op': 'placeElement', 'extension': FURN, 'collection': 'appliances', 'id': 'X16',
+              'host': {'mode': 'wallFace', 'wall': 'W1', 'toward': 'Kitchen', 'at': '3300mm from start', 'height': 0},
+              'element': FRIDGE}]},
+  check=lambda r, B: ensure(APP(B)['X16'] == item('refrigerator-900', wall_host('W1', 'right', MM_(3300)), option='OP2'),
+                            APP(B)['X16']))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -768,10 +1238,25 @@ def write_all(prune=False):
         elif os.path.exists(rp):
             os.remove(rp)
         implemented = official.implemented(tc['ext'])
-        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements']))
+        hand = sorted(tc['diags'], key=lambda x: (x['code'], x['elements'], 'design' in x, x.get('design', '')))
         problems = []
+        package, design = tc.get('package'), tc.get('design')
+        pd = os.path.join(d, 'package')
+        if os.path.isdir(pd):
+            shutil.rmtree(pd)
+        for path, b in (package or {}).items():
+            fp = os.path.join(pd, *path.split('/'))
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            with open(fp, 'wb') as f:
+                f.write(b)
+        dp = os.path.join(d, 'design.json')
+        if design is not None:
+            with open(dp, 'w') as f:
+                f.write(json.dumps(design, indent=2) + '\n')
+        elif os.path.exists(dp):
+            os.remove(dp)
         if tc['kind'] == 'core':
-            result, canonical, notes = check(data, ext_reader(data), registry, implemented)
+            result, canonical, notes = check(data, ext_reader(data), registry, implemented, package, design)
             valid = not any(x['severity'] == 'error' for x in hand)
             if hand != result['diagnostics'] or valid != result['valid']:
                 problems.append(f'hand   {json.dumps(hand)}\n  oracle {json.dumps(result["diagnostics"])}'
@@ -793,7 +1278,7 @@ def write_all(prune=False):
             elif os.path.exists(cp):
                 os.remove(cp)
         else:
-            profile = OPS_02.configured(registry, implemented)
+            profile = ops_profile(tc['doc']).configured(registry, implemented)
             r = (fmt(tc['request']) + '\n').encode('utf-8')
             with open(os.path.join(d, 'request.json'), 'wb') as f:
                 f.write(r)
@@ -826,7 +1311,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in EXTS:
+        for name in ALL:
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):
