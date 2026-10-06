@@ -31,7 +31,8 @@ from __future__ import annotations
 import copy
 from fractions import Fraction
 
-from .. import plane
+from .. import arcs, plane
+from ..validate import in_interior, location_lines_meet
 from ..surd import Surd
 from .errors import OpsError
 from .faces import coll, is_point
@@ -235,6 +236,35 @@ def breaks_5_3(js: dict, edges) -> bool:
     return False
 
 
+def arc_polylines(wc, js, edges, profile) -> dict:
+    """Ops 0.4: the polyline (Core 21.2) of every edge with a well-formed `arc` whose arc fits (Core 21.1)."""
+    out = {}
+    if not getattr(profile, 'v04', False):
+        return out
+    for c, eid, s, t in edges:
+        a = coll(wc, c)[eid].get('arc')
+        h = a.get('sagitta') if isinstance(a, dict) and set(a) == {'sagitta'} else None
+        if type(h) is int and h != 0 and arcs.fits(js[s], js[t], h):
+            out[eid] = arcs.polyline(js[s], js[t], h)
+    return out
+
+
+def arcs_in_the_way(js, edges, polys) -> list:
+    """Ops 0.4, 5.2: the arc edges that break Core 21.3.1 - whose location lines meet or overlap another edge's,
+    or have a junction inside them."""
+    lines = {eid: polys.get(eid, (js[s], js[t])) for _, eid, s, t in edges}
+    out = set()
+    ids = sorted(lines)
+    for i, x in enumerate(ids):
+        for y in ids[i + 1:]:
+            if (x in polys or y in polys) and location_lines_meet(lines[x], lines[y]) is not None:
+                out.update(e for e in (x, y) if e in polys)
+    for eid, poly in polys.items():
+        if any(in_interior(p, poly) for p in js.values()):
+            out.add(eid)
+    return sorted(out)
+
+
 def domains(wc: dict, level: str) -> list:
     """Ops 0.3, 5.5: the domains of a level - the common one, then each option that has a junction or
     an edge on the level, in order of its ID."""
@@ -251,6 +281,12 @@ def planarize(wc: dict, level: str, mint, straddles: list, profile: Profile = OP
     Core 5.3; any other is left as it is."""
     js = _junctions_on(wc, level, domain)
     edges = [e for e in _edges_on(wc, level, js, domain) if js[e[2]] != js[e[3]]]
+    polys = arc_polylines(wc, js, edges, profile)               # Ops 0.4: arc edges (Core 21)
+    if polys:
+        blocked = arcs_in_the_way(js, edges, polys)
+        if blocked:
+            raise OpsArcRouted(blocked)                         # 5.2: an arc edge is never routed
+        edges = [e for e in edges if e[1] not in polys]         # ... nor split; its straight neighbours may be
     if not breaks_5_3(js, edges):
         return
     hot = hot_pixels(js.values(), [(js[s], js[t]) for _, _, s, t in edges])
@@ -411,3 +447,12 @@ class OpsStraddle(Exception):
         super().__init__(', '.join(openings))
         self.errors = [OpsError('FS-OPS-009', [o], None, f'{o} straddles a junction planarization inserts')
                        for o in sorted(openings)]
+
+
+class OpsArcRouted(OpsStraddle):
+    """Ops 0.4, 5.2: a level to planarize where an arc edge crosses, touches or overlaps another edge, or has a
+    junction inside it - one diagnostic naming every such arc edge on the level."""
+
+    def __init__(self, edges):
+        Exception.__init__(self, ', '.join(edges))
+        self.errors = [OpsError('FS-OPS-013', edges, None, 'an arc edge is never routed or split; draw the junction first')]

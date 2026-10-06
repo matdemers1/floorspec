@@ -11,7 +11,7 @@ the committed result.
 | Lock | Holds while |
 |---|---|
 | `{ "element": ID }` | the element exists, in the same collection, with exactly its content in A; for a wall or separator, its start and end junctions are also unmoved; for a room, every junction on its face's outer cycle is also unmoved; for an extension element on a wall face, its wall's start and end junctions are also unmoved |
-| `{ "length": wallID }` | the wall exists and its location line has the same length as in A |
+| `{ "length": wallID }` | the wall exists and its location line has the same length as in A — for an arc wall, the same length along its polyline (Core §21.6), and it is still an arc wall |
 | `{ "distance": [wallID, wallID] }` | both walls exist, are parallel, and the distance between their location lines is as in A |
 
 An element lock on a program item or an extension element holds its content; on an outlet, it

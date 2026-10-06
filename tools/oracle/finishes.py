@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 
+from . import arcs
 from .derive import Doc, LevelGraph
 
 MAPS = ('asset', 'normal', 'metallicRoughness', 'occlusion')               # 18.2
@@ -67,6 +68,12 @@ def invariants(doc: Doc, no_top, diag):
             continue
         s, e = doc.junctions[w['start']]['position'], doc.junctions[w['end']]['position']
         D = (e[0] - s[0]) ** 2 + (e[1] - s[1]) ** 2
+        poly = None if arcs.unfit(doc, wid) else arcs.wall_arc(doc, wid)
+
+        def past_end(to):                                   # 18.5.3; an arc wall's length (21.5)
+            if arcs.unfit(doc, wid):
+                return False
+            return to > arcs.length(poly) if poly is not None else to * to > D
         height = None if wid in no_top else doc.top_elevation(wid) - doc.base_elevation(wid)
         for _, face in faces:
             ok = []
@@ -75,7 +82,7 @@ def invariants(doc: Doc, no_top, diag):
                     ds.append(diag('FS-INV-1001', [wid]))
                     continue
                 ok.append(r)
-                if r['to'] * r['to'] > D or (height is not None and r['top'] > height):
+                if past_end(r['to']) or (height is not None and r['top'] > height):
                     ds.append(diag('FS-INV-1002', [wid]))
             for i, a in enumerate(ok):
                 for b in ok[i + 1:]:
@@ -127,8 +134,8 @@ def facing(doc: Doc):
             for walk in [f['outer']] + f['holes']:
                 for eid, u, _ in walk:
                     e = g.edges[eid]
-                    if e.kind == 'wall':
-                        out[(eid, 'left' if u == e.start else 'right')] = rid
+                    if e.kind == 'wall':                        # an arc wall's segments face what the wall faces (21.3)
+                        out[(e.src, 'left' if u == e.start else 'right')] = rid
     return out
 
 

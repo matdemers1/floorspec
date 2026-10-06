@@ -16,7 +16,8 @@ texture's maps, `offset` and `rotation`, an asset's `byteLength` and a wall's `f
 `option` member of the elements that may be in one (19.1.1, 19.2.1); and a type's or a material's
 `source` (8.1.3).
 
-And, for Core 0.4, a stair's `minHeadroom` (17.1.3) and a winder stair's `newel` (17.2.3).
+And, for Core 0.4, a stair's `minHeadroom` (17.1.3) and a winder stair's `newel` (17.2.3), and the `arc` of a
+wall or a separator (21.1.1).
 
 ``check(doc, version)`` returns a list of problems; any problem is FS-SCH-001. ``version`` is the
 draft whose schema applies: "0.1", "0.2", "0.3" or "0.4" (1.2.8).
@@ -259,12 +260,22 @@ class _Checker:
                    'base': base, 'top': top, **self.optional()}
         if self.v03:
             allowed['finishes'] = self.wall_finishes                        # 18.5.1 (0.3)
+        if self.v04:
+            allowed['arc'] = self.arc                                       # 21.1.1 (0.4)
         self.members(v, path, allowed, ('level', 'start', 'end'))
 
     def separator(self, v, path):
         if self.obj(v, path):
-            self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref, **self.optional()},
+            self.members(v, path, {'level': self.ref, 'start': self.ref, 'end': self.ref, **self.optional(),
+                                   **({'arc': self.arc} if self.v04 else {})},
                          ('level', 'start', 'end'))
+
+    def arc(self, v, path):
+        """21.1.1 (0.4): exactly a sagitta, a length that is not zero."""
+        if self.obj(v, path):
+            self.members(v, path, {'sagitta': self.length}, ('sagitta',))
+            if is_int(v.get('sagitta')) and v['sagitta'] == 0:
+                self.bad(f'{path}/sagitta', 'zero')
 
     def opening(self, v, path):
         if self.obj(v, path):

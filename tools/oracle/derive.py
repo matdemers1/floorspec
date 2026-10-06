@@ -12,7 +12,7 @@ from __future__ import annotations
 from fractions import Fraction
 from functools import cmp_to_key
 
-from . import plane
+from . import arcs, plane
 from .surd import Surd
 
 
@@ -119,7 +119,8 @@ class Doc:
         return t.get('clearOpening')
 
     def join(self, jid):
-        return self.junctions[jid].get('join', {'kind': 'mitre'})
+        """A junction's join; the default join at a vertex of an arc's polyline, which is no junction (21.3)."""
+        return self.junctions.get(jid, {}).get('join', {'kind': 'mitre'})
 
 
 # ------------------------------------------------------------------------------- the level graph
@@ -145,10 +146,13 @@ def peq(p, q) -> bool:
 
 
 class Edge:
-    __slots__ = ('id', 'kind', 'start', 'end', 'a', 'b')
+    """An edge of the level graph: a straight wall or separator, or one segment of an arc edge (21.3) - then
+    `src` is the arc edge's ID, and its ends are the arc's junctions or the vertices of its polyline."""
+    __slots__ = ('id', 'kind', 'start', 'end', 'a', 'b', 'src')
 
-    def __init__(self, id, kind, start, end, a, b):
+    def __init__(self, id, kind, start, end, a, b, src=None):
         self.id, self.kind, self.start, self.end, self.a, self.b = id, kind, start, end, a, b
+        self.src = id if src is None else src
 
     def other(self, j):
         return self.end if j == self.start else self.start
@@ -161,15 +165,19 @@ class LevelGraph:
         self.doc = doc
         self.level = level
         self.pos = {j: tuple(v['position']) for j, v in doc.junctions.items() if v['level'] == level}
+        self.junctions = list(self.pos)                 # the level's junctions; the rest of pos are arc vertices
         self.edges: dict[str, Edge] = {}
+        self.chain: dict[str, list[str]] = {}           # an edge's ID -> its segments' IDs, in order (21.3)
+        self.walls: list[str] = []
         for wid, w in doc.walls.items():
             if w['level'] == level:
                 off = doc.offsets(wid)
                 a, b = off if off is not None else (Fraction(0), Fraction(0))
-                self.edges[wid] = Edge(wid, 'wall', w['start'], w['end'], a, b)
+                self._add(wid, 'wall', w, a, b)
+                self.walls.append(wid)
         for sid, s in doc.separators.items():
             if s['level'] == level:
-                self.edges[sid] = Edge(sid, 'separator', s['start'], s['end'], Fraction(0), Fraction(0))
+                self._add(sid, 'separator', s, Fraction(0), Fraction(0))
         inc: dict[str, list[str]] = {j: [] for j in self.pos}
         for e in self.edges.values():
             inc[e.start].append(e.id)
@@ -181,6 +189,36 @@ class LevelGraph:
             self.inc[j] = es
             self.idx[j] = {e: i for i, e in enumerate(es)}
         self._wedges: dict = {}
+        self.cuts: dict = {}                            # (junction, segment, side) -> face vertices cut (21.4)
+        self._cut_done = False
+        self.endcuts: dict = {}                         # (junction, segment) -> (J-left, J-right) cuts of its face ends
+
+    def _add(self, eid, kind, e, a, b):
+        """An edge, or the segments of an arc edge whose polyline has more than one (21.3): the vertices
+        between them are `<eid>^<k>` and the segments `<eid>~<k>` - names no ID can have (3.1)."""
+        h = arcs.sagitta(e)
+        poly = None
+        if h is not None:
+            S, E = self.pos.get(e['start']), self.pos.get(e['end'])
+            if S is not None and E is not None and S != E and arcs.fits(S, E, h):
+                poly = arcs.polyline(S, E, h)
+        if poly is None or len(poly) == 2:
+            self.edges[eid] = Edge(eid, kind, e['start'], e['end'], a, b)
+            self.chain[eid] = [eid]
+            return
+        names = [e['start']] + [f'{eid}^{k}' for k in range(1, len(poly) - 1)] + [e['end']]
+        for k in range(1, len(poly) - 1):
+            self.pos[names[k]] = poly[k]
+        self.chain[eid] = []
+        for k in range(len(poly) - 1):
+            sid = f'{eid}~{k + 1}'
+            self.edges[sid] = Edge(sid, kind, names[k], names[k + 1], a, b, src=eid)
+            self.chain[eid].append(sid)
+
+    def at(self, j, eid):
+        """The segment of edge `eid` that ends at junction j (21.3)."""
+        c = self.chain[eid]
+        return c[0] if self.edges[c[0]].start == j else c[-1]
 
     def out(self, j, eid):
         e = self.edges[eid]
@@ -230,14 +268,80 @@ class LevelGraph:
         key = (j, i)
         if key not in self._wedges:
             ei, ej = es[i], es[(i + 1) % k]
-            p = self.intersect(self.face_line(j, ei, +1), self.face_line(j, ej, -1))
+            p, ca, cb = self.meet(j, ei, +1, ej, -1)
             if p is not None:
                 seq = [p]
+                self.cuts[(j, ei, +1)], self.cuts[(j, ej, -1)] = ca, cb
             else:
                 f1, f2 = self.foot(j, ei, +1), self.foot(j, ej, -1)
                 seq = [f1] if peq(f1, f2) else [f1, f2]
             self._wedges[key] = seq
         return self._wedges[key]
+
+    # ---- 21.4: face paths, trimmed at junctions
+    def path(self, j, eid):
+        """The pieces of the face path of edge `eid` leaving junction j: [(vertex nearer j, segment)], from j
+        outwards - one piece for a straight edge, every segment of an arc edge in turn (21.4)."""
+        c = self.chain[self.edges[eid].src]
+        if len(c) == 1:
+            return [(j, eid)]
+        seq = c if self.edges[c[0]].start == j else list(reversed(c))
+        out, v = [], j
+        for sid in seq:
+            out.append((v, sid))
+            v = self.edges[sid].other(v)
+        return out
+
+    def _face_vertex(self, path, k, side):
+        """21.4: the rounded face vertex where piece k of a face path starts (k >= 1)."""
+        v, nxt = path[k]
+        i = self.idx[v][nxt]
+        return rpoint(self.wedge(v, i)[0] if side > 0 else self.wedge(v, i - 1)[-1])
+
+    def _on_piece(self, p, path, k, side) -> bool:
+        """21.4: p lies on piece k of a face path - not before the rounded face vertex that starts it (the first
+        piece has none) and not past the one that ends it (the last has none), along the piece's direction from
+        the junction. Exact."""
+        d = self.out(*path[k])
+        if k > 0:
+            fv = self._face_vertex(path, k, side)
+            if ((p[0] - fv[0]) * d[0] + (p[1] - fv[1]) * d[1]).sign() < 0:
+                return False
+        if k + 1 < len(path):
+            fv = self._face_vertex(path, k + 1, side)
+            if ((p[0] - fv[0]) * d[0] + (p[1] - fv[1]) * d[1]).sign() > 0:
+                return False
+        return True
+
+    def meet(self, j, e1, s1, e2, s2):
+        """(point, a, b): where the s1 face of e1 meets the s2 face of e2 at junction j (s = +1 its J-left, -1 its
+        J-right), or (None, 0, 0) when their first face lines are parallel. For an arc edge the face is its face path
+        (21.4): the pieces of the first path are tried outwards from the junction and, for each, the pieces of the
+        second; the corner is the first intersection that lies on both pieces, or the first pieces' intersection
+        when none does. a and b are the pieces it lies on: the face vertices of e1 and e2 the join cuts off."""
+        if j not in self.doc.junctions:                 # a vertex of a polyline: two segments, never trimmed
+            return self.intersect(self.face_line(j, e1, s1), self.face_line(j, e2, s2)), 0, 0
+        p1, p2 = self.path(j, e1), self.path(j, e2)
+        first = self.intersect(self.face_line(*p1[0], s1), self.face_line(*p2[0], s2))
+        if first is None:
+            return None, 0, 0
+        if len(p1) == 1 and len(p2) == 1:
+            return first, 0, 0
+        for a in range(len(p1)):
+            for b in range(len(p2)):
+                q = first if a == b == 0 else self.intersect(self.face_line(*p1[a], s1), self.face_line(*p2[b], s2))
+                if q is not None and self._on_piece(q, p1, a, s1) and self._on_piece(q, p2, b, s2):
+                    return q, a, b
+        return first, 0, 0
+
+    def all_cuts(self):
+        """Every wedge at every junction computed, so that `cuts` holds every cut (21.4)."""
+        if not self._cut_done:
+            for j in self.junctions:
+                for i in range(len(self.inc[j])):
+                    self.wedge(j, i)
+            self._cut_done = True
+        return self.cuts
 
     # ---- 5.7 / 5.8 face ends
     def junction_ends(self, j, eid):
@@ -245,9 +349,11 @@ class LevelGraph:
         i = self.idx[j][eid]
         left, right = self.wedge(j, i)[0], self.wedge(j, i - 1)[-1]
         join = self.doc.join(j)
+        cut = lambda e, side: self.cuts.get((j, e, side), 0)        # noqa: E731
         if join.get('kind') != 'butt':
+            self.endcuts[(j, eid)] = (cut(eid, +1), cut(eid, -1))
             return left, right
-        through = join['through']
+        through = [self.at(j, w) for w in join['through']]         # an arc wall's segment at j (21.3)
         es = self.inc[j]
         if len(through) == 1:
             a_id = through[0]
@@ -259,30 +365,58 @@ class LevelGraph:
             b_id = es[b]
             a_convex_side = +1 if a == cw else -1                # J-left of A bounds wedge a
             b_reflex_side = +1 if b != cw else -1                # J-left of B bounds wedge b
-            p = self.intersect(self.face_line(j, a_id, a_convex_side), self.face_line(j, b_id, b_reflex_side))
+            p, pa, pb = self.meet(j, a_id, a_convex_side, b_id, b_reflex_side)
             if eid == a_id:
                 ends = {a_convex_side: p, -a_convex_side: r}
+                cuts = {a_convex_side: pa, -a_convex_side: cut(a_id, -a_convex_side)}
             else:
                 ends = {-b_reflex_side: c, b_reflex_side: p}
+                cuts = {-b_reflex_side: cut(b_id, -b_reflex_side), b_reflex_side: pb}
+            self.endcuts[(j, eid)] = (cuts[+1], cuts[-1])
             return ends[+1], ends[-1]
         if eid in through:
+            self.endcuts[(j, eid)] = (0, 0)
             return self.foot(j, eid, +1), self.foot(j, eid, -1)
+        self.endcuts[(j, eid)] = (cut(eid, +1), cut(eid, -1))
         return left, right
 
     def face_ends(self, wid):
-        """{'startRight', 'endRight', 'endLeft', 'startLeft'}: exact points."""
-        e = self.edges[wid]
-        sl, sr = self.junction_ends(e.start, wid)
-        er, el = self.junction_ends(e.end, wid)     # at the end the wall's own sides are reversed
+        """{'startRight', 'endRight', 'endLeft', 'startLeft'}: exact points. An arc wall's are those of its
+        first and last segments (21.4)."""
+        c = self.chain[wid]
+        first, last = self.edges[c[0]], self.edges[c[-1]]
+        sl, sr = self.junction_ends(first.start, first.id)
+        er, el = self.junction_ends(last.end, last.id)  # at the end the wall's own sides are reversed
         return {'startRight': sr, 'endRight': er, 'endLeft': el, 'startLeft': sl}
+
+    def face_vertices(self, wid):
+        """21.4: the exact (left, right) face vertices of an arc wall, from its start to its end - at each
+        vertex of its polyline, the corners of the two wedges between its segments there."""
+        c = self.chain[wid]
+        left, right = [], []
+        for sid in c[1:]:
+            lv, rv = self.junction_ends(self.edges[sid].start, sid)
+            left.append(lv)
+            right.append(rv)
+        if len(c) == 1:
+            return left, right
+        first, last = self.edges[c[0]], self.edges[c[-1]]
+        self.junction_ends(first.start, first.id)
+        self.junction_ends(last.end, last.id)
+        ls, rs = self.endcuts[(first.start, first.id)]
+        le, re_ = self.endcuts[(last.end, last.id)]             # at the end, J-left is the wall's right
+        n = len(left)
+        return left[ls:max(ls, n - re_)], right[rs:max(rs, n - le)]
 
     def outline(self, wid):
         f = {k: rpoint(v) for k, v in self.face_ends(wid).items()}
-        return plane.dedupe_cyclic([f['startRight'], f['endRight'], f['endLeft'], f['startLeft']])
+        left, right = self.face_vertices(wid)
+        return plane.dedupe_cyclic([f['startRight']] + [rpoint(p) for p in right] + [f['endRight'], f['endLeft']]
+                                   + [rpoint(p) for p in reversed(left)] + [f['startLeft']])
 
     def fill(self, j):
         """The junction fill ring (rounded, deduplicated), or None when not derived (5.7)."""
-        if len(self.inc[j]) < 3 or self.doc.join(j).get('kind') != 'mitre':
+        if len(self.inc[j]) < 3 or j not in self.doc.junctions or self.doc.join(j).get('kind') != 'mitre':
             return None
         pts = []
         for i in range(len(self.inc[j])):
@@ -319,10 +453,28 @@ class LevelGraph:
         n = len(walk)
         for i in range(n):
             eid, _, v = walk[i]
+            if self.cut_off(eid, v):
+                continue
             m = self.idx[v][eid]
             seq = self.wedge(v, m - 1)
             pts.extend(rpoint(p) for p in reversed(seq))
         return plane.dedupe_cyclic(pts)
+
+    def cut_off(self, eid, v) -> bool:
+        """21.4: arriving along segment eid at a vertex v of its arc's polyline, the face on the walk's left - the
+        arc's left face when the walk runs the arc's way - turns at a face vertex that the join at a junction
+        cuts off."""
+        e = self.edges[eid]
+        if v in self.doc.junctions or e.src == e.id:
+            return False
+        c = self.chain[e.src]
+        k = int(v.rsplit('^', 1)[1])
+        cuts = self.all_cuts()
+        first, last = self.edges[c[0]], self.edges[c[-1]]
+        side = +1 if e.end == v else -1                     # the arc's left (+1) or right (-1)
+        at_start = cuts.get((first.start, first.id, side), 0)
+        at_end = cuts.get((last.end, last.id, -side), 0)
+        return k <= at_start or k >= len(c) - at_end
 
     def faces(self):
         """Bounded faces: list of dicts {outer: walk, holes: [walk], area2: walk area}."""
@@ -411,6 +563,10 @@ def polygon_value(outer, holes):
 
 def opening_points(doc: Doc, oid):
     o = doc.openings[oid]
+    poly = arcs.wall_arc(doc, o['wall'])
+    if poly is not None:                                    # 21.6: at distances along an arc wall's polyline
+        width, _, _ = doc.opening_dims(oid)
+        return tuple(tuple(Surd(c) for c in arcs.point_at(poly, t)) for t in (o['offset'], o['offset'] + width))
     w = doc.walls[o['wall']]
     s = doc.junctions[w['start']]['position']
     e = doc.junctions[w['end']]['position']
@@ -430,14 +586,17 @@ def derive(doc: Doc) -> dict:
     walls, fills, rooms, unanchored, openings = {}, {}, {}, [], {}
     for level in sorted(doc.levels):
         g = LevelGraph(doc, level)
-        for wid, e in g.edges.items():
-            if e.kind != 'wall':
-                continue
+        for wid in g.walls:
             f = g.face_ends(wid)
             walls[wid] = {k: list(rpoint(f[k])) for k in ('startRight', 'endRight', 'endLeft', 'startLeft')}
             walls[wid]['baseElevation'] = doc.base_elevation(wid)
             walls[wid]['topElevation'] = doc.top_elevation(wid)
-        for j in g.pos:
+            poly = arcs.wall_arc(doc, wid)
+            if poly is not None:                            # 21.4, 21.5: an arc wall's polyline, length and faces
+                left, right = g.face_vertices(wid)
+                walls[wid].update({'polyline': [list(p) for p in poly], 'length': arcs.length(poly),
+                                   'left': [list(rpoint(p)) for p in left], 'right': [list(rpoint(p)) for p in right]})
+        for j in g.junctions:
             ring = g.fill(j)
             if ring is not None and len(ring) >= 3 and plane.area2(ring) != 0:
                 fills[j] = [list(p) for p in plane.least_first(ring)]

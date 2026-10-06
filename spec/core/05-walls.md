@@ -1,7 +1,8 @@
 # 5. Walls
 
 Walls are authored on a graph. **Junctions** are its nodes — points on a level — and **walls**
-and **room separators** are its edges, each running straight from one junction to another. The
+and **room separators** are its edges, each running straight from one junction to another — or, from
+Core 0.4, along a circular arc (chapter 21). The
 graph is the single geometric truth of a level: wall corners are computed from it (this chapter),
 rooms are its faces (chapter 6), and openings ride on its edges (chapter 7). A wall never stores
 its own corners, and a room never stores its own outline (FLR-ADR-002).
@@ -39,6 +40,7 @@ dining area. Together they are the level's **edges**.
 | `base` | `{ "level"?: reference, "offset"?: length }` | `{}` | the wall's bottom (5.9) |
 | `top` | `{ "level": reference, "offset"?: length }` or `{ "height": length }` | absent: follows the level's height (5.9) | the wall's top |
 | `finishes` | `{ "left"?: face finish, "right"?: face finish }` (18.5) | `{}` | the finishes of its faces, and of regions of them, where they differ from the rooms they face (0.3) |
+| `arc` | arc (21.1) | absent: the wall is straight | the circular arc it runs along (0.4) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 **Separator.**
@@ -48,6 +50,7 @@ dining area. Together they are the level's **edges**.
 | `level` | reference to a level | — (always present) | the level the separator is on |
 | `start` | reference to a junction | — (always present) | one end |
 | `end` | reference to a junction | — (always present) | the other end |
+| `arc` | arc (21.1) | absent: the separator is straight | the circular arc it runs along (0.4) |
 | `name`, `extensions`, `extras` | | | 1.4 |
 
 An edge's `start` and `end` MUST be different junctions. {#FS-CORE-5.2.1 MUST}

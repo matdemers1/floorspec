@@ -51,6 +51,14 @@ gain their surfaces and lose `FS-LINT-015`. The roof tests 0.4 adds follow the 0
 overtakes a slower one, coincident events, a very thin lobe, Pythagorean oblique edges, and the roofs
 0.4 still does not derive.
 
+The group `arcs` holds the tests of Core 0.4's chapter 21, arc edges: walls and separators along
+circular arcs, their polylines by iterated snap rounding, planarity on polylines (`FS-INV-104` to
+`FS-INV-106` where a polyline meets another line, `FS-INV-113` for an arc of more than a semicircle),
+face paths cut at sharp joins, curved rooms and their areas, and openings, hosts and finish regions
+measured along an arc's stations. Most are one change to one plan, `arcs/001-bay-room`: a 5000 mm by
+4000 mm room whose north wall bulges 1000 mm. Its declarations are in `tools/oracle/author04_arcs.py`,
+which `author04.py` imports, and `tools/oracle/arcs.py` is the oracle's polyline.
+
 **Core 0.3** (`core/0.3/`) is the suite of the published 0.3 text, kept as it was. It holds every
 Core 0.2 test re-targeted to 0.3 — same group, same number,
 declaring `"0.3"` where the 0.2 test declared `"0.2"` (a test whose document declares `"0.1"` keeps
@@ -161,7 +169,8 @@ are illustrative only.
 - All five members are always present, even when empty (`{}` or `[]`); in the 0.2 suite, so are
   the six members below.
 - `walls` — every wall on every level: its four face ends (5.7, 5.8) and its base and top
-  elevations (5.9).
+  elevations (5.9); from Core 0.4, an arc wall (chapter 21) also has its `polyline`, its `length` and
+  its `left` and `right` face vertices (21.7).
 - `junctionFills` — every junction whose fill is not empty (5.7), as a ring.
 - `rooms` — every room: its room polygon (6.2) and net area (6.4).
 - `unanchored` — every bounded face with no anchor and a room polygon that is not degenerate,
@@ -391,7 +400,11 @@ holds every Ops 0.3 test on the same documents - Ops 0.4 applies to Core 0.3, 0.
 exactly as Ops 0.3 did, with a Core 0.4 reader - with `document-other-version` declaring `"0.5"`, and,
 after them in each group, the tests of what 0.4 adds: Core 0.4 documents, a stair's `minHeadroom` and a
 winder stair's `newel` set and unset, the upgrade of a 0.3 document to 0.4 as one batch
-(`transactions/…-upgrade-to-0.4`), and batches rejected with FS-INV-905 and FS-INV-906. Its requests
+(`transactions/…-upgrade-to-0.4`), and batches rejected with FS-INV-905 and FS-INV-906; and the group
+`arcs`, arc edges (Core chapter 21) added, bent, flipped, straightened and moved with the primitives Ops
+already has, doors placed along an arc's length, locks and selectors on arcs, and planarization that
+splits the straight walls beside an arc but never the arc itself (`FS-OPS-013`), declared in
+`tools/oracle/ops_author04_arcs.py`. Its requests
 match `schema/ops/0.3/`: Ops 0.4 has no request schema of its own. Its tests are declared in
 `tools/oracle/ops_author04.py`, which carries every 0.3 declaration forward.
 

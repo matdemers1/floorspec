@@ -133,7 +133,8 @@ Where an operation places something along a wall, it takes a **position**:
 | `"<length> from end"` | `L − length − w` |
 | an integer or length | that offset |
 
-where `L` is the length of the wall's location line and `w` the width being placed — for a hosted
+where `L` is the length of the wall's location line — for an arc wall, its length along its polyline
+(Core §21.6), an integer — and `w` the width being placed — for a hosted
 element, which is placed by a point, `0` (4.10). Each is computed exactly and rounded once, ties
 to even.
 

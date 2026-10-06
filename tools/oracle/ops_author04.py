@@ -126,6 +126,8 @@ T('inverse', 'newel-set-and-undone', 'Setting a winder\'s newel and the stair\'s
   check=lambda r, B: ensure(r['inverse'] == [{'op': 'setProperty', 'id': 'ST1', 'path': '/form', 'value': WINDER},
                                              {'op': 'unsetProperty', 'id': 'ST1', 'path': '/minHeadroom'}], r['inverse']))
 
+import tools.oracle.ops_author04_arcs  # noqa: E402,F401  (arc edges, Core 0.4 chapter 21: the group `arcs`)
+
 NEW = list(TESTS)
 del TESTS[:]
 

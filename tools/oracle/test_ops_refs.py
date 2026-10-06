@@ -7,6 +7,7 @@ from fractions import Fraction
 from tools.oracle.ops.errors import OpsError
 from tools.oracle.ops.refs import exact_length, half, length
 from tools.oracle.ops.select import Resolver, side_of
+from tools.oracle.surd import Surd
 
 FT, IN, MM = 390144, 32512, 1280
 
@@ -150,17 +151,17 @@ class PointTest(unittest.TestCase):
 
     def test_positions(self):
         D = 3 ** 2 + 5 ** 2                       # a wall of sqrt(34) base units... scaled below
-        self.assertEqual(Resolver.position(7, D, 1, ''), 7)
-        self.assertEqual(Resolver.position('3"', D, 1, ''), 3 * IN)
+        self.assertEqual(Resolver.position(7, Surd.sqrt(D), 1, ''), 7)
+        self.assertEqual(Resolver.position('3"', Surd.sqrt(D), 1, ''), 3 * IN)
         # 12' wall, 36" door: centred at (4681728 - 1170432) / 2
-        self.assertEqual(Resolver.position('centered', (12 * FT) ** 2, 36 * IN, ''), 1755648)
-        self.assertEqual(Resolver.position("2' from end", (12 * FT) ** 2, 36 * IN, ''), 12 * FT - 2 * FT - 36 * IN)
-        self.assertEqual(Resolver.position('18" FROM START', (12 * FT) ** 2, 36 * IN, ''), 18 * IN)
+        self.assertEqual(Resolver.position('centered', Surd.sqrt((12 * FT) ** 2), 36 * IN, ''), 1755648)
+        self.assertEqual(Resolver.position("2' from end", Surd.sqrt((12 * FT) ** 2), 36 * IN, ''), 12 * FT - 2 * FT - 36 * IN)
+        self.assertEqual(Resolver.position('18" FROM START', Surd.sqrt((12 * FT) ** 2), 36 * IN, ''), 18 * IN)
         # sqrt(34) ft = 2274910.896...: centred 30" -> 649775.448 -> 649775
-        self.assertEqual(Resolver.position('centered', 34 * FT * FT, 30 * IN, ''), 649775)
+        self.assertEqual(Resolver.position('centered', Surd.sqrt(34 * FT * FT), 30 * IN, ''), 649775)
         # an odd excess rounds to even: L = 5, w = 2 -> 1.5 -> 2; L = 5, w = 0 -> 2.5 -> 2
-        self.assertEqual(Resolver.position('centered', 25, 2, ''), 2)
-        self.assertEqual(Resolver.position('centered', 25, 0, ''), 2)
+        self.assertEqual(Resolver.position('centered', Surd.sqrt(25), 2, ''), 2)
+        self.assertEqual(Resolver.position('centered', Surd.sqrt(25), 0, ''), 2)
 
 
 if __name__ == '__main__':

@@ -52,7 +52,7 @@ def room_relations(doc: Doc):
         by_face = {i: rid for rid, i in room_face.items()}
         for e in g.edges.values():
             fa, fb = owner.get((e.id, e.start, e.end)), owner.get((e.id, e.end, e.start))
-            joins = e.kind == 'separator' or e.id in doors
+            joins = e.kind == 'separator' or e.src in doors          # an arc wall's segments are the wall's (21.3)
             if joins and (fa is None) != (fb is None):         # one side is the unbounded face
                 f = fa if fb is None else fb
                 if f in by_face:

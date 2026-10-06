@@ -22,7 +22,9 @@ Members: `level`; `from` and `to`, each a point or a junction; optionally `id`, 
 
 `drawSeparator` is the same with `addSeparator` and no wall members (`name`, `extensions` and
 `extras` are allowed). A wall drawn across other
-walls is split where it crosses them by normalization (5.2); drawing does not need to know.
+walls is split where it crosses them by normalization (5.2); drawing does not need to know. An arc wall
+or separator (Core §21) is drawn under an `id` the batch names, and given its `arc` by `setProperty` in
+the same batch; it is never split (5.2).
 
 An applier MUST expand drawWall and drawSeparator as this section defines. {#FS-OPS-4.1.1 MUST}
 
@@ -36,7 +38,8 @@ Moves a wall sideways, keeping its direction. `wall` is a wall (3.3) — never a
 counts as no match there. `by` is a length; positive is towards the wall's
 left (exterior) side. With `toward: <room>`, the sign of `by` is instead chosen so the wall moves
 into that room's face. The displacement is `by` times the wall's unit left normal, rounded once
-per coordinate, ties to even; then:
+per coordinate, ties to even — for an arc wall (Core §21), the unit left normal of its chord, from its
+start junction to its end junction, so an arc wall moves with its sagitta unchanged; then:
 
 1. `moveJunction` of the wall's start by the displacement;
 2. `moveJunction` of its end by the same displacement.

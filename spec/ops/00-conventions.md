@@ -76,7 +76,17 @@ make a 0.3 document declare `"0.4"` with `setProperty` of `$document` `/floorspe
 whole of Core's step from 0.3 to 0.4 (Core §20.7). A winder or spiral stair's steps, walkline,
 goings and headroom are derived values (Core §17.7), which no operation edits.
 
-Ops 0.4 adds no operation and no member of a request, so it has no request schema of its own: its
+And **arc edges** (Core chapter 21): a wall or a separator with an `arc` is added with `addElement`, or
+drawn with `drawWall` or `drawSeparator` under an `id` the batch names and given its `arc` by
+`setProperty` in the same batch — normalization runs after the last primitive, so it sees the arc — and
+is bent, flipped and straightened with `setProperty` and `unsetProperty` of `/arc`; `moveJunction` moves
+an arc with its junctions, keeping its sagitta. The reference grammar reads an arc wall's faces, rooms
+and length as Core 0.4 derives them (3.4, 3.5), and a length lock holds an arc wall's length along its
+polyline (6.1). Planarization never routes or splits an arc edge: a level it would have to route one on
+is rejected with `FS-OPS-013` (5.2).
+
+Ops 0.4 adds no operation and no member of a request — an arc is a member of the element, which
+`addElement` and `setProperty` take as given — so it has no request schema of its own: its
 requests match `schema/ops/0.3/request.schema.json`, and `FS-OPS-1.1.3` keeps its ID and its
 meaning. Applied to a document that declares `"0.3"`, `"0.2"` or `"0.1"`, a request commits or is
 rejected exactly as it was under Ops 0.3, unless its batch makes the document declare `"0.4"` or
@@ -200,5 +210,7 @@ stair's `position` is a plan point, which `moveRoom` does not move) — and comp
 options: copying an element into another option, or adding an option set and its options in one
 operation; references inside an extension's own members,
 which core does not read and so no removal follows (an electrical circuit that names a device);
-an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); dimension locks
+an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); an `arc` member on
+`drawWall` and `drawSeparator`, and planarization that splits an arc edge where another edge crosses
+it (5.2); dimension locks
 other than the two of chapter 6; operations that edit several documents at once.

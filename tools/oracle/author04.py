@@ -319,6 +319,7 @@ sch('newel-on-a-spiral', 'A spiral stair\'s column is the space its treads leave
 sch('newel-on-a-u-stair', 'A U-shaped stair has no newel.', ['17.2.3'], lambda s: s.update(form={**U_FORM, 'newel': NEWEL}))
 
 roofs04.declare()
+import tools.oracle.author04_arcs  # noqa: E402,F401  (chapter 21: the group `arcs`)
 
 NEW = list(TESTS)
 del TESTS[:]

@@ -24,7 +24,7 @@ import json
 import re
 from fractions import Fraction
 
-from .. import canon, plane
+from .. import arcs, canon, plane
 from ..jsonparse import Malformed, parse
 from ..surd import Surd
 from .errors import OpsError, Rejected, esc
@@ -669,7 +669,7 @@ class Transaction:
                                'the opening has no width and its fill gives none')
             w = t['width']
         _, _, S, E = R.wall_line('walls', wid, f'{P}/wall')
-        D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
+        D = wall_length(self.wc, o['wall'] if 'opening' in op else wid, S, E)
         offset = R.position(op['at'], D, w, f'{P}/at')
         element = {'wall': wid, 'offset': offset, **dims}
         element.update({k: copy.deepcopy(op[k]) for k in ('fill', 'hinge', 'swing') + COMMON if k in op})
@@ -685,7 +685,7 @@ class Transaction:
             if w is None:
                 raise OpsError('FS-OPS-003', [oid], f'{P}/opening', f'the width of {oid} does not resolve')
             _, _, S, E = R.wall_line('walls', o['wall'], f'{P}/opening')
-            D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
+            D = wall_length(self.wc, o['wall'] if 'opening' in op else wid, S, E)
             offset = R.position(op['at'], D, w, f'{P}/at')
             return [{'op': 'setProperty', 'id': oid, 'path': '/offset', 'value': offset}]
         if type(o.get('offset')) is not int:                        # relative (4.5.2)
@@ -779,7 +779,7 @@ class Transaction:
                     side = 'right'
                 else:
                     raise OpsError('FS-OPS-008', [wid], f'{P}/toward', f'{rid} is not on one side of {wid}')
-            D = (E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2
+            D = wall_length(self.wc, wid, S, E)
             offset = R.position(h['at'], D, 0, f'{P}/at')
             height = length(h['height'], f'{P}/height')
             host = {'mode': 'wallFace', 'wall': wid, 'side': side, 'offset': offset, 'height': height}
@@ -844,6 +844,27 @@ def lock_ids(lock: dict) -> list[str]:
     return sorted(set(v)) if k == 'distance' else [v]
 
 
+def wall_length(wc, wid, S, E):
+    """3.5: the exact length of a wall's location line - for an arc wall with a well-formed arc that fits, its
+    length along its polyline (Core 21.6)."""
+    h = arc_of(coll(wc, 'walls').get(wid))
+    if h is not None and S != E and arcs.fits(S, E, h):
+        return Surd(arcs.length(arcs.polyline(tuple(S), tuple(E), h)))
+    return Surd.sqrt((E[0] - S[0]) ** 2 + (E[1] - S[1]) ** 2)
+
+
+def arc_of(e):
+    """An edge's sagitta when its `arc` is well formed (Core 21.1.1), else None."""
+    a = e.get('arc') if isinstance(e, dict) else None
+    h = a.get('sagitta') if isinstance(a, dict) and set(a) == {'sagitta'} else None
+    return h if type(h) is int and h != 0 else None
+
+
+def _ends(doc, wid):
+    w = doc['walls'][wid]
+    return tuple(doc['junctions'][w['start']]['position']), tuple(doc['junctions'][w['end']]['position'])
+
+
 def _wall_vec(doc, wid):
     w = doc['walls'][wid]
     s, e = doc['junctions'][w['start']]['position'], doc['junctions'][w['end']]['position']
@@ -897,6 +918,11 @@ def lock_holds(a: dict, b: dict, lock: dict, profile: Profile = OPS_01, option=N
         if v not in coll(b, 'walls'):
             return False
         (_, da), (_, db) = _wall_vec(a, v), _wall_vec(b, v)
+        ha, hb = arc_of(a['walls'][v]), arc_of(b['walls'][v])
+        if ha is not None or hb is not None:                    # Ops 0.4: an arc wall's length (Core 21.6)
+            la = wall_length(a, v, *_ends(a, v))
+            lb = wall_length(b, v, *_ends(b, v))
+            return (ha is None) == (hb is None) and (la - lb).is_zero()
         return plane.dot(da, da) == plane.dot(db, db)
     if not all(x in coll(b, 'walls') for x in v):
         return False
