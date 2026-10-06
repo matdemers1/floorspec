@@ -292,37 +292,47 @@ class LevelGraph:
             v = self.edges[sid].other(v)
         return out
 
-    def _beyond(self, p, path, a, side) -> bool:
-        """21.4: p lies beyond the far end of piece a of a face path: past the rounded face vertex there, along the
-        piece's direction from the junction."""
-        v, nxt = path[a + 1]
+    def _face_vertex(self, path, k, side):
+        """21.4: the rounded face vertex where piece k of a face path starts (k >= 1)."""
+        v, nxt = path[k]
         i = self.idx[v][nxt]
-        fv = rpoint(self.wedge(v, i)[0] if side > 0 else self.wedge(v, i - 1)[-1])
-        d = self.out(*path[a])
-        return ((p[0] - fv[0]) * d[0] + (p[1] - fv[1]) * d[1]).sign() > 0
+        return rpoint(self.wedge(v, i)[0] if side > 0 else self.wedge(v, i - 1)[-1])
+
+    def _on_piece(self, p, path, k, side) -> bool:
+        """21.4: p lies on piece k of a face path - not before the rounded face vertex that starts it (the first
+        piece has none) and not past the one that ends it (the last has none), along the piece's direction from
+        the junction. Exact."""
+        d = self.out(*path[k])
+        if k > 0:
+            fv = self._face_vertex(path, k, side)
+            if ((p[0] - fv[0]) * d[0] + (p[1] - fv[1]) * d[1]).sign() < 0:
+                return False
+        if k + 1 < len(path):
+            fv = self._face_vertex(path, k + 1, side)
+            if ((p[0] - fv[0]) * d[0] + (p[1] - fv[1]) * d[1]).sign() > 0:
+                return False
+        return True
 
     def meet(self, j, e1, s1, e2, s2):
         """(point, a, b): where the s1 face of e1 meets the s2 face of e2 at junction j (s = +1 its J-left, -1 its
         J-right), or (None, 0, 0) when their first face lines are parallel. For an arc edge the face is its face path
-        (21.4): starting from the first pieces, while the point lies beyond the far end of a piece that has a next
-        one, the point is computed again with the next piece of each path it lies beyond. a and b count the pieces
-        passed: the face vertices of e1 and e2 that the join at j cuts off."""
+        (21.4): the pieces of the first path are tried outwards from the junction and, for each, the pieces of the
+        second; the corner is the first intersection that lies on both pieces, or the first pieces' intersection
+        when none does. a and b are the pieces it lies on: the face vertices of e1 and e2 the join cuts off."""
         if j not in self.doc.junctions:                 # a vertex of a polyline: two segments, never trimmed
             return self.intersect(self.face_line(j, e1, s1), self.face_line(j, e2, s2)), 0, 0
         p1, p2 = self.path(j, e1), self.path(j, e2)
-        a = b = 0
-        p = self.intersect(self.face_line(*p1[0], s1), self.face_line(*p2[0], s2))
-        if p is None:
+        first = self.intersect(self.face_line(*p1[0], s1), self.face_line(*p2[0], s2))
+        if first is None:
             return None, 0, 0
-        while True:
-            adv1 = a + 1 < len(p1) and self._beyond(p, p1, a, s1)
-            adv2 = b + 1 < len(p2) and self._beyond(p, p2, b, s2)
-            if not adv1 and not adv2:
-                return p, a, b
-            q = self.intersect(self.face_line(*p1[a + adv1], s1), self.face_line(*p2[b + adv2], s2))
-            if q is None:
-                return p, a, b
-            p, a, b = q, a + adv1, b + adv2
+        if len(p1) == 1 and len(p2) == 1:
+            return first, 0, 0
+        for a in range(len(p1)):
+            for b in range(len(p2)):
+                q = first if a == b == 0 else self.intersect(self.face_line(*p1[a], s1), self.face_line(*p2[b], s2))
+                if q is not None and self._on_piece(q, p1, a, s1) and self._on_piece(q, p2, b, s2):
+                    return q, a, b
+        return first, 0, 0
 
     def all_cuts(self):
         """Every wedge at every junction computed, so that `cuts` holds every cut (21.4)."""

@@ -134,19 +134,22 @@ end. Wherever 5.6 and 5.8 intersect a face line of one edge at a junction with a
 the corner point of a wedge, and the point `p` of a butt join — the two faces are intersected along
 their paths:
 
-1. Intersect the faces' first pieces. When the two lines are parallel, 5.6's feet apply, as for
-   straight edges.
-2. The point lies **beyond** a piece when it is past the piece's end: when `(P − v) · d > 0`, where `P`
-   is the exact point, `v` the rounded face vertex that ends the piece and `d` the direction of the
-   piece's segment away from the junction.
-3. While the point lies beyond a piece that is not the last of its path, take the next piece of each
-   path it lies beyond, and intersect them again; stop, keeping the last point found, when it lies
-   beyond no such piece or when the two lines are parallel.
+1. When the two faces' first pieces are parallel, 5.6's feet apply, as for straight edges.
+2. A point lies **on** a piece of a path when it is neither before the rounded face vertex that starts
+   the piece nor past the one that ends it: with `d` the direction of the piece's segment away from the
+   junction, `(P − v) · d ≥ 0` for the vertex `v` that starts it, and `(P − w) · d ≤ 0` for the vertex
+   `w` that ends it — the first piece has no start, the last no end. `P` is the exact point; the
+   comparison is exact.
+3. The corner is the first intersection, in this order, that lies on both its pieces: the pieces `a`
+   of the first face — the one whose face line 5.6 or 5.8 names first — from the junction outwards, and
+   for each, the pieces `b` of the second from the junction outwards, skipping any pair whose lines are
+   parallel. When no pair has one, the corner is the intersection of the two first pieces.
 
-The face vertices of the pieces passed are **cut off** by the join: they are no longer vertices of the
+The face vertices before the pieces the corner lies on — `a` of the first face's and `b` of the
+second's — are **cut off** by the join: they are no longer vertices of the
 edge's face, of its wall's outline or of the room polygons along it.
 
-A deriver MUST intersect the faces of edges at every junction an arc edge ends at along their face paths, and cut off the face vertices passed, as this section defines. {#FS-CORE-21.4.1 MUST}
+A deriver MUST intersect the faces of edges at every junction an arc edge ends at along their face paths, and cut off the face vertices before the pieces each corner lies on, as this section defines. {#FS-CORE-21.4.1 MUST}
 
 Every step is exact or an exact comparison with integers, and the order is fixed, so the corner points,
 like the polyline, are the same everywhere. A wedge's corner point (5.6) and the face vertices it cuts off

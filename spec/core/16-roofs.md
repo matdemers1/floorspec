@@ -5,9 +5,9 @@ sits on — and a few numbers on each edge of it: whether the edge is a **gable*
 under which the roof stops, or slopes up from it at a **pitch**, and how far the roof
 **overhangs** it. Everything else is derived: the **eave outline**, the footprint moved out by the
 overhangs; and, for the roofs this draft can derive exactly, the **surface** — its faces, the
-ridges, hips and valleys between them, and the ends of its gables. A roof with every edge
-sloping at one pitch on a rectilinear outline is a hip roof, with gables a gable roof, with one
-sloped edge a shed, and with none a flat roof.
+ridges, hips, valleys and breaks between them, and the ends of its gables. A roof with every edge
+sloping is a hip roof, with gables a gable roof, with one sloped edge a shed, and with none a flat
+roof; its edges may slope at different pitches, as a saltbox's do.
 
 This chapter defines a roof's members, its eave outline, the class of roofs whose surface this
 draft derives, and the exact values a deriver derives. Every value is exact and rounded once
@@ -105,9 +105,9 @@ out at that elevation, so the roof over it rises higher.
 The surface of a roof rises from its eave outline: from each sloped edge at its pitch, never from
 a gable, which stands vertical under it. Every derived surface is the eave outline lifted point by
 point to an **elevation** `z(P)`. This draft derives the surface of three classes of roof, and of
-no other (16.4.4). In this section the eave outline is walked counter-clockwise — reversed, when
-the footprint runs clockwise — and each of its edges keeps its index; a vertex where it turns left
-is **convex**, and one where it turns right **reflex**.
+no other (16.4.6): flat roofs, shed roofs, and skeleton roofs. In this section the eave outline is
+walked counter-clockwise — reversed, when the footprint runs clockwise — and each of its edges keeps
+its index; a vertex where it turns left is **convex**, and one where it turns right **reflex**.
 
 ### 16.4.1 Flat roofs
 
@@ -128,76 +128,142 @@ z(P) = eave + (rise / run) · n · (P − A) / |n|
 part of the outline lies outside the line of its sloped edge, where the roof would fall below its
 eave. Its one face is its eave outline, and every other edge is a gable.
 
-### 16.4.3 Equal-pitch roofs
+### 16.4.3 Skeleton roofs
 
-A roof with two or more sloped edges, all at the same pitch `rise : run` — equal as ratios, so
-`6 : 12` and `1 : 2` are one pitch — is an **equal-pitch** roof. Its surface is derived when:
+A roof with two or more sloped edges is a **skeleton roof**: a hip roof, a gable roof, a saltbox,
+an L or a U with wings at different pitches. Every sloped edge rises at its own pitch and every gable
+stands still, and where their planes meet is found by moving them inwards together, as a
+**wavefront**, until nothing is left of it (16.4.4): the roof is its **weighted straight skeleton**,
+lifted. Its surface is derived when every sloped edge of its eave outline has a length that is an
+integer — an edge parallel to an axis, or an oblique edge along a Pythagorean direction such as
+3 : 4 — and the wavefront never reaches a state of 16.4.6.
 
-1. its eave outline is rectilinear;
-2. every gable edge's two neighbouring edges are sloped, and both its ends are convex;
-3. for every gable edge `g`, no point of a sloped edge lies inside `g`'s **clearance**: the open
-   rectangle outside the outline that has `g` as one side and is half as deep as `g` is long.
-
-For such a roof, the **rise distance** `h(P)` of a point `P` of the outline — inside it or on it —
-is the least, over its sloped edges `e`, of the Chebyshev distance from `P` to `e`:
+Elevations are measured from the eave: `t = z − eave`. Edge `i` of the counter-clockwise outline, from
+`A` to `B`, has the normal `n = (−(B − A).y, (B − A).x)` into the outline, and `L = |n|`, its length.
+A sloped edge at pitch `rise : run` has the **plane**
 
 ```text
-d∞(P, e) = min over the points Q of e of  max(|P.x − Q.x|, |P.y − Q.y|)
-h(P)     = min over the sloped edges e of  d∞(P, e)
-z(P)     = eave + (rise / run) · h(P)
+z = eave + (rise / run) · (n · P − n · A) / L
 ```
 
-> [!note] This is the straight skeleton
-> On a rectilinear outline, a wavefront moving every sloped edge inwards at one speed — the
-> straight skeleton, lifted at the roof's pitch — reaches a point exactly when a square centred on
-> it first touches a sloped edge, so its arrival time is the rise distance and `z` is the
-> straight-skeleton roof: hips at 45° in plan from every convex corner, valleys from every reflex
-> one, and ridges where opposite edges meet. A gable edge does not move: it is the skeleton's edge
-> of weight zero, standing vertical. Conditions 2 and 3 say where a gable makes the roof the
-> rise distance above: at the end of a wing, with nothing in front of it within half its width.
-> Mixed pitches need the weighted straight skeleton, and an outline with oblique edges a skeleton
-> whose nodes are irrational in more than one radicand; neither is in this draft.
+and, at elevation `t`, the **line** of the points of its plane at that elevation,
 
-Every point where `h` changes form — every node of the skeleton — has coordinates that are
-multiples of one half, because every crease of `h` lies on a line `x = (a + b) / 2`,
-`y = (a + b) / 2`, `x − y = a − b` or `x + y = a + b`, where `a` and `b` are coordinates of the
-outline's vertices. So `h` and `z` are rational at every node, and exact.
+```text
+{ P : n · P = n · A + w · t },    w = L · run / rise
+```
 
-**Faces.** For a sloped edge `e` and a point `P`, let `pₑ(P)` be the distance of `P` from the line
-of `e`, positive on the outline's side of it, and `aₑ(P)` the distance from the foot of `P` on that
-line to `e` — `0` when the foot is on `e`. `P` is **of the face of** `e` when
+— its eave line moved inwards `t · run / rise`. A gable has `w = 0`: its line is its eave line at
+every elevation. An edge's **speed** is `run / rise` — a shallow pitch moves fast — and a gable's is
+`0`. Because `L` is an integer, every line has rational coefficients, and every elevation, point and
+area this section computes is an exact rational: nothing is rounded before 16.5.
 
-- `pₑ(P) = h(P)` and `aₑ(P) ≤ h(P)` — the roof over `P` is in the plane that rises from `e`; and
-- `aₑ(P) < a_f(P)` for every other sloped edge `f` with `p_f(P) = h(P)` and `a_f(P) ≤ h(P)` —
-  of two collinear edges that face the same way, and so share a plane, the nearer one.
+> [!note] The equal-pitch roofs of 0.3
+> Core 0.3 derived only skeleton roofs whose sloped edges share one pitch on a rectilinear outline,
+> with its gables at the ends of wings (FS-CORE-16.4.1, retired), by a rise distance measured as a
+> Chebyshev distance. On that class the wavefront here reaches every point at exactly that rise
+> distance, and the faces, gable ends and lines it derives are 0.3's, value for value; only two
+> lines with the same rounded ends, which 0.3 left unordered, are now ordered by their kind (16.5).
 
-The **face** of `e` is the closure of the points inside the outline that are of its face. The faces
-of the sloped edges cover the outline and meet only along their boundaries, and each is a simple
-polygon whose vertices are nodes. The **nodes** of the roof are the vertices of its outline and
-every point where the boundary of a face turns. A face's **polygon** is its boundary, walked
-counter-clockwise through every node on it — including a node where the boundary runs straight on
-but another face's turns.
+### 16.4.4 The wavefront
 
-**Lines.** Where the faces of two sloped edges `e` and `f` meet along a segment, and `e` and `f` are
-not collinear edges facing the same way, the segment is a **line** of the roof, taken as long as it
-runs straight between the same two faces. With `nₑ` and `n_f` the unit normals of `e` and `f` into
-the outline, and `w` a vector across the segment into the face of `e`, a line is:
+The **wavefront** at an elevation `t` is a set of **wavefront polygons**, each a simple polygon
+running counter-clockwise, given as a cycle of **wavefront edges**. A wavefront edge lies on the line
+at `t` of an eave edge, and **carries** that edge — or, after a merge (below), every eave edge whose
+plane it lies in. Its line and speed are its eave edges'. A **vertex** of a wavefront polygon is the
+point where the lines at `t` of its two wavefront edges meet; as `t` grows, each vertex moves along a
+straight line at a constant rate. At `t = 0` the wavefront is one polygon, the eave outline, with
+one wavefront edge for each of its edges.
 
-- a **ridge** when its two ends have the same rise distance: it is level;
-- otherwise a **hip** when `(n_f − nₑ) · w > 0` — the roof falls away from it to both sides — and a
-  **valley** when `(n_f − nₑ) · w < 0`.
+**Events.** After an elevation `t`, the next **event elevation** is the least `t′ > t` at which, in
+some wavefront polygon, a wavefront edge has no length — its two vertices meet — or a vertex lies on
+a wavefront edge of its polygon that does not end at it. Each is the root of an equation linear in
+`t′`, exact. Until `t′` every polygon keeps its edges and their order, and each wavefront edge that
+moves sweeps a **swept piece**: the quadrilateral of its two vertices at `t` and at `t′`, a piece of
+the plane it carries.
 
-The boundary between the faces of two collinear edges that face the same way is a seam in one
-plane, not a line.
+**Resolution.** At an event elevation every event is resolved at once, from the wavefront's
+position there, and never one at a time — so two events at one elevation, at one point or apart, a
+vertex that meets an edge just as another edge vanishes, and any number of edges vanishing together,
+all resolve the same way whatever order they might be found in. Each wavefront polygon, its vertices
+placed at `t′`:
 
-### 16.4.4 Roofs whose surface is not derived
+1. **Pieces.** Each of its edges with a length is split at every vertex that lies inside it. A piece
+   covered once in each direction is dropped: the polygon has closed up there, two fronts meeting
+   head on. Every other piece is covered once, in one direction, by one wavefront edge.
+2. **Cycles.** The pieces bound the interior of the polygon at `t′`, which lies on their left. They
+   are traced into cycles: after a piece, the cycle continues along the piece that leaves its end
+   with the greatest turn to the left. Where the interior touches itself at a point — a vertex that
+   has reached an edge, or two vertices that meet — this keeps the parts of the interior that touch
+   there apart, and is the only way of doing so (Biedl et al., the *standard resolution*). Each cycle
+   is a new wavefront polygon; consecutive pieces of one wavefront edge are one edge again.
+3. **Runs.** In each new polygon, a **run** — consecutive wavefront edges that lie on one line and
+   face the same way — is replaced by one wavefront edge that runs its whole length: the run's
+   fastest edges continue over it, and the others stop where they are. When two or more are fastest,
+   they share one plane, and the new edge carries all of their eave edges.
 
-A roof that is not flat, is not a shed roof whose surface is derived (16.4.2), and is not an
-equal-pitch roof whose surface is derived (16.4.3) — a roof with sloped edges at different pitches,
-an equal-pitch roof with an oblique edge, a gable that is not at the end of a wing — is valid, and
-its eave outline is derived; its surface is not.
+A part of the wavefront that closes to a segment or a point leaves no piece, and the propagation ends
+when no wavefront polygon is left.
 
-A deriver MUST derive the surface of every flat roof, of every shed roof that 16.4.2 says is derived, and of every equal-pitch roof that 16.4.3 says is derived, exactly as this section defines it, and MUST derive no surface for any other roof; a validator MUST report every other roof with `FS-LINT-015`. {#FS-CORE-16.4.1 MUST}
+A deriver MUST compute the wavefront of a skeleton roof exactly, as this section defines it — every event elevation, vertex and swept piece an exact rational — resolving all the events at an event elevation together from the wavefront's position there, with the pieces traced by the greatest turn to the left. {#FS-CORE-16.4.3 MUST}
+
+A deriver MUST replace every run of consecutive wavefront edges on one line facing the same way by its fastest edges, extended over the run, so that a slower edge in the run stops; edges of equal speed in a run continue as one edge carrying all of their eave edges. {#FS-CORE-16.4.4 MUST}
+
+> [!note] Why the fastest edge wins
+> Two wavefront edges become consecutive on one line when an edge between them vanishes — on a
+> stepped eave, say, where a shallow plane behind a step catches up with a steep one. Their planes
+> meet only in that line, so no hip or valley can run between them, and one of them must stop. The
+> fastest continuing (Biedl et al. 2015, 4.1) keeps the roof as low as it can be: the steep face
+> ends in a level **break** (16.4.5) and the shallow plane carries on above it, as a gambrel's
+> does. It is the only resolution this draft allows.
+
+### 16.4.5 Faces and lines
+
+**Faces.** The swept pieces of a plane together cover the part of the outline the roof over which is
+in that plane. Sloped edges that **share a plane** — that lie on one line, face the same way and have
+one pitch, equal as ratios — share those pieces, which are divided between them as Core 0.3 divides
+them: a point belongs to the edge whose extent along the common line is nearest its foot on that
+line, so that two neighbouring edges' pieces are divided by the line across it midway between their
+facing ends. The **face** of a sloped edge is the closure of the swept pieces that are its own. The
+faces of the sloped edges cover the outline and meet only along their boundaries, and each is one or
+more simple polygons whose vertices are nodes. The **nodes** of the roof are the vertices of its
+outline and every point where the boundary of a face turns. A face's **polygon** is its boundary,
+walked counter-clockwise through every node on it — including a node where the boundary runs straight
+on but another face's turns.
+
+**Lines.** Where the faces of two sloped edges `e` and `f` that do not share a plane meet along a
+segment, the segment is a **line** of the roof, taken as long as it runs straight between the same two
+faces. The boundary between the faces of edges that share a plane is a seam in one plane, not a line.
+With `nₑ` and `n_f` their normals into the outline, `gₑ = (riseₑ / runₑ) · nₑ / |nₑ|` the direction
+and rate at which the plane of `e` rises, `g_f` likewise, and `w` a vector across the segment into the
+face of `e`, a line is:
+
+- **level** when its two ends have the same elevation — which happens exactly when `e` and `f` are
+  parallel — and then a **ridge** when they face each other, `nₑ · n_f < 0`, and a **break** when they
+  face the same way, `nₑ · n_f > 0`: a level line where the roof over the same side changes its
+  pitch;
+- otherwise a **hip** when `(g_f − gₑ) · w > 0` — the roof falls away from it to both sides — and a
+  **valley** when `(g_f − gₑ) · w < 0`.
+
+### 16.4.6 Roofs whose surface is not derived
+
+A roof is valid, and its eave outline is derived, whatever its edges; its surface is not derived
+when it is:
+
+1. a shed roof with part of its outline outside the line of its sloped edge (16.4.2);
+2. a skeleton roof with a sloped edge whose length is not an integer — an oblique edge whose
+   direction is not Pythagorean, such as one at 45°, whose planes have irrational coefficients;
+3. a skeleton roof whose wavefront, at `t = 0` or just after an event elevation, has a gable's
+   wavefront edge one end of which moves away from its other end — the wavefront would pass the end
+   of the gable and the roof would need a vertical step inside its outline, as it does for every
+   gable with a reflex end beside a sloped edge, such as a gable on the inner face of a U;
+4. a skeleton roof whose wavefront, at `t = 0` or just after an event elevation, has a polygon none
+   of whose edges moves — a part of the outline enclosed by gables alone, which the roof would never
+   cover. This is a guard: no outline is known to reach it without reaching condition 3 first.
+
+Conditions 3 and 4 are decided on the wavefront as 16.4.4 leaves it, before the next event
+elevation is sought; the first that holds ends the propagation, and none of what it swept is kept.
+
+A deriver MUST derive the surface of every flat roof, of every shed roof that 16.4.2 says is derived, and of every skeleton roof that reaches none of the states of 16.4.6, exactly as this section defines it, and MUST derive no surface for any other roof; a validator MUST report every other roof with `FS-LINT-015`. {#FS-CORE-16.4.2 MUST}
 
 ## 16.5 Derived roofs
 
@@ -207,15 +273,15 @@ A roof's **derived roof** is:
 - its `outline`: the eave outline as a ring that starts at its least vertex (6.2) and runs
   counter-clockwise — reversed, when the footprint runs clockwise;
 - its `eave` (16.3);
-- its `surface`: `null` when its surface is not derived (16.4.4), and otherwise an object of:
+- its `surface`: `null` when its surface is not derived (16.4.6), and otherwise an object of:
   - `high`: the greatest elevation of the surface, rounded once — for a flat roof its eave, for a
-    shed roof the greatest `z(V)` over the outline's vertices `V`, and for an equal-pitch roof the
+    shed roof the greatest `z(V)` over the outline's vertices `V`, and for a skeleton roof the
     greatest `z` over its nodes;
   - `box`: `{ "min": [x₀, y₀, eave − thickness], "max": [x₁, y₁, high] }`, with `x₀`, `x₁`, `y₀` and
     `y₁` the least and greatest coordinates of the outline's vertices, and `thickness` the roof's,
     or `0` when it declares none;
   - `faces`: each face as `{ "edge", "polygon", "area" }` — `edge` the index of its sloped edge, and
-    none for a flat roof's face; `polygon` its polygon (16.4) as points `[x, y, z]`, with `x` and
+    none for a flat roof's face; `polygon` its polygon (16.4.5) as points `[x, y, z]`, with `x` and
     `y` rounded once and `z` the exact elevation at the point rounded once, each point that equals
     the one before it removed (the first counts as following the last), starting at its least
     point — least `x`, then least `y`, then least `z`; and `area` its area in plan, computed from
@@ -226,12 +292,12 @@ A roof's **derived roof** is:
     then back from `B` to `A` along the surface through every node on the edge — for a shed roof,
     through `B` and `A` — each point `[x, y, z]` rounded as a face's are, each point that equals the
     one before it removed (the first counts as following the last); listed by `edge`;
-  - `lines`: each line (16.4.3) as `{ "kind", "from", "to" }`, its `kind` `"ridge"`, `"hip"` or
-    `"valley"` and its ends as points `[x, y, z]` rounded as a face's are, `from` the lesser of the
-    two — compared by `x`, then `y`, then `z`; listed by `from`, then `to`. A flat or shed roof has
-    none.
+  - `lines`: each line (16.4.5) as `{ "kind", "from", "to" }`, its `kind` `"ridge"`, `"break"`,
+    `"hip"` or `"valley"` and its ends as points `[x, y, z]` rounded as a face's are, `from` the
+    lesser of the two — compared by `x`, then `y`, then `z`; listed by `from`, then `to`, then
+    `kind`. A flat or shed roof has none.
 
-A deriver MUST derive every roof as this section defines it. {#FS-CORE-16.5.1 MUST}
+A deriver MUST derive every roof as this section defines it. {#FS-CORE-16.5.2 MUST}
 
 The faces, gable ends and lines are what a mesh of the roof is made from; the mesh itself, the
 roof's thickness as a solid, and the area of each face along its slope rather than in plan are not
@@ -250,7 +316,11 @@ A roof stands on its level and touches nothing else. In this draft:
 
 FLR-REQ-108 (a roof as a footprint with per-edge pitch, gable flag and overhang, covering gable, hip,
 shed and flat roofs), FLR-REQ-109 (equal-pitch hip roofs derived with a straight skeleton),
+FLR-REQ-144 (hip roofs with unequal per-edge pitches derived with a weighted straight skeleton),
 FLR-REQ-145 (a roof whose pitches the engine cannot derive is flagged, not failed), FLR-ADR-004
-(exact integer geometry), FLR-ADR-027 (Core 0.3). Chapters 2 (pitch, polygons), 5 (corner points
+(exact integer geometry), FLR-ADR-027 (Core 0.3), FLR-ADR-028 (Core 0.3 roofs). T. Biedl, M. Held,
+S. Huber, D. Kaaser and P. Palfrader, *Weighted straight skeletons in the plane*, Computational
+Geometry 48(5) (2015) 429–442 — the standard resolution of coinciding events, and the fastest edge
+winning where parallel edges of different weights meet. Chapters 2 (pitch, polygons), 5 (corner points
 and the top of walls), 15 (vaulted ceilings, whose exact form a shed roof shares) and Annex A
 (`IfcRoof`).

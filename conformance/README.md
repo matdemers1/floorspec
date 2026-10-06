@@ -43,6 +43,14 @@ reader derives the steps of every winder and spiral stair, so the four 0.3 tests
 FS-LINT-018 where their treads meet at a point in place of 0.3's FS-LINT-016; every other expected
 value is the 0.3 suite's, byte for byte.
 
+**Roofs in Core 0.4.** A 0.4 reader derives roofs with the weighted straight skeleton (16.4.3 to
+16.4.6): every 0.3 roof test it derives keeps 0.3's values byte for byte, and the three 0.3 roofs it
+newly derives - `roofs/011-mixed-pitches`, `014-adjacent-gables` and `017-gable-clearance-blocked` -
+gain their surfaces and lose `FS-LINT-015`. The roof tests 0.4 adds follow the 0.3 ones in `roofs`, from
+`roofs/055-saltbox`: hips, wings and saltboxes at mixed pitches, a stepped eave whose faster edge
+overtakes a slower one, coincident events, a very thin lobe, Pythagorean oblique edges, and the roofs
+0.4 still does not derive.
+
 The group `arcs` holds the tests of Core 0.4's chapter 21, arc edges: walls and separators along
 circular arcs, their polylines by iterated snap rounding, planarity on polylines (`FS-INV-104` to
 `FS-INV-106` where a polyline meets another line, `FS-INV-113` for an arc of more than a semicircle),
@@ -273,6 +281,8 @@ And a fifth, for stairs (chapter 17), empty for a document with none — so ever
 - `roofs` — every roof's kind, eave outline and eave (16.2, 16.3), and its surface (16.5): its high,
   box, faces, gable ends, and ridges, hips and valleys; `null` for a roof whose surface this draft
   does not derive (16.4.4), which the validator reports with `FS-LINT-015`.
+  From Core 0.4 a line's `kind` may also be `"break"`, a level line where the roof over one side
+  changes pitch (16.4.5), and the roofs whose surface is not derived are those of 0.4's 16.4.6.
 - `options` — present only for a document with an option set (Core 19.6.3): for every set, `chosen`,
   the option the derived design chooses, and for every option of it its `members`, the `rooms` of its
   own design with their net areas, and `affected`, what differs between that design and the primary
