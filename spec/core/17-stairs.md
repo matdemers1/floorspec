@@ -210,14 +210,21 @@ A deriver MUST derive the headroom of every straight, L-shaped and U-shaped stai
 A deriver MUST derive the headroom of every winder and spiral stair of a valid document that has one, as `headroom`, exactly as this section defines it over the lanes of its flights and its tapered treads, and no `headroom` member for one that has none. {#FS-CORE-17.6.2 MUST}
 
 **The opening a stair needs.** A stair that declares its `minHeadroom` is designed to have that much
-headroom, and the floor of its `to` level must be open over it wherever the floor would come closer.
+headroom, and the floor of its `to` level must be open over it wherever the floor — or a ceiling under
+it — would come closer, as the headroom above measures it.
 Let `B` be the bottom of the floor at the stair's head: its top (17.4) minus the thickness of its head
 room's floor (15.1) — or, when it has no head room, its `to` level's `floorThickness`, and `0` when
-that declares none. A step **needs the opening** when its top, exact, is more than `B − minHeadroom`:
-someone standing on it would have less than `minHeadroom` under that floor. A step's top rises with
-every step walked up, so the steps that need the opening are the last ones, and a deriver derives
-`opening` as `{ "first": i }`, where `i` is the index in `steps` (17.5, 17.7), counting from 0, of
-the first step that needs it. The opening is the plan region that step's outline and every later
+that declares none. For a step, let `C` be the least of `B` and the elevation (15.2), at each corner of
+the step's outline, of the ceiling of each room of the stair's level whose room polygon holds that
+corner — inside or on its outer ring and not strictly inside a hole, as 17.4 locates a room — taking a
+tray ceiling at its base. A step **needs the opening** when the top of the riser after it — the
+stair's top, for its last step — exact, is more than `C − minHeadroom`: the lanes over a step rise to
+that riser's top (above), so someone climbing over it would have less than `minHeadroom` under that
+floor or ceiling. Those tops rise with every step walked up, so the steps that need the opening are
+the last ones, and a deriver derives `opening` as `{ "first": i }`, where `i` is the index in `steps`
+(17.5, 17.7), counting from 0, of the first step that needs it. A well whose face covers the outline
+of that step and of every step after it leaves the stair at least `minHeadroom`, so it reports no
+`FS-LINT-019`. The opening is the plan region that step's outline and every later
 step's cover; it is the well the floor above should have. A spiral stair's opening is often most of
 the circle its box (17.4) bounds.
 

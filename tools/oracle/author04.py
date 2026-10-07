@@ -250,24 +250,26 @@ n('stairs', 'spiral-under-a-floor', 'The spiral stair of 1800 mm under L2\'s 300
   ['17.6.2', '17.7.3'], spiral_under_a_floor(), WELL)
 # the opening a stair needs (17.6)
 n('stairs', 'opening', 'The straight stair designed for 1800 mm of headroom. The floor above has its bottom at 2400 '
-  'mm, 3072000, so a step needs it open when its top is above 600 mm, 768000: the third tread\'s, 740571.43, is not, and '
-  'the fourth\'s, 987428.57, is - the opening starts at the fourth step, index 3, and every step after it needs it too. '
-  'Its headroom, 2331428.57 - about 1821 mm - is more than it declares, so there is no FS-LINT-019.',
+  'mm, 3072000, as L1\'s ceilings have, so a step needs it open when the top of the riser after it is above 600 mm, '
+  '768000 - the lanes over a step rise to that top: the second tread\'s next riser tops out at 740571.43, and the '
+  'third\'s at 987428.57 - the opening starts at the third step, index 2, and every step after it needs it too. Its '
+  'headroom, 2331428.57 - about 1821 mm - is more than it declares, so there is no FS-LINT-019.',
   ['17.6.3', '17.1.3'], house(minHeadroom=1800 * MM), WELL)
 n('stairs', 'headroom-less-than-declared', 'The same stair designed for 2000 mm: its headroom, 2331428.57, is less '
-  'than 2560000, so the validator reports FS-LINT-019, a warning. Its opening starts at the third step, index 2, '
-  'whose top, 740571.43, is above 3072000 - 2560000.',
+  'than 2560000, so the validator reports FS-LINT-019, a warning - its well starts a step later than its opening. '
+  'Its opening starts at the second step, index 1, whose next riser\'s top, 740571.43, is above 3072000 - 2560000.',
   ['17.6.3', '17.6.4'], house(minHeadroom=2000 * MM), WELL + [('FS-LINT-019', ['ST1'])])
 d = v4(as_03('l-stair-turning-right'))
 d['stairs']['ST1']['minHeadroom'] = 100 * MM
-n('stairs', 'no-opening-needed', 'The L-shaped stair turning right under a floor with no thickness, designed for '
-  '100 mm of headroom: its highest tread, at 3209142.86, is more than 100 mm below the floor at 3456000, so no step '
-  'needs an opening, and it has no opening member. Its headroom is 0, less than it declares: FS-LINT-019.',
+n('stairs', 'opening-at-the-head', 'The L-shaped stair turning right under a floor with no thickness, designed for '
+  '100 mm of headroom: its highest tread, at 3209142.86, is more than 100 mm below the floor at 3456000, but the '
+  'riser after it rises to the floor itself, so its last step, index 12, needs the opening - every stair comes up '
+  'through the floor it reaches. Its headroom is 0, less than it declares: FS-LINT-019.',
   ['17.6.3', '17.6.4'], d, [('FS-LINT-019', ['ST1'])])
 n('stairs', 'winder-opening', 'The quarter-turn winder stair with a newel, designed for 2000 mm of headroom under '
-  'L2\'s 300 mm floor, whose bottom is at 2400 mm: a step needs the floor open when its top is above 400 mm, 512000, '
-  'and the third tread of its first flight, at 740571.43, is the first that does - index 2, before the winders, '
-  'which need it too, as does every later step.',
+  'L2\'s 300 mm floor, whose bottom is at 2400 mm: a step needs the floor open when the top of the riser after it is '
+  'above 400 mm, 512000, and the second tread of its first flight, whose next riser tops out at 740571.43, is the '
+  'first that does - index 1, before the winders, which need it too, as does every later step.',
   ['17.6.3', '17.7.3'], house(x0=1000, x1=2800, y1=2800, form=WQN, minHeadroom=2000 * MM), WELL)
 # ---- invalid tapered stairs
 n('stairs', 'newel-reaches-the-walkline', 'A quarter turn whose newel is 320 mm deep: its far corner is 320 sqrt 2 '
@@ -301,6 +303,7 @@ n('stairs', 'angles-after-fit', 'A spiral stair of 1 riser through 10 microdegre
   [('FS-INV-903', ['ST1'])])
 
 
+
 def sch(slug, description, covers, mut, **kw):
     d = house(**kw)
     mut(d['stairs']['ST1'])
@@ -317,6 +320,19 @@ sch('newel-on-an-l-stair', 'An L-shaped stair has a landing, not a newel the tre
 sch('newel-on-a-spiral', 'A spiral stair\'s column is the space its treads leave: it has no newel member.',
     ['17.2.3', '17.2.1'], lambda s: s.update(form={**SPIRAL, 'newel': NEWEL}))
 sch('newel-on-a-u-stair', 'A U-shaped stair has no newel.', ['17.2.3'], lambda s: s.update(form={**U_FORM, 'newel': NEWEL}))
+# the opening and its well, under a ceiling lower than the floor above (17.6)
+n('stairs', 'well-cut-to-the-opening', 'The straight stair under L1 ceilings of 2200 mm - lower than L2\'s floor, '
+  'which has no thickness, at 2700 mm - designed for 1500 mm of headroom. A step needs the opening when the riser '
+  'after it tops out above 2200 - 1500 mm, 896000: the second tread\'s next riser does at 740571.43 and is clear, the '
+  'third\'s at 987428.57 is not - the opening starts at the third step, index 2, from x = 1500 mm. The well is cut '
+  'exactly there, so its headroom is at least what it declares and there is no FS-LINT-019: the ceiling under the '
+  'floor counts, as the headroom does.',
+  ['17.6.3', '17.6.4'], house(l1={'ceilingHeight': 2200 * MM}, l2={}, minHeadroom=1500 * MM), WELL)
+n('stairs', 'well-short-of-the-opening', 'The same stair with its well a step short, from x = 1750 mm: over the third '
+  'tread the lanes rise to 987428.57, about 771 mm, and the 2200 mm ceiling is still over them - about 1429 mm clear, '
+  'less than the 1500 mm declared, so FS-LINT-019. Its opening still starts at index 2.',
+  ['17.6.3', '17.6.4'],
+  house(x0=1750, l1={'ceilingHeight': 2200 * MM}, l2={}, minHeadroom=1500 * MM), WELL + [('FS-LINT-019', ['ST1'])])
 
 roofs04.declare()
 import tools.oracle.author04_arcs  # noqa: E402,F401  (chapter 21: the group `arcs`)
