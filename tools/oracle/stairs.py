@@ -756,17 +756,32 @@ def tapered(doc: Doc, sid, n: int) -> Tapered:
     return out
 
 
-def opening(doc: Doc, st: dict, res: Resolved, tops):
-    """17.6: the index of the first step whose top is less than minHeadroom below the bottom of the floor
-    at the stair's head, or None when no step's is."""
+def opening(doc: Doc, st: dict, res: Resolved, nexts, outlines, graphs: dict):
+    """17.6: the index of the first step that needs the opening, or None: the first whose next riser's top
+    (`nexts`, the stair's top after its last step) is less than minHeadroom below the lower of the bottom
+    of the floor at the stair's head and the ceiling, at each corner of its outline, of each room of the
+    stair's level whose room polygon holds that corner (inside or on its outer ring, not strictly inside a
+    hole)."""
     head_room = res.head_room
     if head_room is not None:
         thick = floor_thickness(doc, head_room)
     else:
         thick = doc.levels[st['to']].get('floorThickness', 0)
-    floor_bottom = res.top - thick
-    for i, z in enumerate(tops):
-        if z + st['minHeadroom'] > floor_bottom:
+    floor_bottom = Surd(res.top - thick)
+    rooms, _ = _polygons(doc, st['level'], graphs)
+    for i, (z, outline) in enumerate(zip(nexts, outlines)):
+        low = floor_bottom
+        for v in outline:
+            p = tuple(v)
+            for rid, poly in rooms.items():
+                if not closed_contains(poly, p):
+                    continue
+                c = ceiling(doc, rid)
+                base = ceiling_base(doc, rid)
+                at = vault_z(base, c, _fall(c, _cross_at(c, p))) if c['kind'] == 'vaulted' else Surd(base)
+                if at < low:
+                    low = at
+        if low - Surd(z) < Surd(st['minHeadroom']):
             return i
     return None
 
@@ -813,12 +828,12 @@ def derive_one(doc: Doc, sid, graphs: dict, v04=False) -> dict:
             for rect, index in piece[1].treads():
                 ring = _ring(fr, rect)
                 steps.append({'outline': [list(p) for p in ring], 'top': Surd(res.z(index)).round()})
-                tops.append(res.z(index))
+                tops.append(res.z(index + 1))
                 pts.extend(ring)
         else:
             ring = _ring(fr, piece[1])
             steps.append({'outline': [list(p) for p in ring], 'top': Surd(res.z(piece[2])).round(), 'landing': True})
-            tops.append(res.z(piece[2]))
+            tops.append(res.z(piece[2] + 1))
             pts.extend(ring)
     treads = sum(1 for s in steps if 'landing' not in s)
     walk = lay.walk
@@ -830,13 +845,13 @@ def derive_one(doc: Doc, sid, graphs: dict, v04=False) -> dict:
     h = headroom(doc, sid, lay, fr, res, graphs)
     if h is not None:
         v['headroom'] = Surd.of(h).round()
-    _opening(doc, st, res, tops, v)
+    _opening(doc, st, res, tops, v, graphs)
     return v
 
 
-def _opening(doc, st, res, tops, v):
+def _opening(doc, st, res, nexts, v, graphs):
     if 'minHeadroom' in st:
-        i = opening(doc, st, res, tops)
+        i = opening(doc, st, res, nexts, [s['outline'] for s in v['steps']], graphs)
         if i is not None:
             v['opening'] = {'first': i}
 
@@ -851,18 +866,18 @@ def _derive_tapered(doc: Doc, sid, st, f, res: Resolved, fr: Frame, graphs: dict
         if piece[0] == 'flight':
             for rect, index in piece[1].treads():
                 steps.append({'outline': [list(p) for p in _ring(fr, rect)], 'top': Surd(res.z(index)).round()})
-                tops.append(res.z(index))
+                tops.append(res.z(index + 1))
         if f['kind'] == 'winder' and piece is tl.layout.pieces[0]:
             for outline, index, _, (walk, narrow) in winders:
                 steps.append({'outline': [list(p) for p in ring_of(outline)], 'top': Surd(res.z(index)).round(),
                               'winder': True})
-                tops.append(res.z(index))
+                tops.append(res.z(index + 1))
                 walks.append(walk)
                 narrows.append(narrow)
     if f['kind'] == 'spiral':
         for outline, index, _, (walk, narrow) in tl.treads:
             steps.append({'outline': [list(p) for p in ring_of(outline)], 'top': Surd(res.z(index)).round()})
-            tops.append(res.z(index))
+            tops.append(res.z(index + 1))
             walks.append(walk)
             narrows.append(narrow)
         v['centre'] = [tl.centre[0].round(), tl.centre[1].round()]
@@ -874,7 +889,7 @@ def _derive_tapered(doc: Doc, sid, st, f, res: Resolved, fr: Frame, graphs: dict
     h = headroom(doc, sid, tl.layout, fr, res, graphs, tl.lanes(res))
     if h is not None:
         v['headroom'] = Surd.of(h).round()
-    _opening(doc, st, res, tops, v)
+    _opening(doc, st, res, tops, v, graphs)
     return v
 
 

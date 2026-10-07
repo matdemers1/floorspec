@@ -150,8 +150,16 @@ class Readers(unittest.TestCase):
     def test_opening(self):
         d = v4(house(stair(minHeadroom=1800 * MM), L2={'floorThickness': 300 * MM}))
         st = run(d)['derived']['stairs']['ST1']
-        # the floor's bottom is 2400 mm; 2400 - 1800 = 600 mm: the fourth tread (987428.57) is the first above it
-        self.assertEqual(st['opening'], {'first': 3})
+        # the floor's bottom is 2400 mm; 2400 - 1800 = 600 mm: the third tread's next riser (987428.57) is the
+        # first to top out above it - the lanes over a step rise to the riser after it (17.6)
+        self.assertEqual(st['opening'], {'first': 2})
+
+    def test_opening_under_a_lower_ceiling(self):
+        # L1's ceiling at 2200 mm is lower than the floor above (no thickness, 2700 mm): it is what the opening is
+        # measured against, as the headroom measures it - 2200 - 1500 = 700 mm, first passed by riser 4 (771 mm)
+        d = v4(house(stair(minHeadroom=1500 * MM), L1={'ceilingHeight': 2200 * MM}))
+        st = run(d)['derived']['stairs']['ST1']
+        self.assertEqual(st['opening'], {'first': 2})
 
 
 class Migration(unittest.TestCase):
