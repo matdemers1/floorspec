@@ -139,7 +139,7 @@ preserved, for the primary design (a document of 0.1 or 0.2 has no other):
 |---|---|
 | `walls`, `junctionFills`, `rooms`, `unanchored`, `openings` | 0.1 |
 | `program`, `fallbacks`, `placements`, `clearances`, `clearanceOverlaps`, `circulation` | 0.2 (and from 0.1, as a reader of 0.2 derives them for a 0.1 document: circulation from its rooms and doors, nothing for the rest) |
-| `floors`, `ceilings`, `slabs`, `roofs`, `stairs`, `finishes` | 0.3 (and from 0.1 and 0.2, as a reader of 0.3 derives them: from the defaults, with no roof and no stair) |
+| `floors`, `ceilings`, `slabs`, `roofs`, `stairs`, `finishes` | 0.3 (and from 0.1 and 0.2, as a reader of 0.3 derives them: from the defaults, with no roof and no stair) — except a roof's gable ends, which 0.4 stands on the footprint where 0.3 stood them on the eave outline (16.5), and the surface 0.4 derives for a roof 0.3 left underived (16.4.6) |
 | a winder or a spiral stair's `steps`, `run`, `walkline`, `walklineGoing`, `narrowGoing`, `centre` and `headroom` | 0.4 (and from 0.3, as a reader of 0.4 derives them from the members 0.3 already has: a 0.3 winder stair has no newel) |
 
 The validity, the diagnostics and the derived values are preserved; the content hash and the
@@ -152,7 +152,8 @@ stair's `newel`, members of objects core defines and closes, so the 0.3 schema r
 0.3 document has either. It changes the meaning of no member: a 0.4 reader derives more from a 0.3
 winder or spiral stair — its steps, walkline, goings and headroom (17.7) — but from members whose
 meaning is the same in both drafts, and it derives the same from the document and from its
-migration. Nothing needs moving.
+migration; and it stands a roof's gable ends on its footprint (16.5), from the same members, for the
+document and its migration alike. Nothing needs moving.
 
 The step from 0.3 to 0.4 MUST make the document declare `"0.4"`, and change nothing else. {#FS-CORE-20.7.1 MUST}
 
