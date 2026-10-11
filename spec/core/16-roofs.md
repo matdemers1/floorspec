@@ -1,9 +1,9 @@
 # 16. Roofs
 
 A roof is drawn as its **footprint** — a polygon in plan, usually the outer faces of the walls it
-sits on — and a few numbers on each edge of it: whether the edge is a **gable**, a vertical end
-under which the roof stops, or slopes up from it at a **pitch**, and how far the roof
-**overhangs** it. Everything else is derived: the **eave outline**, the footprint moved out by the
+sits on — and a few numbers on each edge of it: whether the edge is a **gable**, closed above by a
+vertical end in the plane of the wall below it, or slopes up from it at a **pitch**, and how far the
+roof **overhangs** it. Everything else is derived: the **eave outline**, the footprint moved out by the
 overhangs; and, for the roofs this draft can derive exactly, the **surface** — its faces, the
 ridges, hips, valleys and breaks between them, and the ends of its gables. A roof with every edge
 sloping is a hip roof, with gables a gable roof, with one sloped edge a shed, and with none a flat
@@ -35,9 +35,9 @@ vertex `0`), and its member name in `edges` is `i` written in decimal: `"0"`, `"
 
 | Member | Type | Default | Meaning |
 |---|---|---|---|
-| `gable` | boolean | `false` | the edge is a gable: the roof stops above it in a vertical end, and does not slope up from it |
+| `gable` | boolean | `false` | the edge is a gable: the roof does not slope up from it, and a vertical end, its gable end, closes the roof above it (16.5) |
 | `pitch` | pitch | the roof's `pitch` | the pitch the roof rises at from this edge |
-| `overhang` | length | the roof's `overhang` | how far the roof overhangs this edge |
+| `overhang` | length | the roof's `overhang` | how far the roof overhangs this edge — at a gable, how far it rakes past its gable end |
 
 An edge that is absent from `edges` has the default `{}`: it takes the roof's values. `height`
 defaults to its level's `height` — the default top of the level's walls (5.9) — so a roof that says
@@ -103,7 +103,7 @@ out at that elevation, so the roof over it rises higher.
 ## 16.4 Surfaces
 
 The surface of a roof rises from its eave outline: from each sloped edge at its pitch, never from
-a gable, which stands vertical under it. Every derived surface is the eave outline lifted point by
+a gable, whose line stays where it is. Every derived surface is the eave outline lifted point by
 point to an **elevation** `z(P)`. This draft derives the surface of three classes of roof, and of
 no other (16.4.6): flat roofs, shed roofs, and skeleton roofs. In this section the eave outline is
 walked counter-clockwise — reversed, when the footprint runs clockwise — and each of its edges keeps
@@ -161,8 +161,10 @@ area this section computes is an exact rational: nothing is rounded before 16.5.
 > Core 0.3 derived only skeleton roofs whose sloped edges share one pitch on a rectilinear outline,
 > with its gables at the ends of wings (FS-CORE-16.4.1, retired), by a rise distance measured as a
 > Chebyshev distance. On that class the wavefront here reaches every point at exactly that rise
-> distance, and the faces, gable ends and lines it derives are 0.3's, value for value; only two
-> lines with the same rounded ends, which 0.3 left unordered, are now ordered by their kind (16.5).
+> distance, and the faces and lines it derives are 0.3's, value for value; only two lines with the
+> same rounded ends, which 0.3 left unordered, are now ordered by their kind (16.5). Its gable ends
+> are not always: 0.3 stood them on the eave outline, and 0.4 stands them on the footprint (16.5),
+> which is another place wherever a gable, or an edge beside one, overhangs.
 
 ### 16.4.4 The wavefront
 
@@ -287,15 +289,51 @@ A roof's **derived roof** is:
     point — least `x`, then least `y`, then least `z`; and `area` its area in plan, computed from
     its rounded `x` and `y` as a room's net area is (6.4) — listed by `edge`, then by their first
     points, and leaving out a face whose rounded polygon has fewer than three points;
-  - `gables`: each gable edge, from `A` to `B` on the counter-clockwise outline, as
-    `{ "edge", "polygon" }`, where `polygon` is its **gable end**: `A` and then `B` at the eave, and
-    then back from `B` to `A` along the surface through every node on the edge — for a shed roof,
-    through `B` and `A` — each point `[x, y, z]` rounded as a face's are, each point that equals the
-    one before it removed (the first counts as following the last); listed by `edge`;
+  - `gables`: each gable edge as `{ "edge", "polygon" }`, where `polygon` is its **gable end**
+    (below), each point `[x, y, z]` rounded as a face's are, each point that equals the one before
+    it removed (the first counts as following the last); listed by `edge`;
   - `lines`: each line (16.4.5) as `{ "kind", "from", "to" }`, its `kind` `"ridge"`, `"break"`,
     `"hip"` or `"valley"` and its ends as points `[x, y, z]` rounded as a face's are, `from` the
     lesser of the two — compared by `x`, then `y`, then `z`; listed by `from`, then `to`, then
     `kind`. A flat or shed roof has none.
+
+**Gable ends.** A gable end is the wall that closes the roof above a gable, and it stands where the
+wall under it stands: on the gable's edge of the footprint, not on the eave outline. The surface runs
+on past it to the eave outline — the gable's **rake**, as deep as its overhang — and the gable end
+rises to the surface where the surface is over the wall. For a gable whose footprint edge runs from
+`A₀` to `B₀` — the footprint walked counter-clockwise, as the outline is in 16.4 — its gable end is `A₀`
+and then `B₀` at the eave, and then its **top**: back from `B₀` to `A₀` over the footprint edge, each
+point at the elevation of the surface over it (16.4):
+
+- for a shed roof, `B₀` and `A₀`, at `z(B₀)` and `z(A₀)` (16.4.2): the surface over a straight edge is
+  straight;
+- for a skeleton roof, `B₀`, then every point of the footprint edge at which it meets the boundary of
+  a face — every node on it, and every point at which it meets a side of a face's polygon that is not
+  parallel to it, as it crosses a line, a seam or the outline — in order from `B₀`, and then `A₀`;
+  each at the elevation of a face whose polygon holds the point, in the plane of that face's edge
+  (16.4.3), which every face that holds it agrees on.
+
+On a roof with no overhang the footprint is the eave outline, and a gable end stands on the outline's
+edge. Every overhang moves an edge outwards, so the eave outline holds the footprint — but for its
+rounding (16.3): at a vertex where an edge with no overhang meets one with an overhang and the
+outline's vertex is rounded, a point of the footprint can lie outside the outline, by less than a
+base unit. Two rules keep the gable end whole there:
+
+- the top of a skeleton roof's gable whose own overhang is 0 runs along its edge of the eave outline,
+  which lies on its footprint edge's line but for that rounding: `B₀`, then every node on that edge
+  of the outline that lies strictly between the lines through `B₀` and `A₀` perpendicular to the
+  footprint edge, in order from `B₀`, and then `A₀` — the points the rule above gives wherever
+  nothing is rounded;
+- `A₀` or `B₀`, when the eave outline does not hold it, is at the elevation of the point of the
+  outline nearest to it — the least, by `x` and then `y`, when two are.
+
+> [!note] Why on the footprint
+> Core 0.3 stood a gable end on the eave outline, so on a roof whose gable overhangs, the gable end
+> stood out on the rake, as far in front of the wall it closes as the overhang, with the roof's
+> underside showing between the top of the wall and it — on the shed roof of a guest wing with a
+> foot of overhang and six gables along a curved wall, every gable a foot outside its wall. A gable
+> wall is built in the plane of the wall below it, and the roof rakes past it: that is where 0.4
+> stands it. A gable with no overhang, between edges with none, is where it was.
 
 A deriver MUST derive every roof as this section defines it. {#FS-CORE-16.5.2 MUST}
 

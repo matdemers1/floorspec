@@ -115,6 +115,19 @@ class Surfaces(unittest.TestCase):
                         edges={str(i): {'gable': True} for i in (1, 2, 3)}))
         self.assertEqual((s['kind'], s['surface']['high']), ('shed', 2))
 
+    def test_gable_ends_stand_on_the_footprint_in_0_4(self):
+        """16.5 of 0.4: a gable end on its footprint edge, up to the surface over it; 0.3 stood it on the eave outline."""
+        rect = [(0, 0), (12, 0), (12, 8), (0, 8)]
+        r = roof(rect, pitch={'rise': 1, 'run': 1}, overhang=2, edges={'1': {'gable': True, 'overhang': 1}, '3': {'gable': True}})
+        v3 = roofs.derive(_Doc(r))['roofs']['R']['surface']['gables']
+        v4 = roofs.derive(_Doc(r), v04=True)['roofs']['R']['surface']['gables']
+        self.assertEqual([g['polygon'] for g in v3], [[[13, -2, 0], [13, 10, 0], [13, 4, 6]], [[-2, 10, 0], [-2, -2, 0], [-2, 4, 6]]])
+        self.assertEqual([g['polygon'] for g in v4], [[[12, 0, 0], [12, 8, 0], [12, 8, 2], [12, 4, 6], [12, 0, 2]],
+                                                      [[0, 8, 0], [0, 0, 0], [0, 0, 2], [0, 4, 6], [0, 8, 2]]])
+        shed = roof(rect, pitch={'rise': 1, 'run': 2}, overhang=2, edges={str(i): {'gable': True} for i in (1, 2, 3)})
+        g = roofs.derive(_Doc(shed), v04=True)['roofs']['R']['surface']['gables']
+        self.assertEqual(g[0]['polygon'], [[12, 0, 0], [12, 8, 0], [12, 8, 5], [12, 0, 1]])
+
     def test_what_is_not_derived(self):
         rect = [(0, 0), (10, 0), (10, 4), (0, 4)]
         mixed = roof(rect, pitch=SIX, edges={'0': {'pitch': {'rise': 1, 'run': 1}}})

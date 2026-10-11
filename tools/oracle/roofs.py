@@ -21,7 +21,8 @@ trapezoid's centroid by the pointwise definition of 16.4.3 and asserts the two a
 
 A reader of Core 0.4 (v04) derives every roof with two or more sloped edges by the weighted straight skeleton
 instead (16.4.3 to 16.4.6 of 0.4; skeleton.py), which gives the same values on every roof 0.3 derives; flat and shed
-roofs are as in 0.3.
+roofs are as in 0.3. But for its gable ends: 0.3 stands a gable end on the eave outline, and 0.4 on the gable's edge
+of the footprint, the wall under it, rising to the surface over that edge (16.5 of 0.4; _gable_on_wall).
 """
 
 from __future__ import annotations
@@ -567,12 +568,12 @@ def derive(doc, v04=False) -> dict:
         ring = outline if plane.area2(outline) > 0 else outline[::-1]
         v = {'kind': roof_kind(ks), 'outline': [list(p) for p in plane.least_first(ring)], 'eave': e}
         m = method(r, outline, v04)
-        v['surface'] = None if m is None else _surface(r, outline, ks, e, m)
+        v['surface'] = None if m is None else _surface(r, outline, ks, e, m, v04)
         out[rid] = v
     return {'roofs': out}
 
 
-def _surface(r, outline, ks, e, m):
+def _surface(r, outline, ks, e, m, v04=False):
     o = Outline(outline, ks)
     faces, gables, lines = [], [], []
     if m == 'flat':
@@ -591,8 +592,15 @@ def _surface(r, outline, ks, e, m):
         poly = [[p[0], p[1], z(p).round()] for p in o.ring]
         faces.append({'edge': o.index[j], 'polygon': _out_ring(poly), 'area': _area(poly)})
         zs = [z(p) for p in o.ring]
+        fpr = _footprint_ring(r, o)
         for g in range(o.n):
-            if o.kind[g] == 'gable':
+            if o.kind[g] != 'gable':
+                continue
+            if v04:                                       # 16.5 of 0.4: on the wall, up to the plane over it
+                a0, b0 = fpr[g], fpr[(g + 1) % o.n]
+                pts = [[a0[0], a0[1], e], [b0[0], b0[1], e], [b0[0], b0[1], z(b0).round()], [a0[0], a0[1], z(a0).round()]]
+                gables.append({'edge': o.index[g], 'polygon': [list(p) for p in _dedupe(pts)]})
+            else:
                 ga, gb = o.seg(g)
                 gables.append(_gable(o.index[g], ga, gb, [ga, gb], lambda p: z(p).round(), e))
     elif m == 'weighted':
@@ -645,6 +653,12 @@ def _rise(p, segs):
 
 def _out_ring(poly):
     return [list(p) for p in _least_first([tuple(p) for p in poly])]
+
+
+def _footprint_ring(roof, o: Outline):
+    """The footprint walked as the counter-clockwise outline is: its edge j is the footprint edge o.index[j]."""
+    fp = footprint(roof)
+    return fp if plane.area2(fp) > 0 else fp[::-1]
 
 
 def _gable(index, a, b, on, zr, e):
@@ -772,11 +786,11 @@ def _weighted_surface(r, o: Outline, e):
             if len(poly) >= 3:
                 faces_out.append({'edge': o.index[j], 'polygon': _out_ring(poly), 'area': _area(poly)})
     allpts = {p for rs in rings.values() for rg in rs for p in rg}
+    fpr = _footprint_ring(r, o)
     for g in range(o.n):
         if o.kind[g] == 'gable':
-            ga, gb = o.seg(g)
-            on = [p for p in allpts if p in nodes and plane.on_closed_segment(p, ga, gb)]
-            gables.append(_gable(o.index[g], ga, gb, on, zr, e))
+            gables.append(_gable_on_wall(o, g, fpr[g], fpr[(g + 1) % o.n], overhang(r, o.index[g]), rings, nodes,
+                                         allpts, zx, plane_z, e))
     lines = _weighted_lines(r, o, rings, zx, rd, pitch, nrm, length)
     faces_out.sort(key=lambda f: (f.get('edge', -1), f['polygon'][0]))
     gables.sort(key=lambda g: g['edge'])
@@ -785,6 +799,76 @@ def _weighted_surface(r, o: Outline, e):
     ys = [p[1] for p in o.ring]
     box = {'min': [min(xs), min(ys), e - r.get('thickness', 0)], 'max': [max(xs), max(ys), high]}
     return {'high': high, 'box': box, 'faces': faces_out, 'gables': gables, 'lines': lines}
+
+
+def _meet(a, b, c, d):
+    """The point where segment a-b meets segment c-d that is not parallel to it, or None."""
+    r, s = _dir(a, b), _dir(c, d)
+    den = plane.cross(r, s)
+    if den == 0:
+        return None
+    w = plane.sub(c, a)
+    t, u = F(plane.cross(w, s)) / den, F(plane.cross(w, r)) / den
+    if not (0 <= t <= 1 and 0 <= u <= 1):
+        return None
+    return (a[0] + t * r[0], a[1] + t * r[1])
+
+
+def _nearest_on_ring(p, ring):
+    """The point of a closed ring nearest p - the least by x and then y of those as near."""
+    best = None
+    n = len(ring)
+    for i in range(n):
+        u, v = ring[i], ring[(i + 1) % n]
+        d = _dir(u, v)
+        t = min(max(F(plane.dot(plane.sub(p, u), d)) / plane.dot(d, d), F(0)), F(1))
+        q = (u[0] + t * d[0], u[1] + t * d[1])
+        k = (plane.dot(plane.sub(p, q), plane.sub(p, q)), q[0], q[1])
+        if best is None or k < best:
+            best = k
+    return (best[1], best[2])
+
+
+def _gable_on_wall(o, g, a0, b0, og, rings, nodes, allpts, zx, plane_z, e):
+    """16.5 of 0.4: the gable end of ring edge g of a skeleton roof, on its footprint edge a0 -> b0 - a0 and b0 at
+    the eave, then back from b0 to a0 along the surface over the edge: through every node on it and every point at
+    which it meets a side of a face's polygon not parallel to it; for a gable with no overhang, through the nodes on its
+    edge of the outline between the perpendiculars at b0 and a0. Each point at the elevation of a face holding it; an
+    end the outline does not hold (its rounding) at that of the outline's point nearest it."""
+    d = _dir(a0, b0)
+    span = plane.dot(d, d)
+
+    def proj(p):
+        return plane.dot(plane.sub(p, a0), d)
+
+    def z_at(p):
+        for j, rs in rings.items():
+            for rg in rs:
+                if plane.locate(p, rg) != 'out':
+                    return plane_z(j, p)
+        return z_at(_nearest_on_ring(p, o.ring))
+    top = {}
+    if og == 0:
+        ga, gb = o.seg(g)
+        for p in allpts:
+            if p in nodes and plane.on_closed_segment(p, ga, gb) and 0 < proj(p) < span:
+                top[p] = zx[p]
+    else:
+        for p in allpts:
+            if p in nodes and plane.on_closed_segment(p, a0, b0):
+                top[p] = zx[p]
+        for j, rs in rings.items():
+            for rg in rs:
+                for i in range(len(rg)):
+                    p = _meet(a0, b0, rg[i], rg[(i + 1) % len(rg)])
+                    if p is not None and p not in top:
+                        top[p] = plane_z(j, p)
+    for p in (a0, b0):
+        if p not in top:
+            top[p] = z_at(p)
+    pts = [[a0[0], a0[1], e], [b0[0], b0[1], e]]
+    pts += [[round(F(p[0])), round(F(p[1])), round(top[p])] for p in sorted(top, key=lambda p: -proj(p))]
+    return {'edge': o.index[g], 'polygon': [list(p) for p in _dedupe(pts)]}
 
 
 def _weighted_lines(r, o, rings, zx, rd, pitch, nrm, length):
