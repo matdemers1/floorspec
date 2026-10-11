@@ -4,7 +4,9 @@
 - retarget(tc): a 0.3 roof test as 0.4 reads it. The roofs 0.3 left underived that 0.4 derives - mixed pitches,
   gables beside one another, a gable whose clearance a neighbouring wing blocked - lose FS-LINT-015 and gain their
   surface; the descriptions that spoke of 0.3's class of equal-pitch roofs say what 0.4 does instead. Every other
-  expected value is the 0.3 suite's: on every roof 0.3 derives, 0.4 derives the same values.
+  expected value is the 0.3 suite's - on every roof 0.3 derives, 0.4 derives the same values - but for the gable ends
+  of a roof that overhangs, which 0.4 stands on the footprint, not the eave outline (16.5); GABLE_ENDS says so in the
+  descriptions of the 0.3 tests whose gable ends move.
 - declare(): the tests of what 0.4 adds, at the end of the group `roofs`: saltboxes and hips at mixed pitches, and
   the degenerate cases of the wavefront - parallel edges, collinear eaves, coincident events, a very thin lobe, reflex
   corners, an edge event and a split event at one point - and the roofs 16.4.6 still leaves underived.
@@ -69,8 +71,35 @@ CHANGED = {
 }
 
 
+# 0.3 tests whose gable ends 0.4 stands on the footprint (16.5): slug -> (0.3 wording, 0.4 wording)
+GABLE_ENDS = {
+    'gable-roof': (
+        'the ridge runs the whole length of the outline, and each gable end is a triangle rising to it.',
+        'the ridge runs the whole length of the outline, past the gable ends, which stand on the walls 150 mm inside the '
+        'rake (16.5): each rises from the eave to the surface over its wall - 150 mm at its corners, where the eaves are '
+        '300 mm out - and to the ridge between them.'),
+    'clockwise-footprint': (
+        'and every face and gable keeps its edge\'s index as written.',
+        'and every face and gable keeps its edge\'s index as written. Each gable end stands on its edge of the '
+        'footprint, the wall, 300 mm inside the outline, and rises 150 mm at the wall\'s corners before it meets the '
+        'ridge (16.5).'),
+    'two-storey-template': (
+        'A gable roof of 8 in 12 with 6 in rakes.',
+        'A gable roof of 8 in 12 with 6 in rakes, past gable ends that stand on the end walls (16.5).'),
+    'cabin-template': (
+        'its three other edges gables.',
+        'its three other edges gables, whose gable ends stand on the walls under them, the roof raking past them '
+        '(16.5).'),
+}
+
+
 def retarget(tc):
     """A 0.3 roof test, as author04.retarget leaves it, as 0.4 reads it."""
+    if tc['slug'] in GABLE_ENDS:
+        old, new = GABLE_ENDS[tc['slug']]
+        assert old in tc['description'], tc['slug']
+        tc = copy.deepcopy(tc)
+        tc['description'] = tc['description'].replace(old, new)
     if tc['group'] != 'roofs' or tc['slug'] not in CHANGED:
         return tc
     tc = copy.deepcopy(tc)
@@ -95,8 +124,9 @@ def declare():
     n('saltbox', 'A saltbox: a house 32 feet by 24 under a roof whose short ends, edges 1 and 3, are gables, whose '
       'front, the south edge, rises steeply at 12 in 12, and whose back, the north edge, at 6 in 12 - the back slope '
       'twice as long in plan. With a 1-foot overhang the eave outline is 26 feet deep; the two planes meet in a level '
-      'ridge 26/3 feet north of the south eave and 26/3 feet above it, and each gable end is a triangle that rises to '
-      'it off centre. Every coordinate is exact and rounded once.',
+      'ridge 26/3 feet north of the south eave and 26/3 feet above it. Each gable end stands on its wall, a foot inside '
+      'the rake (16.5), and rises from the eave to the surface over the wall - a foot at the steep front corner, half a '
+      'foot at the back - and to the ridge between them, off centre. Every coordinate is exact and rounded once.',
       SKELETON + ['16.2.2', '16.3.1'], v4(roof_doc(rf(house, pitch=SIX, overhang=FT, edges={'0': P(12), **gables(1, 3)}))))
     n('hip-at-four-pitches', 'A hip roof 40 feet by 24 with every edge at its own pitch: south 12 in 12, east 8, '
       'north 6 and west 4. The planes of the north and the south meet in a ridge where the south plane, steepest, has '
@@ -208,10 +238,59 @@ def declare():
       'with no FS-LINT-015, which a reader of 0.3 reports for it.', ['1.2.8', '16.4.2', '16.5.2'], d)
     n('overhangs-at-mixed-pitches', 'The saltbox with a 2-foot overhang at the back and none elsewhere: the eave '
       'outline is computed first, 26 feet deep, and the skeleton from it, so the ridge, a third of the way across from '
-      'the steep front, lies 26/3 feet north of the south eave and 26/3 feet above it.',
+      'the steep front, lies 26/3 feet north of the south eave and 26/3 feet above it. The gables have no overhang of '
+      'their own, but the back edge beside them has: each gable end stands on its wall and stops at the wall\'s back '
+      'corner, a foot above the eave, and the back eave\'s overhang is open at its ends (16.5).',
       SKELETON + ['16.3.1'], v4(roof_doc(rf(house, pitch=SIX, edges={'0': P(12), '2': {'overhang': 2 * FT}, **gables(1, 3)}))))
     n('pitch-ratios-share-a-plane', 'The rectangle with the 2-foot bay, edge 0 at 1 in 2 and edge 4 at 6 in 12: one '
       'pitch, compared as a ratio, so the two collinear edges share a plane and their faces meet in a seam, as if both '
       'said 6 in 12.', SKELETON + ['16.4.4'],
       v4(roof_doc(rf([[0, 0], [14 * FT, 0], [14 * FT, -2 * FT], [16 * FT, -2 * FT], [16 * FT, 0], [30 * FT, 0],
                       [30 * FT, 20 * FT], [0, 20 * FT]], pitch=SIX, edges={'0': P(1, 2)}))))
+    # Gable ends on the footprint (16.5): the wall under a gable, the roof raking past it.
+    IN = FT // 12
+    n('gable-ends-on-the-walls', 'A house 30 feet by 20 under a gable roof of 8 in 12 whose eaves overhang 2 feet and '
+      'whose gables, the short ends, 1 foot: the rake. Each gable end stands on its wall, the gable\'s edge of the '
+      'footprint, not on the eave outline a foot outside it (16.5): from the eave it rises to the surface over the '
+      'wall - 16 inches at the wall\'s corners, which are 2 feet in from the eaves, and 8 feet at the ridge, which '
+      'runs on past it to the outline. A pentagon, where the surface over the outline\'s edge would make a triangle.',
+      ['16.5.2', '16.3.1'], v4(roof_doc(rf([[0, 0], [30 * FT, 0], [30 * FT, 20 * FT], [0, 20 * FT]],
+                                           pitch={'rise': 8, 'run': 12}, overhang=2 * FT, edges=gables(1, 3, overhang=FT)))))
+    n('adjacent-gables-on-the-walls', 'A house 30 feet by 20 at 6 in 12 overhanging a foot all round, its east and '
+      'north edges gables meeting at a corner: the south and west planes meet in one hip from the south-west corner '
+      'of the outline to the north gable\'s edge of it. The north gable end stands on the north wall, a foot inside, '
+      'and its top crosses the hip there, 20 feet from the west wall and 10 1/2 feet up, then runs level to the corner '
+      'along the south plane (16.5); the east gable end rises along the south plane alone, from half a foot at its south '
+      'corner to 10 1/2 feet at the north-east one, which the two gable ends share.',
+      ['16.5.2'], v4(roof_doc(rf([[0, 0], [30 * FT, 0], [30 * FT, 20 * FT], [0, 20 * FT]], pitch=SIX, overhang=FT,
+                                 edges=gables(1, 2)))))
+    wing = [[0, 0], [34 * FT, 0], [34 * FT, 14 * FT], [0, 14 * FT], [-858317, 4096512], [-3 * FT, 7 * FT],
+            [-858317, 1365504]]
+    n('shed-gables-on-an-arc', 'A guest wing 34 feet by 14 under a shed roof of 3 in 12 rising south from its north '
+      'eave, whose west end is a curved wall drawn as three chords bulging 3 feet out; every edge but the north one is '
+      'a gable, overhanging a foot, but the east one, against the house, overhangs nothing. Each gable end stands on '
+      'its wall and rises to the plane over it (16.5): the south one a rectangle 3 feet 9 inches high, 15 feet in plan '
+      'from the north eave, and the east one from 3 inches at its north corner, under the north eave\'s overhang, '
+      'to the same height at its south corner; the three chords\' gable ends follow the plane between. None of them '
+      'stands on the eave outline, a foot outside its wall.',
+      ['16.5.2', '16.4.2', '16.3.1'],
+      v4(roof_doc(rf(wing, pitch={'rise': 3, 'run': 12}, overhang=FT, thickness=10 * IN,
+                     edges={**gables(0, 3, 4, 5, 6), '1': {'gable': True, 'overhang': 0}}))))
+    cave = [[0, 0], [34 * FT, 0], [34 * FT, 14 * FT], [0, 14 * FT], [858317, 4096512], [3 * FT, 7 * FT],
+            [858317, 1365504]]
+    n('shed-gables-on-a-concave-arc', 'The guest wing with its west wall curving in, three chords 3 feet deep, so the '
+      'footprint has three reflex corners, and every edge but the north eave a gable overhanging a foot: the eave '
+      'outline moves each chord out a foot and is narrower there than the footprint\'s corners, but each gable end '
+      'still stands on its own chord of the footprint and rises to the plane over it (16.5).',
+      ['16.5.2', '16.4.2', '16.3.1'],
+      v4(roof_doc(rf(cave, pitch={'rise': 3, 'run': 12}, overhang=FT, edges=gables(0, 1, 3, 4, 5, 6)))))
+    n('oblique-gable-with-no-overhang', 'A house 30 feet by 20 with its south-east corner cut on a 4 : 3 slope, the '
+      'cut a gable with no overhang between eaves that overhang 2 inches, the south at 9 in 12 and the rest at 6. The '
+      'eave outline\'s vertex where the south eave meets the cut is not an integer point and is rounded once (16.3), '
+      'inside the cut\'s line by a third of a base unit, so the outline\'s edge on the cut lies inside the footprint\'s '
+      'edge by less than a base unit, and both ends of the footprint\'s edge lie outside the outline. The gable end '
+      'stands on the footprint edge, its top along the outline\'s edge through the node where the two hips meet on '
+      'it, and each end at the elevation of the point of the outline nearest it (16.5).',
+      ['16.5.2', '16.3.1'],
+      v4(roof_doc(rf([[0, 0], [26 * FT, 0], [30 * FT, 3 * FT], [30 * FT, 20 * FT], [0, 20 * FT]], pitch=SIX,
+                     overhang=2 * IN, edges={'0': P(9), '1': {'gable': True, 'overhang': 0}}))))
