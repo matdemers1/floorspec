@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -593,8 +593,23 @@ length rounded segment by segment. Its `options` group puts two trees in courtya
 its `ops` group places the starter size `tree-medium`, moves a tree into the courtyard, rejects a
 plant on a wall, and moves a bed and its tree together.
 
+FS_lighting's suite starts from the Phase 13 lit house (`examples/…-p13-lit-house`): the demo house's
+plan with FS_electrical's pendants over the Kitchen's island on a dimmer, tunable-white downlights on a
+smart switch, a downlight in the Living room that does not dim, a porch light, and an FS_furniture
+table lamp - each described as a luminaire - and the scenes "Evening" and "Night light". FS_lighting
+adds no kind of element and requires FS_electrical, so its `order` group also shows a document that
+no longer uses FS_electrical, or uses it out of range, stopped by Core (FS-INV-601, FS-INV-602), and
+its `schema` group a `collections` member it may not have. Its `invariants` group tests what a
+luminaire and a scene may name - a light of FS_electrical or another extension's element, never a
+switch, a panel or a core element - a tunable range and a colour temperature in it, and names that
+repeat; its `lints` group dimming what does not dim, a colour a luminaire cannot give, and dimming a
+light that no dimmer or smart switch controls, read from FS_electrical's switches as they are. Its
+`options` group hangs the island's pendants in option A alone, which breaks the scenes in B's design;
+its `ops` group adds a scene with `setProperty` of `$document`, rejects a name in use and the removal of
+a light a scene still turns on, and removes one with its references.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
