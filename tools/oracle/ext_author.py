@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture and FS_structural 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture, FS_structural and FS_landscape 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -26,7 +26,9 @@ dryer - every item from the starter library (registry/FS_furniture/library/), it
 the library's own files. FS_structural's start from the Phase 10 framed house (framed() below) - the
 demo house's plan with bearing and shear walls, studs, headers, floor joists, a slab on grade and a
 deck, recorded on the walls, openings, rooms and slab themselves, since FS_structural adds no kind
-of element. Every expected diagnostic is written by hand and cross-checked against the
+of element. FS_landscape's start from the Phase 13 garden (garden() below) - the demo house's plan with
+a walled exterior courtyard, a patio, a lawn, beds, a raised planter, trees, shrubs, a grass and a
+groundcover, stepping stones and a seat wall. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -36,7 +38,7 @@ import shutil
 import sys
 
 from tools.oracle.author_lib import fmt
-from tools.oracle.ext import official
+from tools.oracle.ext import landscape as land, official
 from tools.oracle.jsonparse import parse
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.suite import dumps as ops_dumps, expected_view, properties
@@ -1658,6 +1660,445 @@ SO('unset-a-flag', 'unsetProperty of W2 /extensions/FS_structural/shear: W2 no l
    check=lambda r, B: ensure(strc_derived(B)['levels']['L1']['shear'] == ['W1', 'W4'], strc_derived(B)))
 
 
+# ============================================================================= FS_landscape
+
+LAND = 'FS_landscape'
+CODE[LAND] = 'LAND'
+
+
+def plant_box(spread_mm, height_mm, bottom_mm=0):
+    """FS_landscape 3.3: a plant's box, centred on its position, planted bottom_mm above the ground."""
+    s, h, b = spread_mm * MM, height_mm * MM, bottom_mm * MM
+    r = s // 2
+    return {'min': [-r, -r, b], 'max': [s - r, s - r, b + h]}
+
+
+def free_at(x, y, rotation=None, level='L1'):
+    h = {'mode': 'free', 'level': level, 'position': [x, y]}
+    if rotation is not None:
+        h['rotation'] = rotation
+    return h
+
+
+def plant(form, host, spread_mm, height_mm, bottom_mm=0, level='L1', **members):
+    el = {'fallback': {'level': level, 'box': plant_box(spread_mm, height_mm, bottom_mm)}}
+    if host is not None:
+        el['host'] = host
+    return {**el, 'form': form, **members}
+
+
+def outline_box(points, z0_mm, z1_mm, grow=0):
+    """FS_landscape 3.3: the box that bounds a geometry in plan, grown by `grow` on every side."""
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    return {'min': [min(xs) - grow, min(ys) - grow, z0_mm * MM], 'max': [max(xs) + grow, max(ys) + grow, z1_mm * MM]}
+
+
+def area_el(boundary, z0_mm, z1_mm, host=None, level='L1', **members):
+    el = {'fallback': {'level': level, 'box': outline_box(boundary, z0_mm, z1_mm)}}
+    if host is not None:
+        el['host'] = host
+    return {**el, 'boundary': boundary, **members}
+
+
+def line_el(form, points, width, z0_mm, z1_mm, level='L1', **members):
+    return {'fallback': {'level': level, 'box': outline_box(points, z0_mm, z1_mm, width // 2)},
+            'form': form, 'points': points, 'width': width, **members}
+
+
+def P(x, y):
+    """A point in feet."""
+    return [round(x * FT), round(y * FT)]
+
+
+BED_WEST = [P(-4, -4), P(2, -4), P(2, -1), P(-1, -1), P(-1, 12), P(-4, 12)]
+PLANTER = [P(8, -9), P(11, -9), P(11, -6), P(8, -6)]
+COURT_BED = [P(-3, -3), P(3, -3), P(3, 3), P(-3, 3)]          # in the courtyard host's frame
+LAWN = [P(-24, -24), P(30, -24), P(30, -12), P(-4, -12), P(-4, 18), P(-24, 18)]
+STONES = [P(2, -6), P(-2, -8), P(-8, -8)]
+SEAT_WALL = [P(2, -11), P(12, -11)]
+
+
+def garden():
+    """The Phase 13 garden: the Phase 5 demo house's plan (see demo()), 20' x 12', with no building
+    systems, and a walled courtyard R4 east of it, 8' x 12', whose function is exterior:
+
+        J2 ------ W2 ------ J3 ---- W3 ---- J4 ---- W11 ---- J9
+        |                   |               |                |
+        W1   Kitchen R1     W9   Bath R2    W4               |
+        |                   |               |   Courtyard    W12
+        |                   J7 ---- W10 --- J8      R4       |
+        |                   |               |                |
+        |                   W8  Utility R3  W5               |
+        |                   |               |                |
+        J1 ------ W7 ------ J6 ---- W6 ---- J5 ---- W13 ---- J10
+
+    J9 (28', 12') and J10 (28', 0). A patio slab S1, 10' x 8', south of the Kitchen, and around the
+    house:
+
+    - a medium tree X1 in the lawn to the south-west (8 m across, 11 m tall, clear to 2.2 m);
+    - an L-shaped bed X10 along the west wall and the patio's west end, steel-edged, with two shrubs
+      (X2, X3) and a groundcover (X5);
+    - a raised concrete planter X11 on the patio, 450 mm high, with an ornamental grass X4 planted in
+      its soil, 400 mm up;
+    - a small tree X6 in the courtyard, on R4's floor, in a 6' square bed X12 hosted at the same
+      point - its outline in its host's frame;
+    - a lawn X20 wrapping the house's west and south sides;
+    - stepping stones X15 from the patio to the lawn, and a 450 mm concrete seat wall X16 along the
+      patio's south edge."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Phase 13 garden'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'types': {'WT': {'kind': 'wallType', 'layers': [{'thickness': 100 * MM, 'function': 'core'}]}},
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 12 * FT), 'J3': J(12 * FT, 12 * FT), 'J4': J(20 * FT, 12 * FT),
+                      'J5': J(20 * FT, 0), 'J6': J(12 * FT, 0), 'J7': J(12 * FT, 6 * FT), 'J8': J(20 * FT, 6 * FT),
+                      'J9': J(28 * FT, 12 * FT), 'J10': J(28 * FT, 0)},
+        'walls': {'W1': W('J1', 'J2'), 'W2': W('J2', 'J3'), 'W3': W('J3', 'J4'), 'W4': W('J4', 'J8'),
+                  'W5': W('J8', 'J5'), 'W6': W('J5', 'J6'), 'W7': W('J6', 'J1'), 'W8': W('J6', 'J7'),
+                  'W9': W('J7', 'J3'), 'W10': W('J7', 'J8'),
+                  'W11': W('J4', 'J9'), 'W12': W('J9', 'J10'), 'W13': W('J10', 'J5')},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 6 * FT], 'name': 'Kitchen', 'function': 'kitchen'},
+                  'R2': {'level': 'L1', 'anchor': [16 * FT, 9 * FT], 'name': 'Bath', 'function': 'bath'},
+                  'R3': {'level': 'L1', 'anchor': [16 * FT, 3 * FT], 'name': 'Utility', 'function': 'mechanical'},
+                  'R4': {'level': 'L1', 'anchor': [24 * FT, 6 * FT], 'name': 'Courtyard', 'function': 'exterior'}},
+        'slabs': {'S1': {'level': 'L1', 'boundary': [P(2, -10), P(12, -10), P(12, -1), P(2, -1)],
+                         'thickness': 100 * MM, 'name': 'Patio'}},
+        'extensionsUsed': {LAND: '0.1.0'},
+        'extensions': {LAND: {'collections': {
+            'plants': {
+                'X1': plant('tree', free_at(-14 * FT, -6 * FT), 8000, 11000, clearHeight=2200 * MM, habit='spreading',
+                            foliage='deciduous', species='Acer rubrum', commonName='Red maple', catalogue='tree-medium'),
+                'X2': plant('shrub', free_at(-30 * FT // 12, 6 * FT), 1200, 1200, foliage='evergreen', catalogue='shrub-medium'),
+                'X3': plant('shrub', free_at(-30 * FT // 12, 2 * FT), 600, 500, catalogue='shrub-small'),
+                'X4': plant('grass', free_at(19 * FT // 2, -15 * FT // 2), 900, 900, 400, catalogue='grass-medium'),
+                'X5': plant('groundcover', free_at(FT // 2, -5 * FT // 2), 900, 200),
+                'X6': plant('tree', {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'position': [24 * FT, 6 * FT]},
+                            4500, 6000, clearHeight=1500 * MM, habit='rounded', name='Courtyard tree')},
+            'beds': {
+                'X10': area_el(BED_WEST, -100, 25, edging='steel', cover='bark'),
+                'X11': area_el(PLANTER, 0, 450, cover='soil', edging='concrete', name='Patio planter'),
+                'X12': area_el(COURT_BED, -100, 25, {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'position': [24 * FT, 6 * FT]},
+                               edging='stone')},
+            'lawns': {'X20': area_el(LAWN, -50, 10)},
+            'hardscape': {
+                'X15': line_el('steppingStones', STONES, 600 * MM, -30, 15, material='stone'),
+                'X16': line_el('wall', SEAT_WALL, 300 * MM, 0, 450, material='concrete', name='Seat wall')}}}},
+    }
+    return copy.deepcopy(d)          # the shared outlines and lines are never edited in place
+
+
+def ledit(fn):
+    """The Phase 13 garden, changed by fn(d) in place."""
+    d = garden()
+    fn(d)
+    return d
+
+
+LK = lambda d, c: coll(d, LAND, c)                                                 # noqa: E731
+PL = lambda d: LK(d, 'plants')                                                     # noqa: E731
+BD = lambda d: LK(d, 'beds')                                                       # noqa: E731
+HS = lambda d: LK(d, 'hardscape')                                                  # noqa: E731
+LDER = derived_of(LAND)
+L_ = lambda *a, **k: V(LAND, *a, **k)    # noqa: E731
+
+
+GARDEN_PLANTS = {
+    'X1': {'form': 'tree', 'size': 'medium', 'spread': 8000 * MM, 'height': 11000 * MM, 'position': [-14 * FT, -6 * FT]},
+    'X2': {'form': 'shrub', 'size': 'medium', 'spread': 1200 * MM, 'height': 1200 * MM, 'position': [-30 * FT // 12, 6 * FT]},
+    'X3': {'form': 'shrub', 'size': 'small', 'spread': 600 * MM, 'height': 500 * MM, 'position': [-30 * FT // 12, 2 * FT]},
+    'X4': {'form': 'grass', 'size': 'medium', 'spread': 900 * MM, 'height': 900 * MM, 'position': [19 * FT // 2, -15 * FT // 2]},
+    'X5': {'form': 'groundcover', 'size': 'medium', 'spread': 900 * MM, 'height': 200 * MM, 'position': [FT // 2, -5 * FT // 2]},
+    'X6': {'form': 'tree', 'size': 'small', 'spread': 4500 * MM, 'height': 6000 * MM, 'position': [24 * FT, 6 * FT], 'room': 'R4'},
+}
+
+
+def check_land(r):
+    x = LDER(r)
+    ensure(x['plants'] == GARDEN_PLANTS, x['plants'])
+    # the L-shaped bed: 6' x 3' along the patio's west end and 3' x 13' up the west wall, less their overlap
+    ensure(x['beds'] == {'X10': {'area': str((6 * 3 + 3 * 13) * FT * FT), 'plants': ['X2', 'X3', 'X5']},
+                         'X11': {'area': str(3 * 3 * FT * FT), 'plants': ['X4']},
+                         'X12': {'area': str(6 * 6 * FT * FT), 'plants': ['X6']}}, x['beds'])
+    ensure(x['lawns'] == {'X20': {'area': str((54 * 12 + 20 * 30) * FT * FT)}}, x['lawns'])
+    # sqrt(4'^2 + 2'^2), rounded once, then 6' exactly; and 10'
+    ensure(x['hardscape'] == {'X15': {'form': 'steppingStones', 'length': land._round_sqrt(20 * FT * FT) + 6 * FT},
+                              'X16': {'form': 'wall', 'length': 10 * FT}}, x['hardscape'])
+
+
+ON_WALL = {'mode': 'wallFace', 'wall': 'W7', 'side': 'left', 'offset': 3 * FT, 'height': 0}
+BAD_L = lambda d: PL(d)['X1'].update(form='palm')                                 # noqa: E731  the schema tier
+INV_L = lambda d: PL(d)['X1'].pop('host')                                         # noqa: E731  FS-LAND-INV-002
+INV_L_DIAG = [('FS-LAND-INV-002', ['X1'])]
+COURT_HOST = {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'position': [24 * FT, 6 * FT]}
+
+L_('examples', 'p13-garden', 'The Phase 13 garden, read by an implementation of FS_landscape that knows it: a medium '
+   'tree in the lawn, a steel-edged bed with two shrubs and a groundcover along the west wall, a raised concrete planter '
+   'on the patio with a grass planted in its soil, a small tree in a bed in the walled courtyard - both hosted on the '
+   'courtyard\'s floor, the bed\'s outline in its host\'s frame - a lawn, stepping stones and a seat wall. It is valid, '
+   'reports nothing - the grass on the patio stands in its planter, and the courtyard is exterior - and derives each '
+   'plant\'s form, size class, spread, height, position and room, each bed\'s area and the plants in it, the lawn\'s '
+   'area and each hardscape line\'s length.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '6.1.1'], garden(), check=check_land)
+L_('examples', 'core-only-reader', 'The same garden read with no known extensions: FS_landscape is not evaluated, so '
+   'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every element\'s fallback '
+   'and host (Core 1.6.9): each one\'s box, and the placements of the hosted ones.',
+   ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2', 'FS-CORE-13.4.1'], garden(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['fallbacks'])
+                          == ['X1', 'X10', 'X11', 'X12', 'X15', 'X16', 'X2', 'X20', 'X3', 'X4', 'X5', 'X6']
+                          and r['derived']['placements']['X6']['point'] == [24 * FT, 6 * FT, 0]
+                          and 'X10' not in r['derived']['placements'], r['derived']['extensions']))
+L_('examples', 'all-official-known', 'The garden read with every official entry known, by an implementation of '
+   'FS_landscape alone: only FS_landscape is evaluated and derived.', ['1.2.1', '1.2.4'], garden(),
+   registry=[entry(x) for x in ALL + (STRC, LAND)],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [LAND], list(r['derived']['extensions'])))
+L_('examples', 'no-elements', 'FS_landscape used with empty top-level data: valid, and every derived member empty.',
+   ['1.3.1', '6.1.1'], ledit(lambda d: d['extensions'].update({LAND: {}})),
+   check=lambda r: ensure(LDER(r) == {'plants': {}, 'beds': {}, 'lawns': {}, 'hardscape': {}}, LDER(r)))
+
+L_('activation', 'unknown-data-not-evaluated', 'The tree\'s form is "palm", which FS_landscape\'s schema does not '
+   'allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   ledit(BAD_L), registry=None)
+L_('activation', 'another-version-known', 'The document uses FS_landscape at 0.2.0, which is known (a later entry), but '
+   'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+   ['1.2.1'], ledit(lambda d: (BAD_L(d), d['extensionsUsed'].update({LAND: '0.2.0'}))), registry=[entry(LAND, '0.2.0')])
+L_('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_landscape is evaluated: its data '
+   'breaks the schema, FS-LAND-SCH-001.', ['1.2.1', '1.3.1'],
+   ledit(lambda d: (BAD_L(d), d['extensionsUsed'].update({LAND: '0.1'}))), [('FS-LAND-SCH-001', [])])
+L_('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_landscape is evaluated.', ['1.2.1', '1.3.1'],
+   ledit(lambda d: (BAD_L(d), d['extensionsUsed'].update({LAND: {'version': '0.1.0', 'schema': entry(LAND)['schema']}}))),
+   [('FS-LAND-SCH-001', [])])
+L_('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_landscape is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {LAND: '0.1.0'}, 'extensions': {LAND: {'colour': 'red'}}})
+L_('activation', 'core-0.3-document', 'The garden declaring Core "0.3", a draft FS_landscape 0.1.0 lists (1.1): '
+   'FS_landscape is evaluated, reports nothing, and derives exactly what it derives for the garden declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], ledit(lambda d: d.update(floorspec='0.3')), check=check_land)
+L_('activation', 'core-0.3-invariants', 'The same "0.3" garden with its tree unhosted: FS_landscape is evaluated for a '
+   'Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '3.2.1'],
+   ledit(lambda d: (d.update(floorspec='0.3'), INV_L(d))), INV_L_DIAG)
+L_('activation', 'core-0.4-document', 'The garden declaring Core "0.4", a draft FS_landscape 0.1.0 lists (1.1): '
+   'FS_landscape is evaluated, reports nothing, and derives exactly what it derives for the garden declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], ledit(lambda d: d.update(floorspec='0.4')), check=check_land)
+
+L_('order', 'core-error-first', 'A Core invariant breaks - the courtyard tree\'s floor position is outside the '
+   'courtyard - and so does FS_landscape\'s schema: Core\'s error is reported, and FS_landscape is not evaluated.',
+   ['1.2.2'], ledit(lambda d: (BAD_L(d), PL(d)['X6']['host'].update(position=[32 * FT, 6 * FT]))),
+   [('FS-INV-503', ['X6'])])
+L_('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-LAND-SCH-001.',
+   ['1.2.2', '1.3.1'], ledit(lambda d: (BAD_L(d), PL(d)['X2'].pop('host'))), [('FS-LAND-SCH-001', [])])
+L_('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the grass is moved out of its '
+   'planter, onto the patio: the document is invalid, so no lint is reported, FS_landscape\'s or Core\'s.',
+   ['1.2.2', '1.2.3'], ledit(lambda d: (INV_L(d), PL(d)['X4']['host'].update(position=[4 * FT, -3 * FT]))), INV_L_DIAG)
+
+L_('schema', 'data-not-an-object', 'FS_landscape\'s top-level data is an array: Core allows any JSON there, '
+   'FS_landscape\'s schema does not.', ['1.3.1'], ledit(lambda d: d['extensions'].update({LAND: []})),
+   [('FS-LAND-SCH-001', [])])
+L_('schema', 'unknown-collection', 'A collection FS_landscape does not define, `ponds`, with no element in it: '
+   'FS_landscape\'s registry entry names no such kind, so Core 12.4.1 reports it (FS-INV-604), and FS_landscape is '
+   'not evaluated.', ['1.2.2', 'FS-CORE-12.4.1'], ledit(lambda d: ext(d, LAND)['collections'].update(ponds={})),
+   [('FS-INV-604', [])])
+L_('schema', 'bed-with-an-unknown-member', 'A bed has a member a bed does not define: `depth`.', ['1.3.1'],
+   ledit(lambda d: BD(d)['X10'].update(depth=300 * MM)), [('FS-LAND-SCH-001', [])])
+L_('schema', 'unknown-member', 'A plant has a member a plant does not define.', ['1.3.1'],
+   ledit(lambda d: PL(d)['X1'].update(colour='red')), [('FS-LAND-SCH-001', [])])
+L_('schema', 'form-not-known', 'A plant whose form is "palm".', ['1.3.1'], ledit(BAD_L), [('FS-LAND-SCH-001', [])])
+L_('schema', 'plant-without-a-form', 'A plant always says what kind of plant it is.', ['1.3.1'],
+   ledit(lambda d: PL(d)['X3'].pop('form')), [('FS-LAND-SCH-001', [])])
+L_('schema', 'species-too-long', 'A species is a label of 1 to 200 characters.', ['1.3.1'],
+   ledit(lambda d: PL(d)['X1'].update(species='A' * 201)), [('FS-LAND-SCH-001', [])])
+L_('schema', 'boundary-of-two-points', 'A bed\'s outline is a polygon: at least three points.', ['1.3.1'],
+   ledit(lambda d: BD(d)['X11'].update(boundary=PLANTER[:2])), [('FS-LAND-SCH-001', [])])
+L_('schema', 'point-of-three-numbers', 'A point is two lengths.', ['1.3.1'],
+   ledit(lambda d: HS(d)['X15']['points'][0].append(0)), [('FS-LAND-SCH-001', [])])
+L_('schema', 'width-below-a-millimetre', 'A hardscape line is at least 1 mm wide.', ['1.3.1'],
+   ledit(lambda d: HS(d)['X16'].update(width=1279)), [('FS-LAND-SCH-001', [])])
+L_('schema', 'line-of-one-point', 'A hardscape line has at least two points.', ['1.3.1'],
+   ledit(lambda d: HS(d)['X16'].update(points=SEAT_WALL[:1])), [('FS-LAND-SCH-001', [])])
+L_('schema', 'length-with-a-fraction', 'A length written with a fraction is not an integer, even when it is a whole '
+   'number.', ['1.3.1'], None, [('FS-LAND-SCH-001', [])],
+   raw=(fmt(garden()) + '\n').replace('"width": 384000', '"width": 384000.0', 1).encode('utf-8'))
+L_('schema', 'edging-not-known', 'A bed edged with "hedge", which is no edging of this version.', ['1.3.1'],
+   ledit(lambda d: BD(d)['X10'].update(edging='hedge')), [('FS-LAND-SCH-001', [])])
+
+L_('invariants', 'plant-on-a-wall-face', 'The tree hosted on the south wall\'s outer face: a plant stands on the '
+   'ground, never on a wall.', ['3.2.2'], ledit(lambda d: PL(d)['X1'].update(host=ON_WALL)), [('FS-LAND-INV-001', ['X1'])])
+L_('invariants', 'bed-on-a-ceiling', 'The courtyard bed hosted on the Kitchen\'s ceiling.', ['3.2.2'],
+   ledit(lambda d: BD(d)['X12'].update(host={'mode': 'surface', 'room': 'R1', 'surface': 'ceiling', 'position': [6 * FT, 6 * FT]})),
+   [('FS-LAND-INV-001', ['X12'])])
+L_('invariants', 'plant-without-a-host', 'The tree has no host: a plant stands at its host\'s position.', ['3.2.1'],
+   ledit(INV_L), INV_L_DIAG)
+L_('invariants', 'path-on-a-wall-face', 'The stepping stones hosted on a wall face.', ['3.2.2'],
+   ledit(lambda d: HS(d)['X15'].update(host=ON_WALL)), [('FS-LAND-INV-001', ['X15'])])
+L_('invariants', 'lawn-hosted-free', 'The lawn placed with a free host at the level\'s origin: its outline is in that '
+   'frame, which is the level\'s own. Valid, and its area is unchanged.', ['3.2.2', '6.1.1'],
+   ledit(lambda d: LK(d, 'lawns')['X20'].update(host=free_at(0, 0))),
+   check=lambda r: ensure(LDER(r)['lawns'] == {'X20': {'area': str((54 * 12 + 20 * 30) * FT * FT)}}, LDER(r)))
+L_('invariants', 'clear-height-equal-to-height', 'The courtyard tree\'s canopy starts 6 m up, at its top.', ['2.2.1'],
+   ledit(lambda d: PL(d)['X6'].update(clearHeight=6000 * MM)), [('FS-LAND-INV-003', ['X6'])])
+L_('invariants', 'clear-height-just-under-height', 'The courtyard tree\'s canopy starts one base unit under its top: '
+   'valid.', ['2.2.1'], ledit(lambda d: PL(d)['X6'].update(clearHeight=6000 * MM - 1)))
+L_('invariants', 'clear-height-of-a-planted-grass', 'The grass in the planter, 900 mm tall and planted 400 mm up, '
+   'clear to 899 mm: the height is the box\'s extent, not its top. Valid.', ['2.2.1'],
+   ledit(lambda d: PL(d)['X4'].update(clearHeight=899 * MM)))
+L_('invariants', 'self-crossing-bed', 'The planter\'s outline crosses itself: a bow tie.', ['3.4.1'],
+   ledit(lambda d: BD(d)['X11'].update(boundary=[P(8, -9), P(11, -6), P(11, -9), P(8, -6)])), [('FS-LAND-INV-004', ['X11'])])
+L_('invariants', 'bed-with-a-repeated-vertex', 'The planter\'s outline repeats a vertex.', ['3.4.1'],
+   ledit(lambda d: BD(d)['X11'].update(boundary=PLANTER + [PLANTER[0]])), [('FS-LAND-INV-004', ['X11'])])
+L_('invariants', 'collinear-lawn', 'The lawn\'s outline is three points on a line: no area.', ['3.4.1'],
+   ledit(lambda d: LK(d, 'lawns')['X20'].update(boundary=[P(-24, -24), P(0, -24), P(30, -24)])), [('FS-LAND-INV-004', ['X20'])])
+L_('invariants', 'path-with-a-repeated-point', 'The stepping stones\' line repeats its middle point.', ['3.4.2'],
+   ledit(lambda d: HS(d)['X15'].update(points=[STONES[0], STONES[1], STONES[1], STONES[2]])), [('FS-LAND-INV-005', ['X15'])])
+L_('invariants', 'path-that-loops', 'A path that comes back to where it started and crosses itself is a line, not an '
+   'outline: valid, and its length is every segment\'s.', ['3.4.2', '6.1.1'],
+   ledit(lambda d: HS(d)['X15'].update(points=[P(-8, -8), P(-2, -8), P(-2, -14), P(-6, -14), P(-6, -6)],
+                                       fallback={'level': 'L1', 'box': outline_box([P(-8, -8), P(-2, -14), P(-6, -6)], -30, 15, 300 * MM)})),
+   check=lambda r: ensure(LDER(r)['hardscape']['X15'] == {'form': 'steppingStones', 'length': 24 * FT}, LDER(r)['hardscape']))
+L_('invariants', 'every-one-once', 'Five elements break five rules at once: each is reported once, naming its '
+   'element.', ['1.2.3', '2.2.1', '3.2.1', '3.2.2', '3.4.1', '3.4.2'],
+   ledit(lambda d: (INV_L(d), PL(d)['X2'].update(host=ON_WALL), PL(d)['X6'].update(clearHeight=7000 * MM),
+                    BD(d)['X11'].update(boundary=PLANTER + [PLANTER[2]]),
+                    HS(d)['X16'].update(points=SEAT_WALL + [SEAT_WALL[1]]))),
+   [('FS-LAND-INV-001', ['X2']), ('FS-LAND-INV-002', ['X1']), ('FS-LAND-INV-003', ['X6']), ('FS-LAND-INV-004', ['X11']),
+    ('FS-LAND-INV-005', ['X16'])])
+
+L_('lints', 'plant-box-off-its-position', 'The tree\'s box is drawn wholly east of its position: a reader without '
+   'FS_landscape draws it in the wrong place.', ['1.2.3', '3.3.1'],
+   ledit(lambda d: PL(d)['X1']['fallback'].update(box={'min': [MM, -4000 * MM, 0], 'max': [8000 * MM, 4000 * MM, 11000 * MM]})),
+   [('FS-LAND-LINT-001', ['X1'])])
+L_('lints', 'bed-outside-its-box', 'The bed\'s box stops a foot short of its west edge.', ['1.2.3', '3.3.2'],
+   ledit(lambda d: BD(d)['X10']['fallback']['box']['min'].__setitem__(0, -3 * FT)), [('FS-LAND-LINT-001', ['X10'])])
+L_('lints', 'path-grown-past-its-box', 'The seat wall\'s box is its line grown by 100 mm, not by half its 300 mm '
+   'width.', ['1.2.3', '3.3.2'],
+   ledit(lambda d: HS(d)['X16']['fallback'].update(box=outline_box(SEAT_WALL, 0, 450, 100 * MM))),
+   [('FS-LAND-LINT-001', ['X16'])])
+L_('lints', 'path-exactly-in-its-box', 'The seat wall\'s box is exactly its line grown by 150 mm: no lint.', ['1.2.3'],
+   ledit(lambda d: HS(d)['X16']['fallback'].update(box=outline_box(SEAT_WALL, 0, 450, 150 * MM))))
+L_('lints', 'tree-on-the-patio', 'A third tree X7 planted in the middle of the patio, in no bed: a plant on paving.',
+   ['1.2.3'], ledit(lambda d: PL(d).update(X7=plant('tree', free_at(5 * FT, -5 * FT), 4500, 6000))),
+   [('FS-LAND-LINT-002', ['S1', 'X7'])])
+L_('lints', 'grass-out-of-its-planter', 'The grass moved out of its planter onto the patio.', ['1.2.3'],
+   ledit(lambda d: PL(d)['X4']['host'].update(position=[4 * FT, -3 * FT])), [('FS-LAND-LINT-002', ['S1', 'X4'])])
+L_('lints', 'plant-on-the-patio-edge', 'A shrub whose position is on the patio\'s edge is not strictly inside it: no '
+   'lint.', ['1.2.3'], ledit(lambda d: PL(d).update(X7=plant('shrub', free_at(12 * FT, -5 * FT), 600, 500))))
+L_('lints', 'tree-in-the-kitchen', 'A tree X7 standing on the Kitchen\'s floor: a plant indoors.', ['1.2.3'],
+   ledit(lambda d: PL(d).update(X7=plant('tree', {'mode': 'surface', 'room': 'R1', 'surface': 'floor',
+                                                   'position': [6 * FT, 6 * FT]}, 1500, 2400))),
+   [('FS-LAND-LINT-003', ['R1', 'X7'])])
+L_('lints', 'free-plant-in-a-room-without-a-function', 'A shrub standing free on L1 inside the Utility room, which '
+   'has no function once its own is removed: not exterior, so a plant indoors.', ['1.2.3'],
+   ledit(lambda d: (d['rooms']['R3'].pop('function'), PL(d).update(X7=plant('shrub', free_at(17 * FT, 2 * FT), 600, 500)))),
+   [('FS-LAND-LINT-003', ['R3', 'X7'])])
+L_('lints', 'every-lint-once', 'The tree\'s box off its position, a tree on the patio and a shrub in the Bath: each '
+   'lint once.', ['1.2.3'],
+   ledit(lambda d: (PL(d)['X1']['fallback'].update(box={'min': [MM, -4000 * MM, 0], 'max': [8000 * MM, 4000 * MM, 11000 * MM]}),
+                    PL(d).update(X7=plant('tree', free_at(5 * FT, -5 * FT), 4500, 6000)),
+                    PL(d).update(X8=plant('shrub', free_at(16 * FT, 9 * FT), 600, 500)))),
+   [('FS-LAND-LINT-001', ['X1']), ('FS-LAND-LINT-002', ['S1', 'X7']), ('FS-LAND-LINT-003', ['R2', 'X8'])])
+
+L_('derived', 'size-class-bounds', 'Trees 8,000 mm less one base unit, 8,000 mm and 14,000 mm tall, and a '
+   'groundcover 150 mm tall: small, medium, large and medium (2.3). The class follows the box\'s height, planted at '
+   'any height.', ['6.1.1'],
+   ledit(lambda d: PL(d).update(
+       X7=plant('tree', free_at(-20 * FT, -20 * FT), 4000, 8000, level='L1'),
+       X8=plant('tree', free_at(20 * FT, -20 * FT), 4000, 14000, 300),
+       X9=plant('groundcover', free_at(0, -20 * FT), 900, 150),
+       X1=PL(d)['X1'] | {'fallback': {'level': 'L1', 'box': {'min': [-4000 * MM, -4000 * MM, 0], 'max': [4000 * MM, 4000 * MM, 8000 * MM - 1]}}})),
+   check=lambda r: ensure([LDER(r)['plants'][k]['size'] for k in ('X1', 'X7', 'X8', 'X9')] == ['small', 'medium', 'large', 'medium'],
+                          LDER(r)['plants']))
+L_('derived', 'spread-is-the-greater-extent', 'A shrub clipped to an oval, 1,800 mm along x and 900 mm along y: its '
+   'spread is 1,800 mm.', ['6.1.1'],
+   ledit(lambda d: PL(d)['X2']['fallback'].update(box={'min': [-900 * MM, -450 * MM, 0], 'max': [900 * MM, 450 * MM, 1200 * MM]})),
+   check=lambda r: ensure(LDER(r)['plants']['X2']['spread'] == 1800 * MM, LDER(r)['plants']['X2']))
+L_('derived', 'courtyard-turned', 'The courtyard bed\'s host turned by 45 degrees: its outline turns with it, about '
+   'its host\'s position, each corner rounded once - the diamond\'s area is close to, and not exactly, the square\'s '
+   '- and the tree at its centre is still in it.', ['3.4.1', '6.1.1'],
+   ledit(lambda d: BD(d)['X12']['host'].update(rotation=45000000)),
+   check=lambda r: ensure(LDER(r)['beds']['X12']['plants'] == ['X6']
+                          and abs(float(LDER(r)['beds']['X12']['area']) - 36 * FT * FT) < 24 * FT
+                          and LDER(r)['beds']['X12']['area'] != str(36 * FT * FT), LDER(r)['beds']['X12']))
+L_('derived', 'plant-on-a-bed-edge', 'A shrub whose position is on the west bed\'s edge is not in the bed; one a base '
+   'unit inside it is.', ['6.1.1'],
+   ledit(lambda d: PL(d).update(X7=plant('shrub', free_at(-4 * FT, 0), 600, 500),
+                                X8=plant('shrub', free_at(-4 * FT + 1, 1), 600, 500))),
+   check=lambda r: ensure(LDER(r)['beds']['X10']['plants'] == ['X2', 'X3', 'X5', 'X8'], LDER(r)['beds']['X10']))
+L_('derived', 'bed-inside-a-lawn', 'A bed X13 laid inside the lawn: the lawn\'s area is its outline\'s, the bed\'s '
+   'not taken from it (2.5).', ['6.1.1'],
+   ledit(lambda d: BD(d).update(X13=area_el([P(-20, -20), P(-16, -20), P(-16, -16), P(-20, -16)], -100, 25))),
+   check=lambda r: ensure(LDER(r)['lawns'] == {'X20': {'area': str((54 * 12 + 20 * 30) * FT * FT)}}
+                          and LDER(r)['beds']['X13'] == {'area': str(16 * FT * FT), 'plants': []}, LDER(r)))
+L_('derived', 'length-of-a-diagonal', 'A path along [1 mm, 1 mm] then [3, 4] base units: sqrt 2 mm is 1810.19... '
+   'base units, rounded to 1810, and 5 exactly - each segment rounded once.', ['6.1.1'],
+   ledit(lambda d: HS(d).update(X17=line_el('path', [[0, -20 * FT], [MM, -20 * FT + MM], [MM + 3, -20 * FT + MM + 4]], 900 * MM, -30, 15))),
+   check=lambda r: ensure(LDER(r)['hardscape']['X17'] == {'form': 'path', 'length': 1810 + 5}, LDER(r)['hardscape']))
+
+
+def court_options(d):
+    """Core 0.3 design options for the courtyard: option A (OP1, the primary) keeps the small tree X6;
+    option B (OP2) plants a columnar tree X7 in its place."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Courtyard tree'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    PL(d)['X6']['option'] = 'OP1'
+    PL(d)['X7'] = plant('tree', dict(COURT_HOST), 2000, 9000, clearHeight=1200 * MM, habit='columnar', option='OP2')
+
+
+L_('options', 'courtyard-option-a', 'Courtyard options A and B as Core 0.3 design options (Core 19): the small tree '
+   'in A, the primary, and a columnar tree 9 m tall in B. FS_landscape\'s data matches its schema with the elements\' '
+   '`option` members, and it is evaluated in each checked design; the primary design is derived, with A\'s tree.',
+   ['1.2.1', '1.2.4', '1.3.1', '6.1.1', 'FS-CORE-19.3.1'], ledit(court_options),
+   check=lambda r: ensure('X6' in LDER(r)['plants'] and 'X7' not in LDER(r)['plants'] and LDER(r)['beds']['X12']['plants'] == ['X6'],
+                          LDER(r)['plants']))
+L_('options', 'courtyard-option-b', 'The same document, deriving the design that chooses B (design.json): the '
+   'columnar tree, a medium tree by its height, in the courtyard bed.', ['1.2.4', '6.1.1', 'FS-CORE-19.3.1'],
+   ledit(court_options), design={'OS1': 'OP2'},
+   check=lambda r: ensure(LDER(r)['plants']['X7']['size'] == 'medium' and 'X6' not in LDER(r)['plants']
+                          and LDER(r)['beds']['X12']['plants'] == ['X7'], LDER(r)['plants']))
+L_('options', 'invariant-in-option-b', 'Option B\'s tree is clear to above its top: FS-LAND-INV-003 is reported for '
+   'option B\'s design, with `design`.', ['1.2.1', '1.2.3', '2.2.1'],
+   ledit(lambda d: (court_options(d), PL(d)['X7'].update(clearHeight=9500 * MM))), [('FS-LAND-INV-003', ['X7'], 'OP2')])
+
+
+def land_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(LAND)]).encode('utf-8'), official.implemented(LAND))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][LAND]
+
+
+TREE_M = {'form': 'tree', 'catalogue': 'tree-medium', 'name': 'Medium tree', 'clearHeight': 2200 * MM,
+          'fallback': {'box': plant_box(8000, 11000)}}
+
+LO = lambda *a, **k: O(LAND, *a, **k)    # noqa: E731
+LO('place-a-tree', 'The garden; placeElement puts the starter size tree-medium (chapter 7) in the lawn with a free '
+   'host 20\' west and 2\' south of the house\'s south-west corner. It commits, valid under FS_landscape: a medium tree '
+   'in no room.', ['1.2.1', '3.2.1', 'FS-OPS-4.10.1'], garden(),
+   {'batch': [{'op': 'placeElement', 'extension': LAND, 'collection': 'plants', 'id': 'X7',
+               'host': {'mode': 'free', 'level': 'L1', 'at': ["-20'", "-2'"]}, 'element': TREE_M}]},
+   check=lambda r, B: ensure(land_derived(B)['plants']['X7'] == {'form': 'tree', 'size': 'medium', 'spread': 8000 * MM,
+                                                                  'height': 11000 * MM, 'position': [-20 * FT, -2 * FT]}
+                             and PL(B)['X7']['fallback']['level'] == 'L1', PL(B)['X7']))
+LO('move-the-tree-into-the-courtyard', 'moveElement moves the lawn\'s tree onto the courtyard\'s floor: it is now in '
+   'R4, an exterior room, and in the courtyard bed beside the small tree.', ['1.2.1', '6.1.1', 'FS-OPS-4.10.1'], garden(),
+   {'batch': [{'op': 'moveElement', 'element': 'X1',
+               'host': {'mode': 'surface', 'room': 'Courtyard', 'surface': 'floor', 'at': ["25'", "7'"]}}]},
+   check=lambda r, B: ensure(land_derived(B)['plants']['X1'].get('room') == 'R4'
+                             and land_derived(B)['beds']['X12']['plants'] == ['X1', 'X6'], land_derived(B)['beds']))
+LO('plant-on-a-wall-is-rejected', 'placeElement of a shrub on the south wall\'s outer face: the result breaks 3.2.2, '
+   'and an applier that implements FS_landscape and knows it rejects the batch (Ops 1.2.3).',
+   ['3.2.2', '1.2.1', 'FS-OPS-1.2.3'], garden(),
+   {'batch': [{'op': 'placeElement', 'extension': LAND, 'collection': 'plants', 'id': 'X7',
+               'host': {'mode': 'wallFace', 'wall': 'W7', 'side': 'left', 'at': "3'", 'height': 0},
+               'element': {'form': 'shrub', 'fallback': {'box': plant_box(600, 500)}}}]},
+   'rejected', [('FS-LAND-INV-001', ['X7'])])
+LO('move-the-courtyard-bed', 'moveElement moves the courtyard bed and its tree 1\' east on the courtyard\'s floor, '
+   'in one batch: the bed\'s outline, in its host\'s frame, is unchanged and moves with it, and the tree still stands '
+   'in it. It commits.', ['3.4.1', '6.1.1', 'FS-OPS-4.10.1'], garden(),
+   {'batch': [{'op': 'moveElement', 'element': 'X12', 'host': {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'at': ["25'", "6'"]}},
+              {'op': 'moveElement', 'element': 'X6', 'host': {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'at': ["25'", "6'"]}}]},
+   check=lambda r, B: ensure(land_derived(B)['beds']['X12']['plants'] == ['X6']
+                             and BD(B)['X12']['boundary'] == COURT_BED, BD(B)['X12']))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -1758,7 +2199,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC,):
+        for name in ALL + (STRC, LAND):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

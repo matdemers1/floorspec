@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -581,8 +581,20 @@ derived that says otherwise (FS-STRC-1.4). Its `options` group puts two decks in
 B; its `ops` group sets and unsets flags and headers with `setProperty`, rejects a framing whose
 studs are closer than they are wide, and moves a wall to show the Kitchen's derived span follow it.
 
+FS_landscape's suite starts from the Phase 13 garden (`examples/…-p13-garden`): the demo house's plan
+with a walled courtyard whose function is exterior, a patio slab, a lawn, a steel-edged bed with
+shrubs and a groundcover, a raised planter on the patio with a grass planted in its soil, a tree in
+the lawn and another in a bed on the courtyard's floor - the bed's outline in its host's frame -
+stepping stones and a seat wall. Its `invariants` group tests hosts (never a wall face or a
+ceiling; a plant always has one), a tree's clear height, and its outlines and lines; its `lints`
+group a box that does not cover its geometry, a plant on the patio in no bed and a plant indoors;
+its `derived` group the size classes at their bounds, a bed turned with its host and a line's
+length rounded segment by segment. Its `options` group puts two trees in courtyard options A and B;
+its `ops` group places the starter size `tree-medium`, moves a tree into the courtyard, rejects a
+plant on a wall, and moves a bed and its tree together.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
