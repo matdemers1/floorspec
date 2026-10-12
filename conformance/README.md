@@ -605,8 +605,10 @@ switch, a panel or a core element - a tunable range and a colour temperature in 
 repeat; its `lints` group dimming what does not dim, a colour a luminaire cannot give, and dimming a
 light that no dimmer or smart switch controls, read from FS_electrical's switches as they are. Its
 `options` group hangs the island's pendants in option A alone, which breaks the scenes in B's design;
-its `ops` group adds a scene with `setProperty` of `$document`, rejects a name in use and the removal of
-a light a scene still turns on, and removes one with its references.
+its `ops` group adds, renames and removes scenes and describes a luminaire with `setProperty` and
+`unsetProperty` of `$document` - the first scene creating FS_lighting's data - and rejects a name in
+use, a scene turning on a switch and the removal of a light a scene still turns on, and removes one
+with its references.
 
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
 (the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting), with every expected diagnostic written by hand and the derived

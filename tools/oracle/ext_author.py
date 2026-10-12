@@ -2499,6 +2499,37 @@ GO('remove-a-light-and-its-references', 'The same removal, with the pendant\'s l
               {'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/on/X3'},
               {'op': 'removeElement', 'id': 'X3'}]},
    check=lambda r, B: ensure(r['removed'] == ['X3'] and lght_derived(B)['scenes']['LS2']['on'] == ['X20'], r['removed']))
+GO('first-scene-creates-the-data', 'The lit house declaring FS_lighting with no data of it yet: setProperty of '
+   '$document /extensions/FS_lighting/scenes/LS1 creates FS_lighting\'s data, and its `scenes`, on the way (Ops 2.3) - '
+   'an "Evening" of the pendants at 60 %. It commits, valid under FS_lighting.', ['1.2.1', '1.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   gedit(lambda d: d['extensions'].pop(LGHT)),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS1',
+               'value': {'name': 'Evening', 'on': {'X2': {'output': 60}, 'X3': {'output': 60}}}}]},
+   check=lambda r, B: ensure(B['extensions'][LGHT] == {'scenes': {'LS1': {'name': 'Evening', 'on': {'X2': {'output': 60}, 'X3': {'output': 60}}}}}
+                             and lght_derived(B) == {'scenes': {'LS1': {'name': 'Evening', 'on': ['X2', 'X3'], 'dimmed': ['X2', 'X3']}},
+                                                     'luminaires': {'X2': {'scenes': ['LS1']}, 'X3': {'scenes': ['LS1']}}},
+                             B['extensions'].get(LGHT)))
+GO('rename-a-scene', 'setProperty of $document /extensions/FS_lighting/scenes/LS2/name: the Night light is now "Late". '
+   'It commits.', ['1.2.1', '3.1.2', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/name', 'value': 'Late'}]},
+   check=lambda r, B: ensure(lght_derived(B)['scenes']['LS2']['name'] == 'Late', lght_derived(B)['scenes']))
+GO('remove-a-scene', 'unsetProperty of $document /extensions/FS_lighting/scenes/LS2 removes the Night light: the lamp '
+   'and the pendant X3 are turned on by the Evening scene alone. It commits.', ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'],
+   lit_house(), {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2'}]},
+   check=lambda r, B: ensure(list(lght_derived(B)['scenes']) == ['LS1']
+                             and lght_derived(B)['luminaires']['X3'] == {'scenes': ['LS1']}, lght_derived(B)))
+GO('describe-a-luminaire', 'setProperty of $document /extensions/FS_lighting/luminaires/X6 replaces what the Living '
+   'room\'s downlight gives: now dimmable and tunable from 2,700 K to 4,000 K, at 3,000 K. It commits.',
+   ['1.2.1', '2.1.1', '2.1.2', '2.1.3', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/luminaires/X6',
+               'value': {'lumens': 900, 'cct': 3000, 'cctRange': [2700, 4000], 'dimmable': True}}]},
+   check=lambda r, B: ensure(ext(B, LGHT)['luminaires']['X6']['cctRange'] == [2700, 4000]
+                             and lght_derived(B)['luminaires']['X6'] == {'scenes': []}, ext(B, LGHT)['luminaires']))
+GO('scene-turns-on-a-switch-is-rejected', 'setProperty of $document /extensions/FS_lighting/scenes/LS2/on/X10 has the '
+   'Night light turn on the dimmer X10: the result breaks 3.1.1, and the batch is rejected with FS-LGHT-INV-005.',
+   ['3.1.1', '1.2.1', 'FS-OPS-1.2.3'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/on/X10', 'value': {}}]},
+   'rejected', [('FS-LGHT-INV-005', ['LS2'])])
 
 
 # ============================================================================= write
