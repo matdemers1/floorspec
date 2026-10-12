@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural and FS_landscape 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape and FS_lighting 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -28,7 +28,10 @@ demo house's plan with bearing and shear walls, studs, headers, floor joists, a 
 deck, recorded on the walls, openings, rooms and slab themselves, since FS_structural adds no kind
 of element. FS_landscape's start from the Phase 13 garden (garden() below) - the demo house's plan with
 a walled exterior courtyard, a patio, a lawn, beds, a raised planter, trees, shrubs, a grass and a
-groundcover, stepping stones and a seat wall. Every expected diagnostic is written by hand and cross-checked against the
+groundcover, stepping stones and a seat wall. FS_lighting's start from the Phase 13 lit house (lit_house() below) -
+the demo house's plan with FS_electrical's pendants over an island on a dimmer, tunable downlights on a smart
+switch, a downlight that does not dim, a porch light, and an FS_furniture table lamp, each described as a
+luminaire, and the scenes "Evening" and "Night light". Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -2099,6 +2102,436 @@ LO('move-the-courtyard-bed', 'moveElement moves the courtyard bed and its tree 1
                              and BD(B)['X12']['boundary'] == COURT_BED, BD(B)['X12']))
 
 
+# ============================================================================= FS_lighting
+
+LGHT = 'FS_lighting'
+CODE[LGHT] = 'LGHT'
+PENDANT = box(-150, -150, -900, 150, 150, 0)
+DOWNLIGHT = box(-100, -100, -150, 100, 100, 0)
+
+
+def lit_house():
+    """The Phase 13 lit house: the Phase 5 demo house's plan (see demo()), with a Living room R2 where
+    the Bath was, and the house's lighting on one circuit C1 of the panel X1:
+
+    - a pair of pendants X2 and X3 over the Kitchen's island, on a dimmer X10;
+    - recessed tunable-white downlights X4 and X5 in the Kitchen, on a smart switch X11;
+    - a recessed downlight X6 in the Living room, on a single switch X12, that does not dim;
+    - an exterior light X7 on the south wall's outer face, on a single switch X13 inside the Kitchen;
+    - a table lamp X20 of FS_furniture in the Living room, the starter library's lamp-table-600,
+      plugged in and on no switch.
+
+    FS_lighting describes what each gives and two scenes: LS1 "Evening" - the pendants at 60 %, the
+    downlights at 40 % and warm, the exterior light and the lamp at full - and LS2 "Night light" -
+    one pendant at 10 % and the lamp at 20 %. The Living room's downlight is in neither."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Phase 13 lit house'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'types': {'WT': {'kind': 'wallType', 'layers': [{'thickness': 100 * MM, 'function': 'core'}]}},
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 12 * FT), 'J3': J(12 * FT, 12 * FT), 'J4': J(20 * FT, 12 * FT),
+                      'J5': J(20 * FT, 0), 'J6': J(12 * FT, 0), 'J7': J(12 * FT, 6 * FT), 'J8': J(20 * FT, 6 * FT)},
+        'walls': {'W1': W('J1', 'J2'), 'W2': W('J2', 'J3'), 'W3': W('J3', 'J4'), 'W4': W('J4', 'J8'),
+                  'W5': W('J8', 'J5'), 'W6': W('J5', 'J6'), 'W7': W('J6', 'J1'), 'W8': W('J6', 'J7'),
+                  'W9': W('J7', 'J3'), 'W10': W('J7', 'J8')},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 6 * FT], 'name': 'Kitchen', 'function': 'kitchen'},
+                  'R2': {'level': 'L1', 'anchor': [16 * FT, 9 * FT], 'name': 'Living', 'function': 'living'},
+                  'R3': {'level': 'L1', 'anchor': [16 * FT, 3 * FT], 'name': 'Utility', 'function': 'mechanical'}},
+        'extensionsUsed': {ELEC: '0.1.0', FURN: '0.1.0', LGHT: '0.1.0'},
+        'extensions': {
+            ELEC: {
+                'collections': {
+                    'panels': {'X1': on_wall('W5', 'right', 3 * FT, 1200, box(0, -200, -400, 100, 200, 400),
+                                             name='Main panel', volts=[120, 240], rating=200, mainBreaker=200, spaces=40,
+                                             clearances={'working': env('workingSpace', box(0, -400, -1200, 1000, 400, 800))})},
+                    'lights': {
+                        'X2': on_surface('R1', 'ceiling', 5 * FT, 6 * FT, PENDANT, fixture='pendant', watts=10, name='Island pendant'),
+                        'X3': on_surface('R1', 'ceiling', 7 * FT, 6 * FT, PENDANT, fixture='pendant', watts=10, name='Island pendant'),
+                        'X4': on_surface('R1', 'ceiling', 3 * FT, 9 * FT, DOWNLIGHT, fixture='recessed', watts=12),
+                        'X5': on_surface('R1', 'ceiling', 9 * FT, 9 * FT, DOWNLIGHT, fixture='recessed', watts=12),
+                        'X6': on_surface('R2', 'ceiling', 16 * FT, 9 * FT, DOWNLIGHT, fixture='recessed', watts=12),
+                        'X7': on_wall('W7', 'left', 6 * FT, 2000, box(0, -100, -150, 150, 100, 150), fixture='exterior',
+                                      watts=15, name='Porch light')},
+                    'switches': {
+                        'X10': on_wall('W8', 'left', FT, 1200, PLATE, control='dimmer', controls=['X2', 'X3']),
+                        'X11': on_wall('W8', 'left', 2 * FT, 1200, PLATE, control='smart', controls=['X4', 'X5']),
+                        'X12': on_wall('W9', 'right', FT, 1200, PLATE, controls=['X6']),
+                        'X13': on_wall('W1', 'right', 2 * FT, 1200, PLATE, controls=['X7'])}},
+                'circuits': {'C1': {'panel': 'X1', 'breaker': 15, 'volts': 120, 'rating': 15, 'space': 1, 'protection': ['afci'],
+                                    'loads': ['X2', 'X3', 'X4', 'X5', 'X6', 'X7'], 'name': 'Lights'}}},
+            FURN: {'collections': {'pieces': {'X20': item('lamp-table-600', floor_host('R2', 18 * FT, 10 * FT))}}},
+            LGHT: {
+                'luminaires': {
+                    'X2': {'lumens': 450, 'cct': 2700, 'dimmable': True},
+                    'X3': {'lumens': 450, 'cct': 2700, 'dimmable': True},
+                    'X4': {'lumens': 800, 'cct': 3000, 'cctRange': [2700, 5000], 'dimmable': True},
+                    'X5': {'lumens': 800, 'cct': 3000, 'cctRange': [2700, 5000], 'dimmable': True},
+                    'X6': {'lumens': 800, 'cct': 2700, 'dimmable': False},
+                    'X7': {'lumens': 600, 'cct': 3000},
+                    'X20': {'lumens': 400, 'cct': 2700, 'dimmable': True}},
+                'scenes': {
+                    'LS1': {'name': 'Evening', 'on': {'X2': {'output': 60}, 'X3': {'output': 60},
+                                                      'X4': {'output': 40, 'cct': 2700}, 'X5': {'output': 40, 'cct': 2700},
+                                                      'X7': {}, 'X20': {}}},
+                    'LS2': {'name': 'Night light', 'on': {'X3': {'output': 10}, 'X20': {'output': 20}}}}}},
+    }
+    d['assets'] = assets_of(d)
+    return d
+
+
+def gedit(fn):
+    """The Phase 13 lit house, changed by fn(d) in place."""
+    d = lit_house()
+    fn(d)
+    return d
+
+
+LUM = lambda d: ext(d, LGHT)['luminaires']                                         # noqa: E731
+SCN = lambda d: ext(d, LGHT)['scenes']                                             # noqa: E731
+ON = lambda d, s: SCN(d)[s]['on']                                                  # noqa: E731
+GK = lambda d, c: coll(d, ELEC, c)                                                 # noqa: E731
+GDER = derived_of(LGHT)
+G = lambda *a, **k: V(LGHT, *a, **k)    # noqa: E731
+LIT = {'scenes': {'LS1': {'name': 'Evening', 'on': ['X2', 'X20', 'X3', 'X4', 'X5', 'X7'], 'dimmed': ['X2', 'X3', 'X4', 'X5']},
+                  'LS2': {'name': 'Night light', 'on': ['X20', 'X3'], 'dimmed': ['X20', 'X3']}},
+       'luminaires': {'X2': {'scenes': ['LS1']}, 'X20': {'scenes': ['LS1', 'LS2']}, 'X3': {'scenes': ['LS1', 'LS2']},
+                      'X4': {'scenes': ['LS1']}, 'X5': {'scenes': ['LS1']}, 'X6': {'scenes': []}, 'X7': {'scenes': ['LS1']}}}
+
+
+def check_lght(r):
+    # every list sorted and every object in ID order, by code unit: X20 before X3; the Living room's
+    # downlight in no scene, with an empty list
+    ensure(GDER(r) == LIT and list(GDER(r)['luminaires']) == ['X2', 'X20', 'X3', 'X4', 'X5', 'X6', 'X7'], GDER(r))
+
+
+BAD_G = lambda d: ON(d, 'LS1')['X2'].update(output=0)                             # noqa: E731  the schema tier
+INV_G = lambda d: ON(d, 'LS2').update(X10={})                                     # noqa: E731  FS-LGHT-INV-005
+INV_G_DIAG = [('FS-LGHT-INV-005', ['LS2'])]
+ALL_KNOWN = ALL + (STRC, LAND, LGHT)
+
+G('examples', 'p13-lit-house', 'The Phase 13 lit house, read by an implementation of FS_lighting that knows it: '
+  'pendants over the Kitchen\'s island on a dimmer, tunable-white downlights on a smart switch, a downlight in the '
+  'Living room that does not dim, a porch light, and an FS_furniture table lamp - each described as a luminaire - and '
+  'two scenes, "Evening" and "Night light". It is valid, reports nothing, and derives each scene\'s name, the '
+  'luminaires it turns on and those it dims, and each luminaire\'s scenes - none, for the Living room\'s downlight.',
+  ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '2.1.1', '2.1.3', '3.1.1', '6.1.1'], lit_house(), check=check_lght)
+G('examples', 'core-only-reader', 'The same house read with no known extensions: FS_lighting is not evaluated, so '
+  'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every extension element\'s '
+  'fallback and host (Core 1.6.9); FS_lighting has no elements of its own.',
+  ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2'], lit_house(), registry=None,
+  check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['fallbacks'])
+                         == ['X1', 'X10', 'X11', 'X12', 'X13', 'X2', 'X20', 'X3', 'X4', 'X5', 'X6', 'X7'],
+                         r['derived']['extensions']))
+G('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of '
+  'FS_lighting alone: FS_electrical and FS_furniture are checked only as Core 12 checks a known extension - the lamp '
+  'has the model and symbol its kind requires - and only FS_lighting is evaluated and derived.', ['1.2.1', '1.2.4'],
+  lit_house(), registry=[entry(x) for x in ALL_KNOWN],
+  check=lambda r: ensure(list(r['derived']['extensions']) == [LGHT] and GDER(r) == LIT, list(r['derived']['extensions'])))
+G('examples', 'no-scenes', 'FS_lighting used with empty top-level data: valid, and both derived members empty.',
+  ['1.3.1', '6.1.1'], gedit(lambda d: d['extensions'].update({LGHT: {}})),
+  check=lambda r: ensure(GDER(r) == {'scenes': {}, 'luminaires': {}}, GDER(r)))
+
+G('activation', 'unknown-data-not-evaluated', 'The Evening scene sets a pendant\'s output to 0, which FS_lighting\'s '
+  'schema does not allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+  gedit(BAD_G), registry=None)
+G('activation', 'another-version-known', 'The document uses FS_lighting at 0.2.0, which is known (a later entry), but '
+  'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+  ['1.2.1'], gedit(lambda d: (BAD_G(d), d['extensionsUsed'].update({LGHT: '0.2.0'}))), registry=[entry(LGHT, '0.2.0')])
+G('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_lighting is evaluated: its data '
+  'breaks the schema, FS-LGHT-SCH-001.', ['1.2.1', '1.3.1'],
+  gedit(lambda d: (BAD_G(d), d['extensionsUsed'].update({LGHT: '0.1'}))), [('FS-LGHT-SCH-001', [])])
+G('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+  'FS_lighting is evaluated.', ['1.2.1', '1.3.1'],
+  gedit(lambda d: (BAD_G(d), d['extensionsUsed'].update({LGHT: {'version': '0.1.0', 'schema': entry(LGHT)['schema']}}))),
+  [('FS-LGHT-SCH-001', [])])
+G('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+  'opaque (Core 1.2.4): FS_lighting is not evaluated, even though it is known.', ['1.2.1'],
+  {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {ELEC: '0.1.0', LGHT: '0.1.0'},
+   'extensions': {LGHT: {'colour': 'red'}}})
+G('activation', 'core-0.3-document', 'The lit house declaring Core "0.3", a draft FS_lighting 0.1.0 lists (1.1): '
+  'FS_lighting is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], gedit(lambda d: d.update(floorspec='0.3')), check=check_lght)
+G('activation', 'core-0.3-invariants', 'The same "0.3" house with the Night light turning on a switch: FS_lighting is '
+  'evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '3.1.1'],
+  gedit(lambda d: (d.update(floorspec='0.3'), INV_G(d))), INV_G_DIAG)
+G('activation', 'core-0.4-document', 'The lit house declaring Core "0.4", a draft FS_lighting 0.1.0 lists (1.1): '
+  'FS_lighting is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], gedit(lambda d: d.update(floorspec='0.4')), check=check_lght)
+G('activation', 'electrical-known-too', 'The house read with FS_electrical\'s entry known as well as FS_lighting\'s, by '
+  'an implementation of FS_lighting alone: FS_electrical is checked only as Core 12 checks a known extension, and '
+  'FS_lighting is evaluated and derived exactly as with its own entry alone.', ['1.2.1', '1.2.4', '6.1.1'],
+  lit_house(), registry=[entry(ELEC), entry(LGHT)],
+  check=lambda r: ensure(list(r['derived']['extensions']) == [LGHT] and GDER(r) == LIT, r['derived']['extensions']))
+
+G('order', 'core-error-first', 'A Core invariant breaks - the porch light\'s switch 13\' along the 12\' wall W2, '
+  'FS-INV-501 - and so does FS_lighting\'s schema: Core\'s error is reported, and FS_lighting is not evaluated.',
+  ['1.2.2'], gedit(lambda d: (BAD_G(d), GK(d, 'switches')['X13']['host'].update(wall='W2', offset=13 * FT))),
+  [('FS-INV-501', ['X13'])])
+G('order', 'requires-not-used', 'The document uses FS_lighting, which requires FS_electrical (1.1), and no longer '
+  'uses FS_electrical - neither its declaration nor its data, so the lights the scenes turn on are gone: Core reports '
+  'FS-INV-601 (Core 12.3.2), a tier 4 error, so FS_lighting is not evaluated, and none of its broken references is '
+  'reported.', ['1.2.2', 'FS-CORE-12.3.2'],
+  gedit(lambda d: (d['extensionsUsed'].pop(ELEC), d['extensions'].pop(ELEC))), [('FS-INV-601', [])])
+G('order', 'requires-out-of-range', 'The document uses FS_electrical at 0.2.0, outside the range ^0.1.0 FS_lighting '
+  'requires: Core reports FS-INV-602 (Core 12.3.3), and FS_lighting is not evaluated.', ['1.2.2', 'FS-CORE-12.3.3'],
+  gedit(lambda d: (INV_G(d), d['extensionsUsed'].update({ELEC: '0.2.0'}))), [('FS-INV-602', [])])
+G('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-LGHT-SCH-001.',
+  ['1.2.2', '1.3.1'], gedit(lambda d: (BAD_G(d), INV_G(d))), [('FS-LGHT-SCH-001', [])])
+G('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the Evening scene dims the '
+  'Living room\'s downlight, which does not dim: the document is invalid, so no lint is reported, FS_lighting\'s or '
+  'Core\'s.', ['1.2.2', '1.2.3'], gedit(lambda d: (INV_G(d), ON(d, 'LS1').update(X6={'output': 50}))), INV_G_DIAG)
+
+G('schema', 'data-not-an-object', 'FS_lighting\'s top-level data is an array: Core allows any JSON there, '
+  'FS_lighting\'s schema does not.', ['1.3.1'], gedit(lambda d: d['extensions'].update({LGHT: []})),
+  [('FS-LGHT-SCH-001', [])])
+G('schema', 'unknown-member', 'A top-level member FS_lighting does not define, `fixtures`.', ['1.3.1'],
+  gedit(lambda d: ext(d, LGHT).update(fixtures={})), [('FS-LGHT-SCH-001', [])])
+G('schema', 'empty-collections', 'An empty `collections` member: FS_lighting adds no kind of element, so its data has '
+  'no `collections`, even an empty one. Core finds no collection in it; FS_lighting\'s schema rejects it.', ['1.3.1'],
+  gedit(lambda d: ext(d, LGHT).update(collections={})), [('FS-LGHT-SCH-001', [])])
+G('schema', 'a-collection', 'A collection `fixtures` in FS_lighting\'s data: its registry entry names no kind, so Core '
+  '12.4.1 reports it (FS-INV-604), and FS_lighting is not evaluated.', ['1.2.2', 'FS-CORE-12.4.1'],
+  gedit(lambda d: ext(d, LGHT).update(collections={'fixtures': {}})), [('FS-INV-604', [])])
+G('schema', 'scene-without-a-name', 'A scene always has a name.', ['1.3.1'],
+  gedit(lambda d: SCN(d)['LS2'].pop('name')), [('FS-LGHT-SCH-001', [])])
+G('schema', 'empty-name', 'A scene\'s name is 1 to 200 characters: never empty.', ['1.3.1'],
+  gedit(lambda d: SCN(d)['LS2'].update(name='')), [('FS-LGHT-SCH-001', [])])
+G('schema', 'name-too-long', 'A scene\'s name is 1 to 200 characters.', ['1.3.1'],
+  gedit(lambda d: SCN(d)['LS2'].update(name='N' * 201)), [('FS-LGHT-SCH-001', [])])
+G('schema', 'scene-id-not-an-id', 'A scene keyed by "Night light", which is not an ID (Core 3.1.1).', ['1.3.1'],
+  gedit(lambda d: SCN(d).update({'Night light': SCN(d).pop('LS2')})), [('FS-LGHT-SCH-001', [])])
+G('schema', 'output-zero', 'An output of 0: a light a scene does not turn on is left out of its `on`.', ['1.3.1'],
+  gedit(BAD_G), [('FS-LGHT-SCH-001', [])])
+G('schema', 'output-above-full', 'An output of 101 percent.', ['1.3.1'],
+  gedit(lambda d: ON(d, 'LS1')['X2'].update(output=101)), [('FS-LGHT-SCH-001', [])])
+G('schema', 'output-with-a-fraction', 'An output written with a fraction is not an integer, even when it is a whole '
+  'number (1.4).', ['1.3.1'], None, [('FS-LGHT-SCH-001', [])],
+  raw=(fmt(lit_house()) + '\n').replace('"output": 60', '"output": 60.0', 1).encode('utf-8'))
+G('schema', 'on-not-an-object', 'A scene\'s `on` is an object of settings, not a list of IDs.', ['1.3.1'],
+  gedit(lambda d: SCN(d)['LS2'].update(on=['X3', 'X20'])), [('FS-LGHT-SCH-001', [])])
+G('schema', 'setting-with-an-unknown-member', 'A setting has a member a setting does not define: `colour`.', ['1.3.1'],
+  gedit(lambda d: ON(d, 'LS2')['X3'].update(colour='amber')), [('FS-LGHT-SCH-001', [])])
+G('schema', 'setting-cct-above-the-range', 'A setting\'s colour temperature of 10,001 K.', ['1.3.1'],
+  gedit(lambda d: ON(d, 'LS1')['X4'].update(cct=10001)), [('FS-LGHT-SCH-001', [])])
+G('schema', 'cct-below-the-range', 'A luminaire\'s colour temperature of 999 K.', ['1.3.1'],
+  gedit(lambda d: LUM(d)['X2'].update(cct=999)), [('FS-LGHT-SCH-001', [])])
+G('schema', 'cct-range-of-three', 'A tunable range is two colour temperatures, not three.', ['1.3.1'],
+  gedit(lambda d: LUM(d)['X4'].update(cctRange=[2700, 4000, 5000])), [('FS-LGHT-SCH-001', [])])
+G('schema', 'lumens-zero', 'A luminaire\'s light output is at least one lumen.', ['1.3.1'],
+  gedit(lambda d: LUM(d)['X6'].update(lumens=0)), [('FS-LGHT-SCH-001', [])])
+G('schema', 'dimmable-not-a-boolean', 'Whether a luminaire dims is true or false, not "yes".', ['1.3.1'],
+  gedit(lambda d: LUM(d)['X6'].update(dimmable='yes')), [('FS-LGHT-SCH-001', [])])
+G('schema', 'luminaire-with-an-unknown-member', 'A luminaire has a member a luminaire does not define: `watts`, '
+  'which is FS_electrical\'s.', ['1.3.1'], gedit(lambda d: LUM(d)['X2'].update(watts=10)), [('FS-LGHT-SCH-001', [])])
+
+G('invariants', 'scene-id-of-a-light', 'The Night light is keyed by X3, a pendant\'s ID: a scene\'s ID is in the '
+  'document\'s one space of IDs. Its own `on` names X3 too.', ['1.3.2'],
+  gedit(lambda d: SCN(d).update(X3=SCN(d).pop('LS2'))), [('FS-LGHT-INV-001', ['X3'])])
+G('invariants', 'scene-id-of-a-room', 'The Night light is keyed by R2, the Living room\'s ID.', ['1.3.2'],
+  gedit(lambda d: SCN(d).update(R2=SCN(d).pop('LS2'))), [('FS-LGHT-INV-001', ['R2'])])
+G('invariants', 'scene-id-of-a-lamp', 'The Night light is keyed by X20, the table lamp\'s ID: an extension element of '
+  'any extension.', ['1.3.2'],
+  gedit(lambda d: SCN(d).update(X20=SCN(d).pop('LS2'))), [('FS-LGHT-INV-001', ['X20'])])
+G('invariants', 'luminaire-of-a-switch', 'A luminaire keyed by the dimmer X10: a switch of FS_electrical gives no '
+  'light.', ['2.1.1'], gedit(lambda d: LUM(d).update(X10={'lumens': 450})), [('FS-LGHT-INV-002', ['X10'])])
+G('invariants', 'luminaire-of-a-panel', 'A luminaire keyed by the panel X1.', ['2.1.1'],
+  gedit(lambda d: LUM(d).update(X1={'cct': 3000})), [('FS-LGHT-INV-002', ['X1'])])
+G('invariants', 'luminaire-of-a-wall', 'A luminaire keyed by the wall W1: a core element is no extension element.',
+  ['2.1.1'], gedit(lambda d: LUM(d).update(W1={})), [('FS-LGHT-INV-002', ['W1'])])
+G('invariants', 'luminaire-of-nothing', 'A luminaire keyed by X99, which is no element.', ['2.1.1'],
+  gedit(lambda d: LUM(d).update(X99={'lumens': 800})), [('FS-LGHT-INV-002', ['X99'])])
+G('invariants', 'cct-range-reversed', 'The downlight X4\'s range is written coolest first, [5000, 2700].', ['2.1.2'],
+  gedit(lambda d: LUM(d)['X4'].update(cctRange=[5000, 2700])), [('FS-LGHT-INV-003', ['X4'])])
+G('invariants', 'cct-range-of-one-value', 'The downlight X4\'s range is [3000, 3000]: a luminaire that gives one '
+  'colour temperature is not tunable, and has a `cct`.', ['2.1.2'],
+  gedit(lambda d: LUM(d)['X4'].update(cctRange=[3000, 3000])), [('FS-LGHT-INV-003', ['X4'])])
+G('invariants', 'cct-outside-its-range', 'The downlight X5\'s own colour temperature, 2,200 K, is warmer than its '
+  'range\'s warmest.', ['2.1.3'], gedit(lambda d: LUM(d)['X5'].update(cct=2200)), [('FS-LGHT-INV-004', ['X5'])])
+G('invariants', 'cct-at-the-bounds', 'X4\'s own colour temperature is its range\'s warmest and X5\'s its coolest: '
+  'the bounds are in the range. Valid.', ['2.1.3'],
+  gedit(lambda d: (LUM(d)['X4'].update(cct=2700), LUM(d)['X5'].update(cct=5000))))
+G('invariants', 'reversed-range-and-cct-outside-it', 'X4\'s range is reversed and its colour temperature, 6,500 K, '
+  'is outside it either way: FS-LGHT-INV-003 only, since FS-LGHT-INV-004 is evaluated only for a luminaire without '
+  'it (5.2).', ['2.1.2', '5.2.1'], gedit(lambda d: LUM(d)['X4'].update(cctRange=[5000, 2700], cct=6500)),
+  [('FS-LGHT-INV-003', ['X4'])])
+G('invariants', 'scene-turns-on-a-switch', 'The Night light turns on the dimmer X10.', ['3.1.1'], gedit(INV_G),
+  INV_G_DIAG)
+G('invariants', 'scene-turns-on-a-room', 'The Evening scene turns on R1, the Kitchen: a room is no extension element.',
+  ['3.1.1'], gedit(lambda d: ON(d, 'LS1').update(R1={})), [('FS-LGHT-INV-005', ['LS1'])])
+G('invariants', 'scene-turns-on-two-unknowns', 'The Night light turns on X98 and X99, which are no elements: reported '
+  'once for each, both naming the scene.', ['1.2.3', '3.1.1'],
+  gedit(lambda d: ON(d, 'LS2').update(X98={}, X99={'output': 50})),
+  [('FS-LGHT-INV-005', ['LS2']), ('FS-LGHT-INV-005', ['LS2'])])
+G('invariants', 'scene-turns-on-an-undescribed-light', 'A scene LS3 "Living" turns on the Living room\'s downlight '
+  'X6 and the porch light X7, and X7\'s luminaire is removed: a scene may turn on a light FS_lighting says nothing of '
+  '(2.2). Valid, and X7 is still among the derived luminaires, by its scenes.', ['3.1.1', '6.1.1'],
+  gedit(lambda d: (LUM(d).pop('X7'), SCN(d).update(LS3={'name': 'Living', 'on': {'X6': {}, 'X7': {}}}))),
+  check=lambda r: ensure(GDER(r)['luminaires']['X7'] == {'scenes': ['LS1', 'LS3']}
+                         and GDER(r)['luminaires']['X6'] == {'scenes': ['LS3']}, GDER(r)['luminaires']))
+G('invariants', 'two-scenes-one-name', 'The Night light renamed "Evening".', ['3.1.2'],
+  gedit(lambda d: SCN(d)['LS2'].update(name='Evening')), [('FS-LGHT-INV-006', ['LS1', 'LS2'])])
+G('invariants', 'three-scenes-one-name', 'Three scenes named "Evening": once for each pair.', ['1.2.3', '3.1.2'],
+  gedit(lambda d: (SCN(d)['LS2'].update(name='Evening'), SCN(d).update(LS3={'name': 'Evening'}))),
+  [('FS-LGHT-INV-006', ['LS1', 'LS2']), ('FS-LGHT-INV-006', ['LS1', 'LS3']), ('FS-LGHT-INV-006', ['LS2', 'LS3'])])
+G('invariants', 'names-differ-in-case', 'A scene LS3 named "evening": names are compared exactly, so it is another '
+  'name. Valid.', ['3.1.2'], gedit(lambda d: SCN(d).update(LS3={'name': 'evening'})))
+G('invariants', 'every-one-once', 'Six rules broken at once: each is reported once, naming its element.',
+  ['1.2.3', '1.3.2', '2.1.1', '2.1.2', '2.1.3', '3.1.1', '3.1.2'],
+  gedit(lambda d: (SCN(d).update(R1={'name': 'Kitchen'}), LUM(d).update(X10={}), LUM(d)['X4'].update(cctRange=[5000, 2700]),
+                   LUM(d)['X5'].update(cct=6500), INV_G(d), SCN(d).update(LS3={'name': 'Night light'}))),
+  [('FS-LGHT-INV-001', ['R1']), ('FS-LGHT-INV-002', ['X10']), ('FS-LGHT-INV-003', ['X4']), ('FS-LGHT-INV-004', ['X5']),
+   ('FS-LGHT-INV-005', ['LS2']), ('FS-LGHT-INV-006', ['LS2', 'LS3'])])
+
+G('lints', 'lamp-that-does-not-dim', 'The table lamp does not dim, and the Night light sets it to 20 %.', ['1.2.3'],
+  gedit(lambda d: LUM(d)['X20'].update(dimmable=False)), [('FS-LGHT-LINT-001', ['LS2', 'X20'])])
+G('lints', 'not-dimmable-at-full', 'A scene LS3 turns on the Living room\'s downlight, which does not dim, at full: '
+  'no lint.', ['1.2.3'], gedit(lambda d: SCN(d).update(LS3={'name': 'Living', 'on': {'X6': {'output': 100}}})))
+G('lints', 'dimmable-not-stated', 'The pendants\' luminaires no longer say whether they dim: dimming them is no '
+  'lint (5.3), and they are on a dimmer.', ['1.2.3'],
+  gedit(lambda d: (LUM(d)['X2'].pop('dimmable'), LUM(d)['X3'].pop('dimmable'))))
+G('lints', 'cct-outside-the-range', 'The Evening scene sets the downlight X4 to 2,200 K, warmer than its range.',
+  ['1.2.3'], gedit(lambda d: ON(d, 'LS1')['X4'].update(cct=2200)), [('FS-LGHT-LINT-002', ['LS1', 'X4'])])
+G('lints', 'cct-at-the-range-bound', 'The Evening scene sets the downlight X4 to 5,000 K, its range\'s coolest: no '
+  'lint.', ['1.2.3'], gedit(lambda d: ON(d, 'LS1')['X4'].update(cct=5000)))
+G('lints', 'cct-of-a-fixed-luminaire', 'The Night light sets the pendant X3, which gives 2,700 K and is not tunable, '
+  'to 3,000 K.', ['1.2.3'], gedit(lambda d: ON(d, 'LS2')['X3'].update(cct=3000)), [('FS-LGHT-LINT-002', ['LS2', 'X3'])])
+G('lints', 'cct-a-fixed-luminaire-gives', 'The Night light sets the pendant X3 to 2,700 K, the one it gives: no lint.',
+  ['1.2.3'], gedit(lambda d: ON(d, 'LS2')['X3'].update(cct=2700)))
+G('lints', 'cct-of-an-undescribed-light', 'The Evening scene sets the porch light to 5,000 K, and the porch light\'s '
+  'luminaire says nothing of its colour: no lint.', ['1.2.3'],
+  gedit(lambda d: (LUM(d)['X7'].pop('cct'), ON(d, 'LS1')['X7'].update(cct=5000))))
+G('lints', 'dimmed-on-a-single-switch', 'The Evening scene sets the porch light, on a single switch, to 50 %.',
+  ['1.2.3'], gedit(lambda d: ON(d, 'LS1')['X7'].update(output=50)), [('FS-LGHT-LINT-003', ['LS1', 'X7'])])
+G('lints', 'dimmer-and-single-switch', 'The porch light is controlled from a second switch X14 by the door, a '
+  'dimmer, as well as by X13: the Evening scene sets it to 50 %, and some switch that controls it dims. No lint.',
+  ['1.2.3'],
+  gedit(lambda d: (ON(d, 'LS1')['X7'].update(output=50), GK(d, 'switches').update(
+      X14=on_wall('W1', 'right', 4 * FT, 1200, PLATE, control='dimmer', controls=['X7'])))))
+G('lints', 'smart-switch-made-occupancy', 'The downlights\' smart switch is now an occupancy sensor: the Evening scene '
+  'dims both downlights, which no dimmer or smart switch controls.', ['1.2.3'],
+  gedit(lambda d: GK(d, 'switches')['X11'].update(control='occupancy')),
+  [('FS-LGHT-LINT-003', ['LS1', 'X4']), ('FS-LGHT-LINT-003', ['LS1', 'X5'])])
+G('lints', 'control-absent-is-single', 'The pendants\' dimmer no longer says how it switches, so it is a single '
+  'switch (FS_electrical 2.3): both scenes dim a pendant it controls.', ['1.2.3'],
+  gedit(lambda d: GK(d, 'switches')['X10'].pop('control')),
+  [('FS-LGHT-LINT-003', ['LS1', 'X2']), ('FS-LGHT-LINT-003', ['LS1', 'X3']), ('FS-LGHT-LINT-003', ['LS2', 'X3'])])
+G('lints', 'not-dimmable-on-a-single-switch', 'A scene LS3 sets the Living room\'s downlight, which does not dim and is '
+  'on a single switch, to 50 %: both lints.', ['1.2.3'],
+  gedit(lambda d: SCN(d).update(LS3={'name': 'Living', 'on': {'X6': {'output': 50}}})),
+  [('FS-LGHT-LINT-001', ['LS3', 'X6']), ('FS-LGHT-LINT-003', ['LS3', 'X6'])])
+G('lints', 'every-lint-once', 'The lamp does not dim, the downlight X4 is set past its range and the porch light '
+  'is dimmed on a single switch: each lint once.', ['1.2.3'],
+  gedit(lambda d: (LUM(d)['X20'].update(dimmable=False), ON(d, 'LS1')['X4'].update(cct=6500),
+                   ON(d, 'LS1')['X7'].update(output=50))),
+  [('FS-LGHT-LINT-001', ['LS2', 'X20']), ('FS-LGHT-LINT-002', ['LS1', 'X4']), ('FS-LGHT-LINT-003', ['LS1', 'X7'])])
+
+G('derived', 'scene-with-nothing-on', 'A scene LS3 "Off" with an empty `on` turns every light off: it turns on '
+  'nothing and dims nothing.', ['6.1.1'], gedit(lambda d: SCN(d).update(LS3={'name': 'Off'})),
+  check=lambda r: ensure(GDER(r)['scenes']['LS3'] == {'name': 'Off', 'on': [], 'dimmed': []}, GDER(r)['scenes']))
+G('derived', 'full-output-is-not-dimmed', 'The Night light sets the pendant to 100 % written out and the lamp to 99 %: '
+  'a setting without `output` and one of 100 are full, and 99 is dimmed.', ['6.1.1'],
+  gedit(lambda d: (ON(d, 'LS2')['X3'].update(output=100), ON(d, 'LS2')['X20'].update(output=99))),
+  check=lambda r: ensure(GDER(r)['scenes']['LS2']['dimmed'] == ['X20'] and GDER(r)['scenes']['LS1']['dimmed'] == ['X2', 'X3', 'X4', 'X5'],
+                         GDER(r)['scenes']))
+G('derived', 'scenes-in-id-order', 'A third scene LS10 "Late": scenes are in ID order by code unit, LS1, LS10, LS2, and '
+  'a luminaire\'s scenes are sorted the same way.', ['6.1.1'],
+  gedit(lambda d: SCN(d).update(LS10={'name': 'Late', 'on': {'X3': {'output': 30}}})),
+  check=lambda r: ensure(list(GDER(r)['scenes']) == ['LS1', 'LS10', 'LS2']
+                         and GDER(r)['luminaires']['X3'] == {'scenes': ['LS1', 'LS10', 'LS2']}, GDER(r)))
+
+
+def island_options(d):
+    """Core 0.3 design options for the island: option A (OP1, the primary) keeps the pendants X2 and
+    X3; option B (OP2) hangs one linear pendant X8 in their place, on the same dimmer."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Island light'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    GK(d, 'lights')['X2']['option'] = 'OP1'
+    GK(d, 'lights')['X3']['option'] = 'OP1'
+    GK(d, 'lights')['X8'] = on_surface('R1', 'ceiling', 6 * FT, 6 * FT, box(-600, -60, -900, 600, 60, 0), fixture='pendant',
+                                       watts=20, option='OP2')
+
+
+G('options', 'pendants-only-in-option-a', 'Island options A and B as Core 0.3 design options (Core 19): the pair of '
+  'pendants in A, the primary, and a linear pendant in B. The pendants\' luminaires and the scenes that turn them on '
+  'name lights that option B\'s design does not have: FS_lighting is evaluated in each checked design, so B\'s design '
+  'breaks 2.1.1 and 3.1.1, each reported with `design` (Core 19.5.2).',
+  ['1.2.1', '1.2.3', '2.1.1', '3.1.1', 'FS-CORE-19.3.1'], gedit(island_options),
+  [('FS-LGHT-INV-002', ['X2'], 'OP2'), ('FS-LGHT-INV-002', ['X3'], 'OP2'), ('FS-LGHT-INV-005', ['LS1'], 'OP2'),
+   ('FS-LGHT-INV-005', ['LS1'], 'OP2'), ('FS-LGHT-INV-005', ['LS2'], 'OP2')])
+G('options', 'scenes-of-every-design', 'The same options, with the pendants taken out of FS_lighting: no luminaire '
+  'describes them and no scene turns them, or B\'s pendant, on, so every scene names lights of every design. Valid, '
+  'and the primary design is derived.', ['1.2.1', '1.2.4', '3.1.1', '6.1.1', 'FS-CORE-19.3.1'],
+  gedit(lambda d: (island_options(d), LUM(d).pop('X2'), LUM(d).pop('X3'), ON(d, 'LS1').pop('X2'), ON(d, 'LS1').pop('X3'),
+                   ON(d, 'LS2').pop('X3'))),
+  check=lambda r: ensure(GDER(r)['scenes']['LS2'] == {'name': 'Night light', 'on': ['X20'], 'dimmed': ['X20']}
+                         and r['derived']['options']['OS1']['chosen'] == 'OP1', GDER(r)))
+
+
+def lght_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(LGHT)]).encode('utf-8'), official.implemented(LGHT))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][LGHT]
+
+
+GO = lambda *a, **k: O(LGHT, *a, **k)    # noqa: E731
+GO('add-a-scene', 'setProperty of $document /extensions/FS_lighting/scenes/LS3 adds a scene "Reading" - the Living '
+   'room\'s downlight and the lamp at full - with an ID Ops does not mint (1.3.2). It commits, valid under FS_lighting.',
+   ['1.2.1', '1.3.2', '3.1.1', '6.1.1', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS3',
+               'value': {'name': 'Reading', 'on': {'X6': {}, 'X20': {}}}}]},
+   check=lambda r, B: ensure(lght_derived(B)['scenes']['LS3'] == {'name': 'Reading', 'on': ['X20', 'X6'], 'dimmed': []}
+                             and lght_derived(B)['luminaires']['X6'] == {'scenes': ['LS3']}, lght_derived(B)))
+GO('rename-to-a-name-in-use-is-rejected', 'setProperty of the Night light\'s name to "Evening": the result breaks '
+   '3.1.2, and an applier that implements FS_lighting and knows it rejects the batch (Ops 1.2.3).',
+   ['3.1.2', '1.2.1', 'FS-OPS-1.2.3'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/name', 'value': 'Evening'}]},
+   'rejected', [('FS-LGHT-INV-006', ['LS1', 'LS2'])])
+GO('remove-a-light-in-a-scene-is-rejected', 'Removing the pendant X3 leaves its luminaire and both scenes naming it: '
+   'Ops does not follow references inside an extension\'s members, so the result breaks 2.1.1 and 3.1.1, and the batch '
+   'is rejected.', ['2.1.1', '3.1.1', '1.2.1', 'FS-OPS-1.2.3'], lit_house(),
+   {'batch': [{'op': 'removeElement', 'id': 'X3'}]}, 'rejected',
+   [('FS-LGHT-INV-002', ['X3']), ('FS-LGHT-INV-005', ['LS1']), ('FS-LGHT-INV-005', ['LS2'])])
+GO('remove-a-light-and-its-references', 'The same removal, with the pendant\'s luminaire and its settings in both '
+   'scenes unset in the same batch (3.1): it commits.', ['2.1.1', '3.1.1', '1.2.1', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/luminaires/X3'},
+              {'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS1/on/X3'},
+              {'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/on/X3'},
+              {'op': 'removeElement', 'id': 'X3'}]},
+   check=lambda r, B: ensure(r['removed'] == ['X3'] and lght_derived(B)['scenes']['LS2']['on'] == ['X20'], r['removed']))
+GO('first-scene-creates-the-data', 'The lit house declaring FS_lighting with no data of it yet: setProperty of '
+   '$document /extensions/FS_lighting/scenes/LS1 creates FS_lighting\'s data, and its `scenes`, on the way (Ops 2.3) - '
+   'an "Evening" of the pendants at 60 %. It commits, valid under FS_lighting.', ['1.2.1', '1.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   gedit(lambda d: d['extensions'].pop(LGHT)),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS1',
+               'value': {'name': 'Evening', 'on': {'X2': {'output': 60}, 'X3': {'output': 60}}}}]},
+   check=lambda r, B: ensure(B['extensions'][LGHT] == {'scenes': {'LS1': {'name': 'Evening', 'on': {'X2': {'output': 60}, 'X3': {'output': 60}}}}}
+                             and lght_derived(B) == {'scenes': {'LS1': {'name': 'Evening', 'on': ['X2', 'X3'], 'dimmed': ['X2', 'X3']}},
+                                                     'luminaires': {'X2': {'scenes': ['LS1']}, 'X3': {'scenes': ['LS1']}}},
+                             B['extensions'].get(LGHT)))
+GO('rename-a-scene', 'setProperty of $document /extensions/FS_lighting/scenes/LS2/name: the Night light is now "Late". '
+   'It commits.', ['1.2.1', '3.1.2', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/name', 'value': 'Late'}]},
+   check=lambda r, B: ensure(lght_derived(B)['scenes']['LS2']['name'] == 'Late', lght_derived(B)['scenes']))
+GO('remove-a-scene', 'unsetProperty of $document /extensions/FS_lighting/scenes/LS2 removes the Night light: the lamp '
+   'and the pendant X3 are turned on by the Evening scene alone. It commits.', ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'],
+   lit_house(), {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2'}]},
+   check=lambda r, B: ensure(list(lght_derived(B)['scenes']) == ['LS1']
+                             and lght_derived(B)['luminaires']['X3'] == {'scenes': ['LS1']}, lght_derived(B)))
+GO('describe-a-luminaire', 'setProperty of $document /extensions/FS_lighting/luminaires/X6 replaces what the Living '
+   'room\'s downlight gives: now dimmable and tunable from 2,700 K to 4,000 K, at 3,000 K. It commits.',
+   ['1.2.1', '2.1.1', '2.1.2', '2.1.3', 'FS-OPS-2.3.1'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/luminaires/X6',
+               'value': {'lumens': 900, 'cct': 3000, 'cctRange': [2700, 4000], 'dimmable': True}}]},
+   check=lambda r, B: ensure(ext(B, LGHT)['luminaires']['X6']['cctRange'] == [2700, 4000]
+                             and lght_derived(B)['luminaires']['X6'] == {'scenes': []}, ext(B, LGHT)['luminaires']))
+GO('scene-turns-on-a-switch-is-rejected', 'setProperty of $document /extensions/FS_lighting/scenes/LS2/on/X10 has the '
+   'Night light turn on the dimmer X10: the result breaks 3.1.1, and the batch is rejected with FS-LGHT-INV-005.',
+   ['3.1.1', '1.2.1', 'FS-OPS-1.2.3'], lit_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS2/on/X10', 'value': {}}]},
+   'rejected', [('FS-LGHT-INV-005', ['LS2'])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -2199,7 +2632,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND):
+        for name in ALL + (STRC, LAND, LGHT):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):
