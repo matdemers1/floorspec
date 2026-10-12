@@ -19,6 +19,8 @@
     "library:check": "tsx tools/furniture-library.ts --check",
     "library:us": "tsx tools/us-library.ts",
     "library:us:check": "tsx tools/us-library.ts --check",
+    "library:landscape": "tsx tools/landscape-library.ts",
+    "library:landscape:check": "tsx tools/landscape-library.ts --check",
     "registry:check": "tsx tools/registry-gates.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tools/*.test.ts",
