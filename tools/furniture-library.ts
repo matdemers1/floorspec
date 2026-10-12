@@ -1,6 +1,8 @@
 /**
  * The FS_furniture starter library (FLR-T-8.3, registry/FS_furniture/spec.md chapter 7): twenty-five
- * generic furniture, appliance and casework items, each an FS_furniture element ready to place - its
+ * generic furniture, appliance and casework items, and since 0.2.0 (FLR-T-13.11) thirty decor items -
+ * rugs, wall art and a mirror, lamps, plants, cushions and throws, curtains and a blind, a media
+ * console and a television, books and kitchen and bath accessories - each an FS_furniture element ready to place - its
  * category, fallback box and Floorspec's default clearance envelopes - with a glTF 2.0 proxy model and
  * an SVG plan symbol generated here from a few boxes, and the SHA-256 digest and length of each file.
  *
@@ -103,6 +105,8 @@ interface Item {
   seats?: number;
   parts: MmBox[];
   marks?: Mark[];
+  /** Decor (FLR-T-13.11): a flat or hung item whose symbol is drawn unfilled — a rug, a curtain — so what stands on or in front of it stays seen; and its proxy's colour. */
+  decor?: { colour: [number, number, number]; outline?: 'dashed' };
 }
 
 /** Extra plan marks of a symbol, in mm of the item's frame. */
@@ -125,7 +129,7 @@ const cabinet = (d: number, w: number, h: number): MmBox[] =>
   [[0, -w / 2, 0, d - 80, w / 2, 100], [0, -w / 2, 100, d - 20, w / 2, h - 30], [0, -w / 2, h - 30, d, w / 2, h]];
 
 /** The starter items. Dimensions are whole millimetres, so every box is centred exactly. */
-export const ITEMS: Item[] = [
+const FURNITURE_ITEMS: Item[] = [
   // ---------------------------------------------------------------- appliances
   { id: 'refrigerator-900', kind: 'appliances', category: 'refrigerator', name: 'Refrigerator, 900 mm', width: 900, depth: 700, height: 1780,
     parts: [[0, -450, 0, 680, 450, 1780], [680, 330, 900, 700, 350, 1500]], marks: [doorLine(700, 900, 20)] },
@@ -183,6 +187,106 @@ export const ITEMS: Item[] = [
   { id: 'vanity-900', kind: 'casework', category: 'vanity', name: 'Vanity cabinet, 900 mm', width: 900, depth: 550, height: 850,
     parts: cabinet(550, 900, 850), marks: [doorLine(550, 900, 20)] },
 ];
+
+// ---------------------------------------------------------------- decor (FLR-T-13.11)
+// Rugs, wall art, lamps, plants, textiles, window dressings, media, books and kitchen and bath
+// accessories: the things that stage a furnished room. Each is a piece of category `other` (2.5)
+// — no category of FS_furniture 0.1 names them — except the media console, a `mediaUnit`. A
+// reader that knows the library draws each as what it is; any other draws its box, model and symbol.
+
+/** A flat rectangle of rug: its field inset from a border band. */
+const rug = (d: number, w: number, h: number): MmBox[] => [[0, -w / 2, 0, d, w / 2, h - 2], [80, -w / 2 + 80, h - 2, d - 80, w / 2 - 80, h]];
+/** A framed picture hung on a wall: its frame, and the canvas set back in it. */
+const framed = (d: number, w: number, h: number): MmBox[] => [[0, -w / 2, 0, d, w / 2, h], [d - 10, -w / 2 + 60, 60, d, w / 2 - 60, h - 60]];
+/** A drum shade on a stem over a base. */
+const lamp = (w: number, h: number, base: number, shade: number): MmBox[] => [
+  [w / 2 - base / 2, -base / 2, 0, w / 2 + base / 2, base / 2, h * 0.08],
+  [w / 2 - 15, -15, h * 0.08, w / 2 + 15, 15, h - shade * 0.6],
+  [0, -w / 2, h - shade, w, w / 2, h],
+];
+/** A planter and the foliage over it. */
+const potted = (w: number, h: number, pot: number, potH: number): MmBox[] => [
+  [w / 2 - pot / 2, -pot / 2, 0, w / 2 + pot / 2, pot / 2, potH],
+  [0, -w / 2, potH, w, w / 2, h],
+];
+const ring = (d: number, w: number, r: number): Mark => ({ circle: [d / 2, 0, Math.min(r, d / 2, w / 2)] });
+
+const DECOR_ITEMS: Item[] = [
+  // Rugs: a field and a border, flat on the floor; the front is the side a seating group faces from.
+  { id: 'rug-3000x2000', kind: 'pieces', category: 'other', name: 'Rug, 3000 x 2000 mm', width: 3000, depth: 2000, height: 12,
+    parts: rug(2000, 3000, 12), decor: { colour: [0.55, 0.47, 0.38], outline: 'dashed' } },
+  { id: 'rug-2400x1700', kind: 'pieces', category: 'other', name: 'Rug, 2400 x 1700 mm', width: 2400, depth: 1700, height: 12,
+    parts: rug(1700, 2400, 12), decor: { colour: [0.55, 0.47, 0.38], outline: 'dashed' } },
+  { id: 'rug-2000x1400', kind: 'pieces', category: 'other', name: 'Rug, 2000 x 1400 mm', width: 2000, depth: 1400, height: 12,
+    parts: rug(1400, 2000, 12), decor: { colour: [0.55, 0.47, 0.38], outline: 'dashed' } },
+  { id: 'runner-2400x800', kind: 'pieces', category: 'other', name: 'Runner, 2400 x 800 mm', width: 2400, depth: 800, height: 10,
+    parts: rug(800, 2400, 10), decor: { colour: [0.55, 0.47, 0.38], outline: 'dashed' } },
+  { id: 'bath-mat-800x500', kind: 'pieces', category: 'other', name: 'Bath mat', width: 800, depth: 500, height: 15,
+    parts: rug(500, 800, 15), decor: { colour: [0.85, 0.83, 0.78], outline: 'dashed' } },
+  // Wall art and a mirror: hung on a wall face, their backs against it.
+  { id: 'art-1200x800', kind: 'pieces', category: 'other', name: 'Framed art, 1200 x 800 mm', width: 1200, depth: 40, height: 800,
+    parts: framed(40, 1200, 800), decor: { colour: [0.62, 0.58, 0.52] } },
+  { id: 'art-600x800', kind: 'pieces', category: 'other', name: 'Framed art, 600 x 800 mm', width: 600, depth: 40, height: 800,
+    parts: framed(40, 600, 800), decor: { colour: [0.62, 0.58, 0.52] } },
+  { id: 'art-500x500', kind: 'pieces', category: 'other', name: 'Framed art, 500 x 500 mm', width: 500, depth: 35, height: 500,
+    parts: framed(35, 500, 500), decor: { colour: [0.62, 0.58, 0.52] } },
+  { id: 'mirror-800x1000', kind: 'pieces', category: 'other', name: 'Wall mirror, 800 x 1000 mm', width: 800, depth: 30, height: 1000,
+    parts: framed(30, 800, 1000), decor: { colour: [0.75, 0.78, 0.8] } },
+  // Lamps.
+  { id: 'lamp-floor-1600', kind: 'pieces', category: 'other', name: 'Floor lamp', width: 450, depth: 450, height: 1600,
+    parts: lamp(450, 1600, 300, 380), marks: [ring(450, 450, 225), ring(450, 450, 60)], decor: { colour: [0.9, 0.86, 0.76] } },
+  { id: 'lamp-table-600', kind: 'pieces', category: 'other', name: 'Table lamp', width: 360, depth: 360, height: 600,
+    parts: lamp(360, 600, 160, 250), marks: [ring(360, 360, 180), ring(360, 360, 50)], decor: { colour: [0.9, 0.86, 0.76] } },
+  // Plants in planters.
+  { id: 'plant-tree-1700', kind: 'pieces', category: 'other', name: 'Indoor tree in a planter', width: 750, depth: 750, height: 1700,
+    parts: potted(750, 1700, 420, 400), marks: [ring(750, 750, 375), ring(750, 750, 210)], decor: { colour: [0.3, 0.42, 0.28] } },
+  { id: 'plant-floor-900', kind: 'pieces', category: 'other', name: 'Floor plant in a planter', width: 550, depth: 550, height: 900,
+    parts: potted(550, 900, 340, 340), marks: [ring(550, 550, 275), ring(550, 550, 170)], decor: { colour: [0.3, 0.42, 0.28] } },
+  { id: 'plant-small-350', kind: 'pieces', category: 'other', name: 'Potted plant, small', width: 220, depth: 220, height: 350,
+    parts: potted(220, 350, 140, 130), marks: [ring(220, 220, 110)], decor: { colour: [0.3, 0.42, 0.28] } },
+  // Textiles.
+  { id: 'cushion-450', kind: 'pieces', category: 'other', name: 'Cushion, 450 mm', width: 450, depth: 150, height: 450,
+    parts: [[0, -225, 0, 150, 225, 450]], decor: { colour: [0.72, 0.6, 0.45] } },
+  // A throw over a sofa's right arm: down the arm's outside (its own right, -y), over the arm and onto the seat (+y).
+  { id: 'throw-sofa', kind: 'pieces', category: 'other', name: 'Throw over a sofa arm', width: 420, depth: 520, height: 240,
+    parts: [[0, -210, 0, 520, -192, 240], [0, -192, 222, 520, 26, 240], [0, 26, 0, 520, 210, 222]], decor: { colour: [0.72, 0.6, 0.45] } },
+  // A throw across the foot of a queen bed, over its sides.
+  { id: 'throw-bed-1640', kind: 'pieces', category: 'other', name: 'Bed throw, 1640 mm', width: 1640, depth: 600, height: 320,
+    parts: [[0, -820, 300, 600, 820, 320], [0, -820, 0, 600, -800, 300], [0, 800, 0, 600, 820, 300]], decor: { colour: [0.72, 0.6, 0.45], outline: 'dashed' } },
+  // Window dressings: hung on the wall face over a window, sized to it.
+  { id: 'curtains-2000', kind: 'pieces', category: 'other', name: 'Curtains on a rod, 2000 mm', width: 2000, depth: 140, height: 2400,
+    parts: [[0, -990, 2330, 140, -950, 2400], [0, 950, 2330, 140, 990, 2400], [90, -1000, 2340, 120, 1000, 2370], [20, -1000, 0, 140, -680, 2340], [20, 680, 0, 140, 1000, 2340]], decor: { colour: [0.9, 0.88, 0.83], outline: 'dashed' } },
+  { id: 'blind-roman-900', kind: 'pieces', category: 'other', name: 'Roman blind, 900 mm', width: 900, depth: 60, height: 500,
+    parts: [[0, -450, 440, 60, 450, 500], [0, -450, 0, 50, 450, 440]], decor: { colour: [0.9, 0.88, 0.83], outline: 'dashed' } },
+  // Media.
+  { id: 'media-console-1800', kind: 'pieces', category: 'mediaUnit', name: 'Media console, 1800 mm', width: 1800, depth: 450, height: 500,
+    parts: [[0, -900, 80, 450, 900, 500], [20, -880, 0, 400, 880, 80]], marks: [doorLine(450, 1800)] },
+  { id: 'tv-65', kind: 'pieces', category: 'other', name: 'Television, 65 in, on its stand', width: 1450, depth: 280, height: 900,
+    parts: [[120, -725, 60, 160, 725, 900], [0, -300, 0, 280, 300, 20], [125, -30, 20, 155, 30, 60]], decor: { colour: [0.08, 0.08, 0.09] } },
+  // Books and accessories set on tables, consoles and counters.
+  { id: 'books-stack', kind: 'pieces', category: 'other', name: 'Books, a stack of three', width: 280, depth: 210, height: 95,
+    parts: [[0, -140, 0, 210, 140, 35], [10, -130, 35, 200, 125, 65], [20, -120, 65, 190, 115, 95]], decor: { colour: [0.5, 0.4, 0.32] } },
+  { id: 'vase-stems-450', kind: 'pieces', category: 'other', name: 'Vase with stems', width: 260, depth: 260, height: 520,
+    parts: [[60, -70, 0, 200, 70, 260], [0, -130, 260, 260, 130, 520]], marks: [ring(260, 260, 70)], decor: { colour: [0.86, 0.84, 0.8] } },
+  { id: 'bowl-fruit-320', kind: 'pieces', category: 'other', name: 'Fruit bowl', width: 320, depth: 320, height: 150,
+    parts: [[0, -160, 0, 320, 160, 150]], marks: [ring(320, 320, 160), ring(320, 320, 90)], decor: { colour: [0.86, 0.84, 0.8] } },
+  { id: 'cutting-board-450', kind: 'pieces', category: 'other', name: 'Cutting board, leaning', width: 450, depth: 70, height: 340,
+    parts: [[0, -225, 0, 70, 225, 340]], decor: { colour: [0.62, 0.45, 0.3] } },
+  { id: 'kettle', kind: 'pieces', category: 'other', name: 'Kettle', width: 240, depth: 200, height: 260,
+    parts: [[0, -100, 0, 200, 100, 220], [80, -120, 160, 120, 120, 260]], marks: [ring(200, 240, 95)], decor: { colour: [0.75, 0.76, 0.78] } },
+  { id: 'canisters-3', kind: 'pieces', category: 'other', name: 'Canisters, three', width: 400, depth: 130, height: 240,
+    parts: [[0, -200, 0, 130, -70, 240], [0, -65, 0, 130, 65, 200], [0, 70, 0, 130, 200, 160]], decor: { colour: [0.86, 0.84, 0.8] } },
+  // Bath.
+  { id: 'towel-bar-600', kind: 'pieces', category: 'other', name: 'Towel bar with towel', width: 600, depth: 90, height: 480,
+    parts: [[0, -300, 440, 90, 300, 470], [20, -240, 0, 80, 240, 480]], decor: { colour: [0.9, 0.88, 0.83] } },
+  { id: 'towels-folded', kind: 'pieces', category: 'other', name: 'Towels, folded', width: 320, depth: 240, height: 170,
+    parts: [[0, -160, 0, 240, 160, 170]], decor: { colour: [0.9, 0.88, 0.83] } },
+  { id: 'soap-set', kind: 'pieces', category: 'other', name: 'Soap dispenser and tumbler', width: 220, depth: 130, height: 190,
+    parts: [[0, -110, 0, 130, 110, 12], [25, -90, 12, 105, -10, 190], [30, 20, 12, 100, 90, 110]], decor: { colour: [0.86, 0.84, 0.8] } },
+];
+
+/** Every item: the furniture, appliances and casework of 0.1.0, then the decor of 0.2.0. */
+export const ITEMS: Item[] = [...FURNITURE_ITEMS, ...DECOR_ITEMS];
 
 /** The linear base colour of each kind's material. */
 const COLOUR: Record<Kind, [number, number, number]> = {
@@ -243,7 +347,7 @@ export function glb(item: Item): Buffer {
     scenes: [{ nodes: [0] }],
     nodes: [{ mesh: 0, name: item.id }],
     meshes: [{ name: item.id, primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2, material: 0 }] }],
-    materials: [{ name: item.kind, pbrMetallicRoughness: { baseColorFactor: [...COLOUR[item.kind], 1], metallicFactor: 0, roughnessFactor: 1 } }],
+    materials: [{ name: item.kind, pbrMetallicRoughness: { baseColorFactor: [...(item.decor?.colour ?? COLOUR[item.kind]), 1], metallicFactor: 0, roughnessFactor: 1 } }],
     accessors: [
       { bufferView: 0, componentType: 5126, count, type: 'VEC3', min, max },
       { bufferView: 1, componentType: 5126, count, type: 'VEC3' },
@@ -280,8 +384,10 @@ export function svg(item: Item): string {
   const n = (v: number) => String(Math.round(v * 10) / 10);
   const wall = item.category === 'wallCabinet' || item.category === 'shelf' || item.category === 'shelving';
   const lines: string[] = [];
-  const stroke = wall ? ' stroke-dasharray="40 20"' : '';
-  lines.push(`<rect x="5" y="5" width="${n(w - 10)}" height="${n(d - 10)}" fill="#ffffff" stroke="#000000" stroke-width="10"${stroke}/>`);
+  const stroke = wall || item.decor?.outline === 'dashed' ? ' stroke-dasharray="40 20"' : '';
+  // Decor is drawn unfilled: a rug under a sofa, curtains before a window, art on a wall leave what is under or behind them seen.
+  const fill = item.decor === undefined ? '#ffffff' : 'none';
+  lines.push(`<rect x="5" y="5" width="${n(w - 10)}" height="${n(d - 10)}" fill="${fill}" stroke="#000000" stroke-width="10"${stroke}/>`);
   for (const [x0, y0, , x1, y1] of item.parts) {
     if (x0 === 0 && x1 === d && y0 === -w / 2 && y1 === w / 2) continue;      // the outline itself
     lines.push(`<rect x="${n(u(y0))}" y="${n(x0)}" width="${n(y1 - y0)}" height="${n(x1 - x0)}" fill="none" stroke="#000000" stroke-width="5"/>`);
@@ -329,10 +435,10 @@ export function build(): Map<string, Buffer> {
   const catalogue = {
     library: 'FS_furniture starter library',
     extension: 'FS_furniture',
-    version: '0.1.0',
+    version: '0.2.0',
     license: 'CC0-1.0',
     licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
-    description: 'Generic furniture, appliances and casework as FS_furniture 0.1.0 elements ready to place: '
+    description: 'Generic furniture, appliances, casework and decor as FS_furniture 0.1.0 elements ready to place: '
       + 'lengths in base units (1/1280 mm), each item\'s box and default clearance envelopes in its frame (spec.md 3.1, 4.2), '
       + 'and a generated proxy model and plan symbol with their SHA-256 digests and lengths. Written by tools/furniture-library.ts.',
     items,
