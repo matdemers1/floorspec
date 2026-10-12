@@ -84,3 +84,17 @@ test('each symbol is drawn to its footprint in millimetres, front along the bott
   // the sofa's back is at the top of its symbol: its first part after the seat is a band 200 mm deep at y = 0
   assert.match(files.get('symbols/sofa-2100.svg')!.toString('utf8'), /<rect x="0" y="0" width="2100" height="200"/);
 });
+
+test('the decor of 0.2.0 (FLR-T-13.11): pieces of category other, except the media console, each with an unfilled symbol', () => {
+  const decor = ITEMS.filter((it) => it.decor !== undefined);
+  assert.ok(decor.length >= 25, 'rugs, art, lamps, plants, textiles, window dressings, media, books, kitchen and bath');
+  for (const prefix of ['rug-', 'art-', 'mirror-', 'lamp-floor-', 'lamp-table-', 'plant-', 'cushion-', 'throw-', 'curtains-', 'blind-', 'tv-', 'books-', 'bowl-', 'kettle', 'towel'])
+    assert.ok(decor.some((it) => it.id.startsWith(prefix)), `a ${prefix} item`);
+  for (const it of decor) {
+    assert.equal(it.kind, 'pieces', it.id);
+    assert.equal(it.category, 'other', it.id);
+    assert.match(files.get(`symbols/${it.id}.svg`)!.toString('utf8'), /<rect x="5" y="5" [^>]*fill="none"/, `${it.id} symbol unfilled`);
+  }
+  assert.equal(catalogue.items['media-console-1800']!.element.category, 'mediaUnit');
+  assert.equal(JSON.parse(files.get('library.json')!.toString('utf8')).version, '0.2.0');
+});
