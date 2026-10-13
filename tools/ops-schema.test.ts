@@ -16,12 +16,13 @@ interface Case {
   malformed: boolean;
   new?: boolean;
   new03?: boolean;
+  new04?: boolean;
   request: unknown;
 }
 // Ops 0.3's requests have Ops 0.2's shape and may add an element to Core 0.3's `roofs` (Ops 0.4): its cases are
 // 0.2's, with "unknown collection" naming a name that is still reserved and a case adding a roof.
-// Ops 0.4's requests match Ops 0.3's schema: its cases are 0.3's.
-const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.3.json', '0.4': 'ops-requests-0.3.json' };
+// Ops 0.4's requests are 0.3's and resizeElement (4.11): its cases are 0.3's and those marked `new04`.
+const FIXTURES: Record<OpsVersion, string> = { '0.1': 'ops-requests.json', '0.2': 'ops-requests-0.2.json', '0.3': 'ops-requests-0.3.json', '0.4': 'ops-requests-0.4.json' };
 const load = (v: OpsVersion) => JSON.parse(readFileSync(join(import.meta.dirname, 'fixtures', FIXTURES[v]), 'utf8')) as Case[];
 const validators = Object.fromEntries(OPS_VERSIONS.map((v) => [v, requestValidator(undefined, v)]));
 
@@ -67,3 +68,8 @@ test('ops 0.3 request: addElement into stairs, which Core 0.3 adds, is well form
   assert.equal(validators['0.3']!(add), true, formatErrors(validators['0.3']!.errors ?? []).join('\n'));
   assert.equal(validators['0.2']!(add), false);
 });
+
+for (const c of load('0.4').filter((x) => x.new04 && !x.malformed))
+  test(`ops 0.3 request: ${c.name} is malformed, since only 0.4 has that form`, () => {
+    assert.equal(validators['0.3']!(c.request), false);
+  });

@@ -7,7 +7,7 @@ documents too - and adds the program and extension elements as things an edit ca
 applies the same operations to Core 0.3 documents, and to 0.2 and 0.1 documents as a Core 0.3
 reader reads them (Core 1.2.6); it adds no operation, and its requests have Ops 0.2's shape. Ops 0.4
 applies Ops 0.3's operations to Core 0.4 documents, and to 0.3, 0.2 and 0.1 documents as a Core 0.4
-reader reads them (Core 1.2.8); its requests have Ops 0.3's shape, and match schema/ops/0.3. An arc edge (Core 0.4,
+reader reads them (Core 1.2.8); its requests are Ops 0.3's and resizeElement (4.11), and match schema/ops/0.4. An arc edge (Core 0.4,
 chapter 21) is added with addElement, or drawn and then given its `arc` with setProperty, and is never routed
 or split by planarization (5.2).
 

@@ -26,6 +26,7 @@ from fractions import Fraction
 
 from .. import arcs, canon, plane
 from ..jsonparse import Malformed, parse
+from ..frames import facing_vector
 from ..surd import Surd
 from .errors import OpsError, Rejected, esc
 from .faces import LevelFaces, coll, edit_view, is_point
@@ -56,6 +57,11 @@ INVERSE_ORDER_03 = ('openings', 'rooms', 'slabs', 'roofs', 'stairs', 'separators
 # Ops 0.3, 2.8: the collections whose elements a batch adds in `context.option` (Core 19.2), beside extension elements
 IN_OPTIONS = ('junctions', 'walls', 'separators', 'openings', 'rooms', 'slabs', 'roofs', 'stairs')
 WALL_MEMBERS = ('type', 'layers', 'justification', 'base', 'top')
+RESIZE_AXES = ('width', 'depth', 'height')    # Ops 0.4, 4.11: the order its members are resolved in
+# 4.11: what each anchor holds on x (back = min, front = max) and on y (right = min, left = max)
+RESIZE_HOLD = {'center': ('mid', 'mid'), 'back': ('min', 'mid'), 'front': ('max', 'mid'), 'right': ('mid', 'min'),
+               'left': ('mid', 'max'), 'back-right': ('min', 'min'), 'back-left': ('min', 'max'),
+               'front-right': ('max', 'min'), 'front-left': ('max', 'max')}
 COMMON = ('name', 'extensions', 'extras')     # Core 1.4: what every element may carry
 
 
@@ -821,6 +827,125 @@ class Transaction:
         return [{'op': 'setProperty', 'id': eid, 'path': '/host', 'value': host},
                 {'op': 'setProperty', 'id': eid, 'path': '/fallback/level', 'value': level}]
 
+    # ------------------------------------------------------------------ 4.11 resizeElement (Ops 0.4)
+    def x_resizeElement(self, R, op, P):
+        eid = R.element(op['element'], (EXT,), f'{P}/element')[1]
+        place = self.locate(eid)[0]
+        el = self.locate(eid)[1][eid]
+        new = {ax: length(op[ax], f'{P}/{ax}') for ax in RESIZE_AXES if ax in op}
+        limits = {}
+        for ax in RESIZE_AXES:
+            for b in ('min', 'max'):
+                lim = op.get('limits', {}).get(ax, {})
+                if b in lim:
+                    limits[(ax, b)] = length(lim[b], f'{P}/limits/{ax}/{b}')
+        fb = el.get('fallback') if isd(el) else None
+        box = fb.get('box') if isd(fb) else None
+        if not (isd(box) and all(isinstance(box.get(k), list) and len(box[k]) == 3 and all(type(c) is int for c in box[k])
+                                 for k in ('min', 'max'))):
+            raise OpsError('FS-OPS-003', [eid], f'{P}/element', f'{eid} has no box of two triples of integers')
+        for (ax, b), v in limits.items():
+            if ax in new and (new[ax] < v if b == 'min' else new[ax] > v):
+                raise OpsError('FS-OPS-008', [eid], f'{P}/{ax}', f'{eid} comes no {"smaller" if b == "min" else "larger"} than {v} in {ax}')
+        lo, hi = box['min'], box['max']
+        hold = RESIZE_HOLD[op['anchor']] + ('min',)          # x, y, then z: the bottom always stays
+        olds, news = [], []
+        for i, ax in enumerate(('depth', 'width', 'height')):
+            a, b = lo[i], hi[i]
+            e = b - a
+            e2 = new.get(ax, e)
+            if hold[i] == 'min':
+                a2, b2 = a, a + e2
+            elif hold[i] == 'max':
+                a2, b2 = b - e2, b
+            else:
+                a2 = a + e // 2 - e2 // 2
+                b2 = a2 + e2
+            olds.append((a, b))
+            news.append((a2, b2))
+
+        def stretch(i, c):
+            (a, b), (a2, b2) = olds[i], news[i]
+            if c <= a:
+                return c + (a2 - a)
+            if c >= b:
+                return c + (b2 - b)
+            return a2 + round(Fraction((c - a) * (b2 - a2), b - a))
+
+        prims = [{'op': 'setProperty', 'id': eid, 'path': '/fallback/box',
+                  'value': {'min': [n[0] for n in news], 'max': [n[1] for n in news]}}]
+        cl = el.get('clearances')
+        if isd(cl):
+            out = copy.deepcopy(cl)
+            for env in out.values():
+                if isd(env) and all(isinstance(env.get(k), list) and len(env[k]) == 3 and all(type(c) is int for c in env[k])
+                                    for k in ('min', 'max')):
+                    env['min'] = [stretch(i, c) for i, c in enumerate(env['min'])]
+                    env['max'] = [stretch(i, c) for i, c in enumerate(env['max'])]
+            if not same(out, cl):
+                prims.append({'op': 'setProperty', 'id': eid, 'path': '/clearances', 'value': out})
+        if place[1] == 'FS_landscape':
+            for m in ('boundary', 'points'):
+                pts = el.get(m)
+                if isinstance(pts, list) and all(is_point(p) for p in pts):
+                    out = [[stretch(0, x), stretch(1, y)] for x, y in pts]
+                    if out != pts:
+                        prims.append({'op': 'setProperty', 'id': eid, 'path': f'/{m}', 'value': out})
+        prims += self._resize_group(eid, place[1], el, olds, news)
+        return prims
+
+    def _resize_group(self, eid, extension, el, olds, news):
+        """4.11: the elements grouped with a resized element, in ID order, each moved by the shift of the part of it
+        that its frame's origin stands by."""
+        def shift(i, c):
+            (a, b), (a2, b2) = olds[i], news[i]
+            if (c - a).sign() <= 0:
+                return Fraction(a2 - a)
+            if (c - b).sign() >= 0:
+                return Fraction(b2 - b)
+            return Fraction((a2 - a) + (b2 - b), 2)
+        h = host_of(el)
+        prims = []
+        group = sorted(gid for x, _, gid, g in ext_elements(self.wc, self.P)
+                       if x == extension and gid != eid and isd(g) and g.get('with') == eid)
+        for gid in group:
+            g = self.locate(gid)[1][gid]
+            gh = host_of(g)
+            plan_e = h is None or h.get('mode') in ('free', 'surface')
+            if plan_e and gh is not None and gh.get('mode') in ('free', 'surface') and is_point(gh.get('position')) \
+                    and (h is None or is_point(h.get('position'))):
+                O = h['position'] if h is not None else [0, 0]
+                rot = h.get('rotation', 0) if h is not None else None
+                fx, fy = (1, 0) if h is None else facing_vector(rot if type(rot) is int else 0)
+                M = fx * fx + fy * fy
+                dx, dy = gh['position'][0] - O[0], gh['position'][1] - O[1]
+                x = Surd.sqrt(M, Fraction(dx * fx + dy * fy, M))
+                y = Surd.sqrt(M, Fraction(-dx * fy + dy * fx, M))
+                sx, sy = shift(0, x), shift(1, y)
+                mx = Surd.sqrt(M, (sx * fx - sy * fy) / M).round()
+                my = Surd.sqrt(M, (sx * fy + sy * fx) / M).round()
+                if (mx, my) != (0, 0):
+                    px, py = gh['position']
+                    prims.append({'op': 'setProperty', 'id': gid, 'path': '/host/position', 'value': [px + mx, py + my]})
+            elif h is not None and gh is not None and h.get('mode') == gh.get('mode') == 'wallFace' \
+                    and h.get('wall') == gh.get('wall') and h.get('side') == gh.get('side') \
+                    and type(h.get('offset')) is int and type(gh.get('offset')) is int:
+                left = h.get('side') == 'left'
+                y = Surd.of(h['offset'] - gh['offset'] if left else gh['offset'] - h['offset'])
+                sy = shift(1, y)
+                off = round(gh['offset'] - sy if left else gh['offset'] + sy)
+                if off != gh['offset']:
+                    prims.append({'op': 'setProperty', 'id': gid, 'path': '/host/offset', 'value': off})
+            gfb = g.get('fallback')
+            gbox = gfb.get('box') if isd(gfb) else None
+            dz = news[2][1] - olds[2][1]
+            if dz != 0 and _same_ground(el, g) and isd(gbox) and all(
+                    isinstance(gbox.get(k), list) and len(gbox[k]) == 3 and all(type(c) is int for c in gbox[k])
+                    for k in ('min', 'max')) and gbox['min'][2] >= olds[2][1]:
+                moved = {'min': [*gbox['min'][:2], gbox['min'][2] + dz], 'max': [*gbox['max'][:2], gbox['max'][2] + dz]}
+                prims.append({'op': 'setProperty', 'id': gid, 'path': '/fallback/box', 'value': moved})
+        return prims
+
     def x_addLevel(self, R, op, P):
         building = R.element(op['building'], ('buildings',), f'{P}/building')[1]
         height = length(op['height'], f'{P}/height')
@@ -836,6 +961,19 @@ class Transaction:
         element = {'building': building, 'elevation': elevation, 'height': height}
         element.update({k: copy.deepcopy(op[k]) for k in COMMON if k in op})
         return [{'op': 'addElement', 'collection': 'levels', 'id': self.new_id(op, 'L'), 'element': element}]
+
+def _same_ground(e: dict, g: dict) -> bool:
+    """4.11: whether g stands on e's ground - hosts of one mode on the same room and surface, level, or wall, side and
+    height; or neither hosted, on the same level."""
+    he, hg = host_of(e), host_of(g)
+    if he is None or hg is None:
+        fe, fg = e.get('fallback'), g.get('fallback')
+        return he is None and hg is None and isd(fe) and isd(fg) and fe.get('level') == fg.get('level')
+    mode = he.get('mode')
+    if mode != hg.get('mode'):
+        return False
+    keys = {'surface': ('room', 'surface'), 'free': ('level',), 'wallFace': ('wall', 'side', 'height')}.get(mode)
+    return keys is not None and all(same(he.get(k), hg.get(k)) for k in keys)
 
 # ---------------------------------------------------------------------------------- chapter 6
 

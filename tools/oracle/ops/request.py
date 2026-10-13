@@ -1,7 +1,7 @@
 """The shape of an apply request (Ops 1.1): what FS-OPS-001 rejects, for each draft.
 
 Transcribed from chapters 1, 2, 4 and 6 of each draft, and kept in step with its schema
-(schema/ops/0.1, schema/ops/0.2, schema/ops/0.3): check-schema runs each schema over every test's request in its
+(schema/ops/0.1, schema/ops/0.2, schema/ops/0.3, schema/ops/0.4): check-schema runs each schema over every test's request in its
 suite, and must agree with this module on which requests are FS-OPS-001. Every object is closed;
 every operation has exactly the members its definition lists, exactly one member of each group of
 alternatives (ONE_OF), and a member allowed only beside another only with it (NEEDS).
@@ -9,7 +9,8 @@ alternatives (ONE_OF), and a member allowed only beside another only with it (NE
 Ops 0.1 is the published table (commit 3bf4f35): moveOpening takes `at` only, and there is no
 addLevel. Ops 0.2 adds moveOpening's `by` and `toward`, addLevel, addElement into the program's
 `items` or an extension's collection, the adjacency primitives, addRoom's `brief`, setRoomBrief,
-addProgramItem, placeElement and moveElement.
+addProgramItem, placeElement and moveElement. Ops 0.4 adds resizeElement (4.11), which takes at least one of
+`width`, `depth` and `height` (ANY_OF) and whose `limits` is a closed object of closed objects.
 
 Member values are typed only as far as the operation reads them:
 
@@ -148,12 +149,36 @@ HOSTS = {
     'free': ({'level': STRING, 'at': POINT}, {'rotation': ANY}, ()),
 }
 
+# Ops 0.4: the 0.2 table and resizeElement (4.11)
+ANCHORS = ('center', 'back', 'front', 'right', 'left', 'back-right', 'back-left', 'front-right', 'front-left')
+AXES = ('width', 'depth', 'height')
+OPERATIONS_04 = {
+    **OPERATIONS_02,
+    'resizeElement': ({'element': STRING, 'anchor': _enum(*ANCHORS)},
+                      {'width': LENGTH, 'depth': LENGTH, 'height': LENGTH, 'limits': OBJECT}),
+}
+# op -> groups of members of which at least one must be present (Ops 0.4, 4.11)
+ANY_OF_04 = {'resizeElement': (AXES,)}
+
+
+def check_limits(limits, pointer: str) -> None:
+    """4.11: `limits` has only `width`, `depth` and `height`, each an object of a `min`, a `max` or both, lengths."""
+    if not limits:
+        _bad(pointer, 'limits is empty')
+    for axis, bound in limits.items():
+        if axis not in AXES:
+            _bad(f'{pointer}/{esc(axis)}', f'limits has no member "{axis}"')
+        if not isinstance(bound, dict) or not bound:
+            _bad(f'{pointer}/{esc(axis)}', 'a limit is an object of a min, a max or both')
+        _members(f'the limit of {axis}', bound, {}, {'min': LENGTH, 'max': LENGTH}, f'{pointer}/{esc(axis)}', skip=())
+
+
 PRIMITIVES = ('addElement', 'addJunction', 'addWall', 'addSeparator', 'removeElement', 'setProperty',
               'unsetProperty', 'moveJunction', 'setAdjacency', 'removeAdjacency')
 
 
 def operations(profile: Profile) -> dict:
-    return OPERATIONS_02 if profile.v02 else OPERATIONS_01
+    return OPERATIONS_04 if profile.v04 else OPERATIONS_02 if profile.v02 else OPERATIONS_01
 
 
 def _bad(pointer, why):
@@ -210,6 +235,11 @@ def check_operation(op, pointer: str, profile: Profile = OPS_01) -> None:
         _bad(f'{pointer}/collection', f'unknown collection {op["collection"]!r}')
     if 'host' in op and name in ('placeElement', 'moveElement'):
         check_host(op['host'], f'{pointer}/host')
+    for group in ANY_OF_04.get(name, ()) if profile.v04 else ():
+        if not any(k in op for k in group):
+            _bad(pointer, f'{name} takes at least one of {", ".join(group)}')
+    if name == 'resizeElement' and 'limits' in op:
+        check_limits(op['limits'], f'{pointer}/limits')
 
 
 def check_lock(lock, pointer: str) -> None:

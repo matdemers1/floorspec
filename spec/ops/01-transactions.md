@@ -13,19 +13,22 @@ transaction. An **apply request** is the JSON object
 where `context` is optional: `locks` are the locks in force (chapter 6), `retired` lists IDs
 that once existed in this document's history and therefore are never minted again (1.5), and
 `option`, new in 0.3, names the design option the batch edits in (2.8). The
-JSON Schema `schema/ops/0.3/request.schema.json` gives the shape of an apply request: every
+JSON Schema `schema/ops/0.4/request.schema.json` gives the shape of an apply request: every
 operation, every member each has, and the JSON type of each member. Ops 0.3 adds no operation;
 its schema is Ops 0.2's, except that `addElement` may also add to Core 0.3's `roofs`, `stairs`,
-`optionSets` and `options`, and `context` may have `option` (0.4). Ops 0.4 adds no operation and no
-member, and its requests match the same schema, `schema/ops/0.3/` (0.4).
+`optionSets` and `options`, and `context` may have `option` (0.4). Ops 0.4 adds one operation,
+`resizeElement` (4.11), and its schema, `schema/ops/0.4/request.schema.json`, is Ops 0.3's with that
+operation added (0.4).
 
-An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.3 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.3 MUST}
+An apply request's batch MUST contain at least one operation and only operations this specification defines, each with exactly the members its definition lists, each of the JSON type schema/ops/0.4 gives it; otherwise the applier MUST reject the request with `FS-OPS-001`. {#FS-OPS-1.1.4 MUST}
 Where a definition says an operation takes exactly one of several members — `moveOpening`'s `at`
 and `by` (4.5), `addLevel`'s `elevation`, `above` and `below` (4.8), a wall-face host's `side`
 and `toward` (4.10) — an operation with none of them, or with more than one, does not have
 exactly the members its definition lists, and neither does one with a member its definition
-allows only beside another (`moveOpening`'s `toward` without `by`): the request is malformed. A
-host reference (4.10) has exactly the members of its `mode`, and `addElement`'s `collection` is
+allows only beside another (`moveOpening`'s `toward` without `by`), nor a `resizeElement` with none
+of `width`, `depth` and `height`, of which it takes at least one (4.11): the request is malformed. A
+host reference (4.10) has exactly the members of its `mode`, `resizeElement`'s `limits` (4.11) only
+`width`, `depth` and `height`, each an object of a `min`, a `max` or both, each a length, and `addElement`'s `collection` is
 one of the collections 2.1 names unless the operation has an `extension`.
 The rule is about requests. The inverse of a committed result (1.6) is a batch too, and it may be
 empty; an empty inverse is never applied.

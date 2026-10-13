@@ -301,3 +301,104 @@ As for `moveWall` (4.2), a room on another level than the wall's is not beside i
 Whether the element is valid — its host's offset on the wall (Core §13.3.2), its height below the
 wall's top (13.3.3), its position inside the room (13.3.4), the extension declared (Core §1.6.3)
 — is decided when the batch is validated.
+
+## 4.11 resizeElement
+
+```json
+{ "op": "resizeElement", "element": "Kitchen island", "anchor": "right", "width": "10'" }
+{ "op": "resizeElement", "element": "X7", "anchor": "back", "depth": "26\"", "height": "36\"",
+  "limits": { "depth": { "min": "12\"", "max": "30\"" } } }
+```
+
+Resizes an extension element (Core §12.5) — "make the island ten feet long", "a deeper counter" —
+by changing its box, the space it occupies (Core §12.6), and what is measured from the box with it.
+Members: `element` (an extension element, 3.3); `anchor`; at least one of `width`, `depth` and
+`height`, each a length; and optionally `limits`. The references are resolved in the order
+`element`, `width`, `depth`, `height`, then the lengths of `limits`, by axis in that order and
+`min` before `max`.
+
+**Extents and the anchor.** In the element's frame (Core §13.1) its box has an extent on each axis,
+`max` minus `min`: its **depth** along x, from its back to its front; its **width** along y, from its
+right (least y) to its left (greatest y); its **height** along z — as FS_furniture §3.1 names them for
+an item, and for every extension element alike. `width`, `depth` and `height` are the new extents;
+an axis whose member is absent keeps its extent. `anchor` says which point of the box's footprint
+stays where it is:
+
+| `anchor` | Holds on x | Holds on y |
+|---|---|---|
+| `"center"` | the middle | the middle |
+| `"back"`, `"front"` | its `min`, its `max` | the middle |
+| `"right"`, `"left"` | the middle | its `min`, its `max` |
+| `"back-right"`, `"back-left"`, `"front-right"`, `"front-left"` | as `back` or `front` | as `right` or `left` |
+
+and on z the box always holds its `min`: an element grows up from its bottom. On each axis, with the
+old interval `[a, b]` of extent `e = b − a` and the new extent `e′`, the new interval `[a′, b′]` is
+`a′ = a` and `b′ = a + e′` where the axis holds its `min`; `b′ = b` and `a′ = b − e′` where it holds
+its `max`; and `a′ = a + ⌊e / 2⌋ − ⌊e′ / 2⌋`, `b′ = a′ + e′` where it holds the middle — which keeps a
+box written in FS_furniture's convention, `min.y = −⌊w / 2⌋`, in that convention. The element's
+`host` does not change: the element is resized in its frame, not moved.
+
+**The stretch.** What is measured in the element's frame follows its box by the **stretch** of each
+axis, which takes a coordinate `c` on it to
+
+- `c + (a′ − a)` when `c ≤ a` — at or beyond the side that was `min`, which keeps its distance from it;
+- `c + (b′ − b)` when `c ≥ b` — at or beyond the side that was `max`;
+- `a′ + (c − a) · e′ / e`, rounded once, ties to even, when `a < c < b` — inside, in proportion.
+
+So a refrigerator's door envelope, which starts at its front, stays in front of it, as deep as it was;
+an envelope around a dining table keeps its reach on every side.
+
+**Limits.** `limits` holds, for any of `width`, `depth` and `height`, an object with a `min`, a `max`
+or both, each a length: the sizes the item comes in, as the library or the catalogue it came from
+says. A new extent of an axis the operation sets that is less than its `min` or greater than its
+`max` gets `FS-OPS-008`, naming the element. An axis the operation does not set is not checked.
+
+The expansion, in order:
+
+1. `setProperty` of the element's `/fallback/box` to the box `{ "min": [a′x, a′y, a′z], "max": [b′x, b′y, b′z] }`;
+2. when the element has `clearances` that is an object: `setProperty` of `/clearances` to it with
+   the `min` and `max` of every envelope whose `min` and `max` are arrays of three integers taken
+   through the stretch of each axis, when that changes it;
+3. when the element is FS_landscape's and has a `boundary` (FS_landscape §2.4, §2.5), or `points`
+   (§2.6), that is an array of points of two integers: `setProperty` of `/boundary`, then of
+   `/points`, to each point `[p, q]` taken to `[stretch of p on x, stretch of q on y]`, when that
+   changes it — a bed's outline is in its frame and its box bounds it (FS_landscape §3.3), so the
+   outline is resized with the box; a hardscape line keeps its `width`;
+4. the elements grouped with it, in ID order, as below.
+
+An applier MUST expand resizeElement as this section defines, MUST reject it with `FS-OPS-003`, naming the element, when its `fallback` has no `box` whose `min` and `max` are arrays of three integers, and MUST reject it with `FS-OPS-008`, naming the element, when a new extent it sets is outside its `limits`. {#FS-OPS-4.11.1 MUST}
+Whether the result is valid — every extent at least 1 mm (Core §13.2.2), a bed's outline a simple
+polygon (FS_landscape §3.4.1) — is decided when the batch is validated. A fallback model is drawn as
+it is, never stretched to its box (Core §12.6): resizing an element whose model was made for one
+size changes what is measured, not what is drawn.
+
+**The group.** An element **grouped with** the resized element is an extension element of the same
+extension whose own member `with` is its ID — FS_furniture's `with` (FS_furniture §4.3): the chairs
+of a table, a lamp on a nightstand, the bowl on an island. Each moves as the stretch moves the part
+of the box it stands by, by the **shift** of each axis: `a′ − a` when its frame's origin, in the
+resized element's frame, is at or below `a`; `b′ − b` when it is at or above `b`; and
+`((a′ − a) + (b′ − b)) / 2` — what the middle moves by — when it is between. For each grouped
+element, in ID order:
+
+1. when both the resized element and it have a `free` or `surface` host, or the resized element has
+   none and it has one of those, and its host's `position` is a point of two integers: its position
+   `P` is read in the resized element's frame — the origin `O`, its host's `position` or `(0, 0)`
+   without a host, and the facing vector `f = (fx, fy)`, `F(rotation)` (Core §13.1) of its host or
+   `(1, 0)` without one — as `x = (P − O) · f / |f|` and `y = (P − O) · (−fy, fx) / |f|`, compared
+   with each axis's `a` and `b` exactly; with the shifts `sx` and `sy`, `setProperty` of its
+   `/host/position` to `P + (sx·fx − sy·fy, sx·fy + sy·fx) / |f|`, each coordinate rounded once, ties
+   to even, when that moves it;
+2. when both have a `wallFace` host on the same wall and side, and its `offset` is an integer: its
+   `y` in the resized element's frame is `o − o′` for the side `"left"` and `o′ − o` for `"right"`,
+   where `o′` is its `offset` and `o` the resized element's (a left face's frame has +y towards the
+   wall's start, a right face's towards its end); `setProperty` of its `/host/offset` to `o′ − sy`
+   for `"left"` and `o′ + sy` for `"right"`, rounded once, ties to even, when that moves it;
+3. when it stands on the resized element's ground — both have hosts of the same `mode` on the same
+   room and surface (`surface`), level (`free`), or wall, side and `height` (`wallFace`), or neither
+   has a host and both have the same `fallback.level` — and its box's `min` z is at least the resized
+   element's old `max` z, and that `max` changes: `setProperty` of its `/fallback/box` with its `min`
+   and `max` z each moved by the change — a lamp stays on a nightstand made taller.
+
+A grouped element on another host stays where it is.
+
+An applier MUST move the elements grouped with a resized element as this section defines, and MUST NOT move any other element. {#FS-OPS-4.11.2 MUST}

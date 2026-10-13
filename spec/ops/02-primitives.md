@@ -169,7 +169,7 @@ junction, exactly as an opening does: one on a wall whose end moves along the wa
 is, and one on a wall whose start moves along the wall moves with the start. Changing a wall's thickness or justification moves
 its faces, and the elements on them, the same way.
 
-An applier MUST NOT change an extension element's `host` or `fallback` except where a definition says so: a `setProperty` or `unsetProperty` whose path leads into it, `moveElement` (4.10), `moveRoom` (4.3), `removeWall` (4.7) and planarization (5.2). {#FS-OPS-2.7.1 MUST NOT}
+An applier MUST NOT change an extension element's `host` or `fallback` except where a definition says so: a `setProperty` or `unsetProperty` whose path leads into it, `moveElement` (4.10), `moveRoom` (4.3), `removeWall` (4.7), `resizeElement` (4.11) and planarization (5.2). {#FS-OPS-2.7.1 MUST NOT}
 A floor, ceiling or free host's position is a plan point, so it does not follow walls: the toilet stays
 where it stands when a bathroom wall moves, and a room resized past it leaves it outside, which
 validation reports (Core §13.3.4). Moving the room itself (4.3) takes it along.

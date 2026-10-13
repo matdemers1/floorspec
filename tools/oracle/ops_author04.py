@@ -6,13 +6,14 @@
 The suite is the Ops 0.3 suite, carried forward to 0.4 - every 0.3 test, in the same group under the
 same number, on the same documents A: Ops 0.4 applies to Core 0.3, 0.2 and 0.1 documents exactly as
 Ops 0.3 did (0.4), with a Core 0.4 reader, which reads them exactly as a Core 0.3 reader does, the lints
-of winder and spiral stairs apart - and none of the suite's documents has one. It retires no statement:
-its requests have Ops 0.3's shape and match schema/ops/0.3. The one test that names a draft A's reader
+of winder and spiral stairs apart - and none of the suite's documents has one. It retires one statement,
+FS-OPS-1.1.3 - a request now has the shape schema/ops/0.4 gives it, which has resizeElement - so a test that
+covered it covers FS-OPS-1.1.4. The one test that names a draft A's reader
 does not implement moves from "0.4" to "0.5". After them, in each group, come the tests of what 0.4
 adds: Core 0.4 documents, whose stairs may declare a minHeadroom and whose winder stairs a newel, edited
 with the primitives Ops already has, judged by Core 0.4's invariants (FS-INV-905, FS-INV-906); and the
 batch that upgrades a Core 0.3 document to 0.4 - the migration of Core 20.7, expressed as Ops (Core
-20.11). Every expected status and diagnostic is written by hand and cross-checked against the oracle,
+20.11); arc edges (ops_author04_arcs.py); and resizeElement (4.11, ops_author04_resize.py). Every expected status and diagnostic is written by hand and cross-checked against the oracle,
 applied as Ops 0.4 (version.OPS_04); the values that matter are asserted by hand in each test's check.
 """
 import copy
@@ -34,8 +35,12 @@ RETARGET = {
 }
 
 
+RETIRED = {'FS-OPS-1.1.3': 'FS-OPS-1.1.4'}       # a request has the shape schema/ops/0.4 gives it (resizeElement)
+
+
 def carry(tc):
     tc = copy.deepcopy(tc)
+    tc['covers'] = [RETIRED.get(c, c) for c in tc['covers']]
     tc['description'] = tc['description'].replace('(Core 1.2.6)', '(Core 1.2.8)')
     if tc['slug'] in RETARGET:
         tc['a'], tc['description'] = RETARGET[tc['slug']]
@@ -127,6 +132,7 @@ T('inverse', 'newel-set-and-undone', 'Setting a winder\'s newel and the stair\'s
                                              {'op': 'unsetProperty', 'id': 'ST1', 'path': '/minHeadroom'}], r['inverse']))
 
 import tools.oracle.ops_author04_arcs  # noqa: E402,F401  (arc edges, Core 0.4 chapter 21: the group `arcs`)
+import tools.oracle.ops_author04_resize  # noqa: E402,F401  (resizeElement, 4.11: the group `resize`)
 
 NEW = list(TESTS)
 del TESTS[:]

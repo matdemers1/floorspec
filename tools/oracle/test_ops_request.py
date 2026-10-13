@@ -10,7 +10,7 @@ import unittest
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.errors import OpsError
 from tools.oracle.ops.request import check_request
-from tools.oracle.ops.version import OPS_01, OPS_02, OPS_03
+from tools.oracle.ops.version import OPS_01, OPS_02, OPS_03, OPS_04
 
 FIXTURES = os.path.join(os.path.dirname(__file__), '..', 'fixtures')
 
@@ -46,6 +46,18 @@ class RequestTest(unittest.TestCase):
         for c in load('ops-requests-0.3.json'):
             with self.subTest(c['name']):
                 self.assertEqual(malformed(c['request'], OPS_03), c['malformed'])
+
+    def test_fixture_04(self):
+        """Ops 0.4's requests are Ops 0.3's and resizeElement (4.11)."""
+        for c in load('ops-requests-0.4.json'):
+            with self.subTest(c['name']):
+                self.assertEqual(malformed(c['request'], OPS_04), c['malformed'])
+
+    def test_04_forms_are_malformed_in_03(self):
+        for c in load('ops-requests-0.4.json'):
+            if c.get('new04') and not c['malformed']:
+                with self.subTest(c['name']):
+                    self.assertTrue(malformed(c['request'], OPS_03))
 
     def test_03_forms_are_malformed_in_02(self):
         for c in load('ops-requests-0.3.json'):

@@ -5,7 +5,7 @@ documents (and so on 0.3, 0.2 and 0.1 documents), versioned independently of Cor
 0.1 is published from commit `3bf4f35`, Ops 0.2 from `6f9bc07` and Ops 0.3 from `8a99d02`; chapter 0
 (0.4) says what each later draft adds and changes. Ops 0.3's requests are Ops 0.2's and may add a
 roof, a stair, an option set or an option, and name the option a batch edits in:
-`schema/ops/0.3/`; Ops 0.4's requests match the same schema.
+`schema/ops/0.3/`; Ops 0.4's add one operation, `resizeElement`: `schema/ops/0.4/`.
 
 | Chapter | |
 |---|---|
@@ -13,7 +13,7 @@ roof, a stair, an option set or an option, and name the option a batch edits in:
 | [1. Operations, batches and transactions](01-transactions.md) | the request, the six-step transaction, the result, the echo, minting IDs, the inverse |
 | [2. Primitive operations](02-primitives.md) | addElement and its shorthands, removeElement and cascades, setProperty, unsetProperty, moveJunction, setAdjacency, removeAdjacency, hosted elements following their hosts, design options and the edit design |
 | [3. References](03-references.md) | lengths in feet-inches-fractions and metric, points, vectors, selectors (program items too), sides, positions, areas |
-| [4. Composite operations](04-composites.md) | drawWall, moveWall, moveRoom, resizeRoom, addOpening, moveOpening, addRoom, setRoomFinish, setRoomBrief, removeWall, addLevel, addProgramItem, placeElement, moveElement |
+| [4. Composite operations](04-composites.md) | drawWall, moveWall, moveRoom, resizeRoom, addOpening, moveOpening, addRoom, setRoomFinish, setRoomBrief, removeWall, addLevel, addProgramItem, placeElement, moveElement, resizeElement |
 | [5. Normalization](05-normalization.md) | merging junctions, planarizing by snap rounding, re-hosting openings and hosted elements, join cleanup, design options |
 | [6. Locks](06-locks.md) | element, length and distance locks |
 | [7. Diagnostics](07-diagnostics.md) | the FS-OPS catalogue |
