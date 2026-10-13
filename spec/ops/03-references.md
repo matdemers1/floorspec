@@ -89,7 +89,7 @@ both — and every element it names that way is a match, so a string that is one
 another room's name matches both. Where the member expects a program item — an adjacency
 primitive's `a` and `b`, `addRoom`'s `brief`, `setRoomBrief`'s `item` — such a string also
 matches the program items whose `name` it is, and where it expects an extension element —
-`moveElement`'s `element` — the extension elements whose `name` it is; elsewhere the only names
+`moveElement`'s and `resizeElement`'s `element` — the extension elements whose `name` it is; elsewhere the only names
 it matches are rooms'. So `"Kitchen"` is the kitchen item in `setRoomBrief`'s `item` and the
 kitchen room everywhere else, and `item Kitchen` is the item wherever it is written. When a room
 name itself contains `and`, every split of `wall between … and …` is tried, and exactly one split

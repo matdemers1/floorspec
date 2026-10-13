@@ -7,15 +7,17 @@ request it rejects is malformed, and an applier rejects it with `FS-OPS-001` (1.
 
 One directory per draft; start at `request.schema.json`:
 
-- **Ops 0.3** - the current draft (`spec/ops/`), operating on Core 0.3 documents (and so on 0.2
-  and 0.1 documents) - is in [`0.3/`](0.3/): it adds no operation and no member, and its files are
-  0.2's with one difference, that `addElement` may add to Core 0.3's twelfth and thirteenth
-  collections, `roofs` and `stairs` (Ops 0.4);
+- **Ops 0.4** - the current draft (`spec/ops/`), operating on Core 0.4 documents (and so on 0.3,
+  0.2 and 0.1 documents) - is in [`0.4/`](0.4/): its files are 0.3's with one operation added,
+  `resizeElement` (4.11), which takes at least one of `width`, `depth` and `height`;
+- **Ops 0.3** is in [`0.3/`](0.3/), exactly as published at `8a99d02`: it adds no operation and no
+  member, and its files are 0.2's with one difference, that `addElement` may add to Core 0.3's
+  collections `roofs`, `stairs`, `optionSets` and `options`;
 - **Ops 0.2** is in [`0.2/`](0.2/), exactly as published at `6f9bc07`;
 - **Ops 0.1** is in [`0.1/`](0.1/), exactly as published at `3bf4f35`; its text is readable from
   git at that commit.
 
-The three have the same three files. 0.2's `operation.schema.json` adds to 0.1's: `addElement` into
+The four have the same three files. 0.2's `operation.schema.json` adds to 0.1's: `addElement` into
 the program's `items` or, with `extension`, an extension's collection; `moveOpening`'s `by` and
 `toward`; `addLevel`; `addRoom`'s `brief`; and the operations `setAdjacency`, `removeAdjacency`,
 `setRoomBrief`, `addProgramItem`, `placeElement` and `moveElement`. 0.2's `reference.schema.json`
@@ -30,8 +32,8 @@ adds `area` (3.6) and `host`, the host reference of `placeElement` and `moveElem
 Each file is published at its `$id`, `https://d3cloud.io/floorspec/schema/ops/<draft>/<file>`. A
 published file is immutable: a change is a new draft, in a new directory - which is why 0.1's
 `moveOpening` by a length and `addLevel`, written into 0.1 after it was published, were taken out
-of it again and are in 0.2. CI fails if `schema/ops/0.1/` differs from `3bf4f35`, or
-`schema/ops/0.2/` from `6f9bc07`.
+of it again and are in 0.2. CI fails if `schema/ops/0.1/` differs from `3bf4f35`,
+`schema/ops/0.2/` from `6f9bc07`, or `schema/ops/0.3/` from `8a99d02`.
 
 ## What the schema checks
 
@@ -51,8 +53,8 @@ where a length is expected and passes inside `value`.
 
 ```sh
 pnpm schema:check   # compile each draft (ajv, strict); check it against every request of its suite,
-                    # conformance/ops/0.1, 0.2 and 0.3
+                    # conformance/ops/0.1, 0.2, 0.3 and 0.4
 pnpm test           # tools/ops-schema.test.ts: tools/fixtures/ops-requests.json (0.1),
-                    # ops-requests-0.2.json (0.2) and ops-requests-0.3.json (0.3), which the oracle's request check
+                    # ops-requests-0.2.json (0.2), ops-requests-0.3.json (0.3) and ops-requests-0.4.json (0.4), which the oracle's request check
                     # (tools/oracle/test_ops_request.py) must classify the same way
 ```

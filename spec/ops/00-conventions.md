@@ -85,13 +85,25 @@ and length as Core 0.4 derives them (3.4, 3.5), and a length lock holds an arc w
 polyline (6.1). Planarization never routes or splits an arc edge: a level it would have to route one on
 is rejected with `FS-OPS-013` (5.2).
 
-Ops 0.4 adds no operation and no member of a request — an arc is a member of the element, which
-`addElement` and `setProperty` take as given — so it has no request schema of its own: its
-requests match `schema/ops/0.3/request.schema.json`, and `FS-OPS-1.1.3` keeps its ID and its
-meaning. Applied to a document that declares `"0.3"`, `"0.2"` or `"0.1"`, a request commits or is
-rejected exactly as it was under Ops 0.3, unless its batch makes the document declare `"0.4"` or
-gives it a member 0.4 adds: a Core 0.4 validator reads those documents as a Core 0.3 validator does,
-and decides their validity alike. No statement is retired.
+An arc is a member of the element, which `addElement` and `setProperty` take as given, so arcs need
+no new operation. What 0.4 does add is one operation, **resizeElement** (4.11): an extension element —
+a piece of furniture, a cabinet, an appliance, a fixture, a bed of plants — is resized by its box, from
+an anchor, in its frame, with its clearance envelopes stretched to follow, the elements grouped with it
+(FS_furniture's `with`) moved by the part of it they stand by, and, for FS_landscape, the outline or
+line kept in its box; `limits` lets a binding hold an item to the sizes it comes in. It is the first
+operation that reads members an extension defines — `with`, and FS_landscape's `boundary` and `points` —
+because an edit that resizes an island and leaves the bowl on it hanging in the air is not the edit a
+person asked for. For it Ops 0.4 has a request schema of its own, `schema/ops/0.4/`, which is Ops 0.3's
+with `resizeElement` added (1.1.4). Applied to a document that declares `"0.3"`, `"0.2"` or `"0.1"`, a
+request commits or is rejected exactly as it was under Ops 0.3, unless its batch makes the document
+declare `"0.4"`, gives it a member 0.4 adds, or resizes an element: a Core 0.4 validator reads those
+documents as a Core 0.3 validator does, and decides their validity alike. One statement is retired,
+and the lists of others have grown — the operations that may change a host or a fallback
+(`FS-OPS-2.7.1`) and the rules of the codes (7.1) — which apply to what was added too.
+
+| Retired | Replaced by | Why |
+|---|---|---|
+| `FS-OPS-1.1.3` | `FS-OPS-1.1.4` | a request has the shape `schema/ops/0.4` gives it, which has `resizeElement` |
 
 **From 0.2 to 0.3.** Ops 0.3 is a new draft, not an edit of 0.2. The text of Ops 0.2 stays
 published, unchanged, at its own URLs, built from the commit that pinned it (`6f9bc07` in the
@@ -209,7 +221,10 @@ Composite operations on roofs — a roof's footprint is plan points (Core §16.1
 stair's `position` is a plan point, which `moveRoom` does not move) — and composites on design
 options: copying an element into another option, or adding an option set and its options in one
 operation; references inside an extension's own members,
-which core does not read and so no removal follows (an electrical circuit that names a device);
+which core does not read and so no removal follows (an electrical circuit that names a device) —
+`resizeElement` reads three, `with`, `boundary` and `points` (4.11), and nothing else does; a
+rotation about a point other than an element's frame's origin, which a binding writes as a
+`moveElement` with the new `rotation` and the `at` that keeps that point where it was;
 an angle grammar (a host's `rotation` is an integer of microdegrees, Core §2.4); an `arc` member on
 `drawWall` and `drawSeparator`, and planarization that splits an arc edge where another edge crosses
 it (5.2); dimension locks
