@@ -2973,6 +2973,68 @@ VW('options', 'views-of-every-design', 'The same options with the views as they 
    check=lambda r: ensure(VDER(r) == VIEWED and r['derived']['options']['OS1']['chosen'] == 'OP1', VDER(r)))
 
 
+def view_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(VIEW)]).encode('utf-8'), official.implemented(VIEW))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][VIEW]
+
+
+BATH = {'name': 'Living room', 'eye': pt(5900, 3400, 1500), 'target': pt(4300, 2400, 1100), 'focalLength': 16,
+        'twoPoint': True, 'aspect': '4:5', 'scene': 'LS2', 'sky': 'night'}
+VO = lambda *a, **k: O(VIEW, *a, **k)    # noqa: E731
+VO('add-a-view', 'setProperty of $document /extensions/FS_views/views/SV5 adds a view "Living room" - a 16 mm '
+   'portrait two-point view at night with the Night light on - with an ID Ops does not mint (1.3.2). It commits, '
+   'valid under FS_views.', ['1.2.1', '1.3.2', '3.3.1', '6.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV5', 'value': BATH}]},
+   check=lambda r, B: ensure(view_derived(B)['views']['SV5'] == {'name': 'Living room', 'level': None, 'lights': 'on',
+                                                                 'scene': 'LS2'}, view_derived(B)))
+VO('first-view-creates-the-data', 'The house declaring FS_views with no data of it yet: setProperty of $document '
+   '/extensions/FS_views/views/SV1 creates FS_views\'s data, and its `views`, on the way (Ops 2.3) - the hero shot. It '
+   'commits, valid under FS_views.', ['1.2.1', '1.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   vedit(lambda d: d['extensions'].pop(VIEW)),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1', 'value': VIEWS['SV1']}]},
+   check=lambda r, B: ensure(B['extensions'][VIEW] == {'views': {'SV1': VIEWS['SV1']}}
+                             and view_derived(B) == {'views': {'SV1': VIEWED['views']['SV1']}}, B['extensions'].get(VIEW)))
+VO('rename-a-view', 'setProperty of $document /extensions/FS_views/views/SV1/name: the hero shot is now "Front of '
+   'house". It commits.', ['1.2.1', '2.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1/name',
+               'value': 'Front of house'}]},
+   check=lambda r, B: ensure(view_derived(B)['views']['SV1']['name'] == 'Front of house', view_derived(B)['views']))
+VO('rename-to-a-name-in-use-is-rejected', 'setProperty of the cutaway\'s name to "Hero exterior": the result breaks '
+   '2.1.1, and an applier that implements FS_views and knows it rejects the batch (Ops 1.2.3).',
+   ['2.1.1', '1.2.1', 'FS-OPS-1.2.3'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV4/name',
+               'value': 'Hero exterior'}]},
+   'rejected', [('FS-VIEW-INV-006', ['SV1', 'SV4'])])
+VO('remove-a-view', 'unsetProperty of $document /extensions/FS_views/views/SV4 removes the cutaway. It commits.',
+   ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV4'}]},
+   check=lambda r, B: ensure(list(view_derived(B)['views']) == ['SV1', 'SV2', 'SV3'], view_derived(B)))
+VO('replace-a-view', 'setProperty of $document /extensions/FS_views/views/SV2 replaces the island view\'s record: a '
+   '35 mm view from the Kitchen\'s north-east corner, 3:2, everything in focus, with the Evening scene at dusk. It '
+   'commits, and nothing of the old record is left.', ['1.2.1', '2.2.1', '3.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV2',
+               'value': {'name': 'Kitchen island', 'eye': pt(3300, 3300, 1500), 'target': pt(1829, 1829, 950),
+                         'twoPoint': True, 'sky': 'dusk', 'scene': 'LS1'}}]},
+   check=lambda r, B: ensure('aperture' not in ext(B, VIEW)['views']['SV2']
+                             and view_derived(B)['views']['SV2'] == {'name': 'Kitchen island', 'level': None,
+                                                                     'lights': 'on', 'scene': 'LS1'},
+                             ext(B, VIEW)['views']['SV2']))
+VO('eye-at-the-target-is-rejected', 'setProperty of $document /extensions/FS_views/views/SV1/target to the hero '
+   'shot\'s own eye: the result breaks 2.2.1, and the batch is rejected with FS-VIEW-INV-002.',
+   ['2.2.1', '1.2.1', 'FS-OPS-1.2.3'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1/target',
+               'value': VIEWS['SV1']['eye']}]},
+   'rejected', [('FS-VIEW-INV-002', ['SV1'])])
+VO('remove-a-scene-a-view-shows-is-rejected', 'unsetProperty of $document /extensions/FS_lighting/scenes/LS1 removes the '
+   'Evening scene, which the dusk view shows: an applier that implements FS_views - and not FS_lighting - reads the '
+   'scenes as data, so the result breaks 3.3.1, and the batch is rejected.', ['3.3.1', '1.2.1', 'FS-OPS-1.2.3'],
+   views_house(), {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS1'}]},
+   'rejected', [('FS-VIEW-INV-004', ['SV3'])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):

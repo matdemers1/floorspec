@@ -624,7 +624,9 @@ scenes among them), an eye at its target, a level and a scene that do not exist 
 that is not an object, or of a house without FS_lighting - a scene with the lights off, names that
 repeat, and days a month does not have, by the Gregorian rule; its `lints` group a two-point view
 steeper than 30 degrees, on either side of the exact integer test. Its `options` group keys a view by
-the ID of an element of one design option only.
+the ID of an element of one design option only; its `ops` group adds, renames, replaces and removes
+views with `setProperty` and `unsetProperty` of `$document` - the first view creating FS_views's
+data - and rejects a name in use, an eye at its target, and the removal of a scene a view shows.
 
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
 (the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views), with every expected diagnostic written by hand and the derived
