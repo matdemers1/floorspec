@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting and FS_views 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views and FS_renovation 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -33,7 +33,9 @@ the demo house's plan with FS_electrical's pendants over an island on a dimmer, 
 switch, a downlight that does not dim, a porch light, and an FS_furniture table lamp, each described as a
 luminaire, and the scenes "Evening" and "Night light". FS_views's start from the lit house with four saved views
 (views_house() below) - a two-point hero shot of the exterior, a two-point view of the Kitchen's island with every light
-on, a view from the garden at dusk with the "Evening" scene, and a cutaway from above. Every expected diagnostic is written by hand and cross-checked against the
+on, a view from the garden at dusk with the "Evening" scene, and a cutaway from above. FS_renovation's start from a kitchen
+remodel (remodel() below) - the framed house's plan with a wall, its door, a room and a counter to be demolished, and a
+new wall, door, window, room, island and deck. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -3035,6 +3037,414 @@ VO('remove-a-scene-a-view-shows-is-rejected', 'unsetProperty of $document /exten
    'rejected', [('FS-VIEW-INV-004', ['SV3'])])
 
 
+# ============================================================================= FS_renovation
+
+RENO = 'FS_renovation'
+CODE[RENO] = 'RENO'
+
+
+def RS(status):
+    """FS_renovation's data on a core element."""
+    return {RENO: {'status': status}}
+
+
+def RW(s, e, t, status=None):
+    w = {'level': 'L1', 'start': s, 'end': e, 'type': t}
+    if status is not None:
+        w['extensions'] = RS(status)
+    return w
+
+
+def remodel():
+    """The kitchen remodel: the framed house's plan, 20' x 12', on L1 (see framed()), with 6 1/2"
+    exterior and 4 1/2" interior walls, as it stands and as it will be. The south wall and the
+    Bath's south wall are drawn in two, at x = 16', where a new wall meets them.
+
+    As it stands: the Kitchen R1 (12' x 12', west), the Bath R2 (north-east) and the Utility room R3
+    (south-east), with the back door O1 and the Kitchen window O2, the Bath's door O3 from the
+    Utility room, and the Utility room's door O4 from the Kitchen in the interior wall W8; a
+    refrigerator X3 against W9, and an old counter X1 against W8, FS_furniture elements read as
+    extension elements (FS_furniture is not known to the suite's implementation).
+
+    The work: W8 comes down with its door O4, the Utility room R3 and the counter X1 ("demolish"), so
+    the Kitchen takes the Utility room's west half; a new wall W12 at x = 16' with a new door O5 makes a
+    Laundry R4 of its east half; a new window O6 in the existing south wall W11 lights the Kitchen's new
+    floor; an island X2 stands in the Kitchen; and a deck S1, 8' x 7', is built south of the house
+    ("new"). J7's join, W8 and W9 running through and W10 butting, goes with W8 in the proposed state."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Kitchen remodel'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'types': {'EXT': {'kind': 'wallType', 'layers': [{'thickness': EXT_T, 'function': 'core'}]},
+                  'INT': {'kind': 'wallType', 'layers': [{'thickness': INT_T, 'function': 'core'}]}},
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 12 * FT), 'J3': J(12 * FT, 12 * FT), 'J4': J(20 * FT, 12 * FT),
+                      'J5': J(20 * FT, 0), 'J6': J(12 * FT, 0), 'J7': {**J(12 * FT, 6 * FT), 'join': {'kind': 'butt', 'through': ['W8', 'W9']}},
+                      'J8': J(20 * FT, 6 * FT), 'J9': J(16 * FT, 0), 'J10': J(16 * FT, 6 * FT)},
+        'walls': {
+            'W1': RW('J1', 'J2', 'EXT'), 'W2': RW('J2', 'J3', 'EXT'), 'W3': RW('J3', 'J4', 'EXT'),
+            'W4': RW('J4', 'J8', 'EXT'), 'W5': RW('J8', 'J5', 'EXT'), 'W6': RW('J5', 'J9', 'EXT'),
+            'W11': RW('J9', 'J6', 'EXT'), 'W7': RW('J6', 'J1', 'EXT'),
+            'W8': RW('J6', 'J7', 'INT', 'demolish'), 'W9': RW('J7', 'J3', 'INT'),
+            'W10': RW('J7', 'J10', 'INT'), 'W13': RW('J10', 'J8', 'INT'),
+            'W12': RW('J9', 'J10', 'INT', 'new')},
+        'openings': {
+            'O1': {'wall': 'W7', 'offset': 3 * FT, 'width': 3 * FT, 'height': 80 * IN, 'name': 'Back door'},
+            'O2': {'wall': 'W2', 'offset': 4 * FT, 'width': 4 * FT, 'height': 48 * IN, 'sill': 36 * IN, 'name': 'Kitchen window'},
+            'O3': {'wall': 'W10', 'offset': FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Bath door'},
+            'O4': {'wall': 'W8', 'offset': FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Utility door',
+                   'extensions': RS('demolish')},
+            'O5': {'wall': 'W12', 'offset': FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Laundry door',
+                   'extensions': RS('new')},
+            'O6': {'wall': 'W11', 'offset': FT, 'width': 2 * FT, 'height': 36 * IN, 'sill': 42 * IN, 'name': 'New window',
+                   'extensions': RS('new')}},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 6 * FT], 'name': 'Kitchen', 'function': 'kitchen'},
+                  'R2': {'level': 'L1', 'anchor': [16 * FT, 9 * FT], 'name': 'Bath', 'function': 'bath'},
+                  'R3': {'level': 'L1', 'anchor': [14 * FT, 3 * FT], 'name': 'Utility', 'function': 'mechanical',
+                         'extensions': RS('demolish')},
+                  'R4': {'level': 'L1', 'anchor': [18 * FT, 3 * FT], 'name': 'Laundry', 'function': 'laundry',
+                         'extensions': RS('new')}},
+        'slabs': {'S1': {'level': 'L1', 'boundary': [[2 * FT, -8 * FT], [10 * FT, -8 * FT], [10 * FT, -FT], [2 * FT, -FT]],
+                         'thickness': 3 * IN // 2, 'name': 'Deck', 'extensions': RS('new')}},
+        'extensionsUsed': {FURN: '0.1.0', RENO: '0.1.0'},
+        'extensions': {
+            FURN: {'collections': {
+                'casework': {
+                    'X1': {'fallback': {'level': 'L1', 'box': box(0, -900, 0, 600, 900, 900)},
+                           'host': wall_host('W8', 'left', 3 * FT), 'name': 'Old counter'},
+                    'X2': {'fallback': {'level': 'L1', 'box': box(-500, -1000, 0, 500, 1000, 900)},
+                           'host': floor_host('R1', 6 * FT, 6 * FT), 'name': 'Island'}},
+                'appliances': {
+                    'X3': {'fallback': {'level': 'L1', 'box': box(0, -450, 0, 700, 450, 1800)},
+                           'host': wall_host('W9', 'left', 3 * FT), 'name': 'Refrigerator'}}}},
+            RENO: {'elements': {'X1': 'demolish', 'X2': 'new'}}},
+    }
+    return d
+
+
+def redit(fn):
+    """The kitchen remodel, changed by fn(d) in place."""
+    d = remodel()
+    fn(d)
+    return d
+
+
+def RD(d, c, eid):
+    """The FS_renovation data on a core element, created when missing."""
+    return d[c][eid].setdefault('extensions', {}).setdefault(RENO, {})
+
+
+def RTOP(d):
+    return d['extensions'][RENO].setdefault('elements', {})
+
+
+def unmark_all(d):
+    """Every status removed: the house as it stands, nothing to do."""
+    for c in ('walls', 'openings', 'rooms', 'slabs'):
+        for el in d[c].values():
+            el.get('extensions', {}).pop(RENO, None)
+            if el.get('extensions') == {}:
+                el.pop('extensions')
+    d['extensions'][RENO] = {}
+    d['walls'].pop('W12')
+    d['openings'].pop('O5')
+    d['openings'].pop('O6')
+    d['rooms'].pop('R4')
+    d['slabs'].pop('S1')
+    coll(d, FURN, 'casework').pop('X2')
+
+
+R = lambda *a, **k: V(RENO, *a, **k)    # noqa: E731
+RDER = derived_of(RENO)
+KITCHEN_W, KITCHEN_D = 12 * FT - EXT_T // 2 - INT_T // 2, 12 * FT - EXT_T      # the Kitchen as it stands
+SQ = lambda a2: (str(a2 // 2) if a2 % 2 == 0 else f'{a2 // 2}.5')              # noqa: E731
+STATUS = {'existing': ['O1', 'O2', 'O3', 'R1', 'R2', 'W1', 'W10', 'W11', 'W13', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7',
+                       'W9', 'X3'],
+          'demolish': ['O4', 'R3', 'W8', 'X1'],
+          'new': ['O5', 'O6', 'R4', 'S1', 'W12', 'X2']}
+
+
+def q(walls=0, wall_length=0, separators=0, openings=0, rooms=0, slabs=0, slab_area='0', roofs=0, stairs=0, elements=0):
+    return {'walls': walls, 'wallLength': wall_length, 'separators': separators, 'openings': openings, 'rooms': rooms,
+            'slabs': slabs, 'slabArea': slab_area, 'roofs': roofs, 'stairs': stairs, 'elements': elements}
+
+
+QUANTITIES = {
+    'existing': q(11, 2 * 12 * FT + 2 * 20 * FT + 6 * FT + 4 * FT + 4 * FT, openings=3, rooms=2, elements=1),
+    'demolish': q(1, 6 * FT, openings=1, rooms=1, elements=1),
+    'new': q(1, 6 * FT, openings=2, rooms=1, slabs=1, slab_area=str(8 * 7 * FT * FT), elements=1),
+}
+
+
+def check_reno(r):
+    x = RDER(r)
+    ensure(x['status'] == STATUS and x['quantities'] == QUANTITIES, x)
+    ex, pr = x['states']['existing'], x['states']['proposed']
+    ensure(sorted(ex['rooms']) == ['R1', 'R2', 'R3'] and sorted(pr['rooms']) == ['R1', 'R2', 'R4'], x['states'])
+    # the Kitchen as it stands is the clear 12' x 12' less half of each wall around it; in the proposed state
+    # it takes the Utility room's west half; the Bath does not change; the house's net area grows by the
+    # 4 1/2" of floor W8 stood on, less the new wall W12's
+    ensure(ex['rooms']['R1'] == SQ(2 * KITCHEN_W * KITCHEN_D), ex['rooms']['R1'])
+    ensure(int(pr['rooms']['R1']) > int(ex['rooms']['R1']) and pr['rooms']['R2'] == ex['rooms']['R2'], x['states'])
+    total = lambda s: sum(int(a) for a in s['rooms'].values())                     # noqa: E731
+    ensure(str(total(ex)) == ex['area'] and str(total(pr)) == pr['area'], x['states'])
+    ensure(total(pr) - total(ex) == INT_T * (6 * FT - EXT_T // 2 - INT_T // 2) - INT_T * (6 * FT - EXT_T // 2 - INT_T // 2),
+           (total(pr), total(ex)))
+
+
+def reno_derived(d, design=None):
+    """What an implementation of FS_renovation that knows it derives for d."""
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(RENO)]).encode('utf-8'), official.implemented(RENO),
+                         None, design)
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][RENO]
+
+
+BAD_R = lambda d: RD(d, 'walls', 'W8').update(status='remove')                   # noqa: E731  the schema tier
+INVALID_R = lambda d: RD(d, 'openings', 'O3').update(status='new')               # noqa: E731  FS-RENO-INV-002
+INVALID_R_DIAG = [('FS-RENO-INV-002', ['O3', 'W10'])]
+
+R('examples', 'kitchen-remodel', 'The kitchen remodel, read by an implementation of FS_renovation that knows it: the '
+  'wall between the Kitchen and the Utility room is to come down with its door, the Utility room and an old counter; a '
+  'new wall and door make a Laundry of the Utility room\'s east half, a new window lights the Kitchen\'s new floor, an '
+  'island is new, and so is a deck. It is valid - the combined document, and each state\'s view - reports nothing, and '
+  'derives the IDs of each status, the quantities of each - walls, wall length, openings, rooms, slabs and slab area, '
+  'extension elements - and the rooms of each state with their net areas: the Kitchen 12\' x 12\' as it stands and '
+  'with the Utility room\'s west half when the work is done.',
+  ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '2.3.1', '2.4.1', '2.4.2', '5.1.1'], remodel(), check=check_reno)
+R('examples', 'core-only-reader', 'The same house read with no known extensions: FS_renovation is not evaluated, so '
+  'nothing of it is derived (`derived.extensions` is empty), and Core reads the combined document - W8 and W12 both '
+  'standing, and the Utility room R3 and the Laundry R4 each a room (Core 1.6.9).', ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'],
+  remodel(), registry=None,
+  check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['rooms']) == ['R1', 'R2', 'R3', 'R4'],
+                         r['derived']['extensions']))
+R('examples', 'all-official-known', 'The house read with every official entry known but FS_furniture\'s - whose kinds '
+  'ask for a model and a symbol the remodel\'s casework does not carry - by an implementation of FS_renovation alone: '
+  'only FS_renovation is evaluated and derived.',
+  ['1.2.1', '1.2.4'], remodel(), registry=[entry(x) for x in ALL_KNOWN + (VIEW, RENO) if x != FURN],
+  check=lambda r: ensure(list(r['derived']['extensions']) == [RENO], list(r['derived']['extensions'])))
+R('examples', 'the-house-as-it-stands', 'The house before the remodel is drawn: no element has a status, so every one '
+  'is existing (2.1) and both states are the document. Valid, with FS-RENO-LINT-001 - the document uses FS_renovation '
+  'and describes no work - and the two states derive the same rooms and areas.',
+  ['1.2.3', '1.3.1', '5.1.1'], redit(unmark_all), [('FS-RENO-LINT-001', [])],
+  check=lambda r: ensure(RDER(r)['status']['demolish'] == [] and RDER(r)['status']['new'] == []
+                         and RDER(r)['states']['existing'] == RDER(r)['states']['proposed'], RDER(r)))
+R('examples', 'every-status-written', 'Every element that may have a status says "existing" when it is: the same '
+  'remodel, the same derived values. An absent status and "existing" are one status.', ['1.3.2', '5.1.1'],
+  redit(lambda d: ([RD(d, c, eid).setdefault('status', 'existing') for c in ('walls', 'openings', 'rooms', 'slabs')
+                    for eid in d[c]], RTOP(d).setdefault('X3', 'existing'))),
+  check=check_reno)
+
+R('activation', 'unknown-data-not-evaluated', 'W8\'s FS_renovation data does not match the schema, but no extension '
+  'is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'], redit(BAD_R), registry=None)
+R('activation', 'another-version-known', 'The document uses FS_renovation at 0.2.0, which is known (a later entry), '
+  'but the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+  ['1.2.1'], redit(lambda d: (BAD_R(d), d['extensionsUsed'].update({RENO: '0.2.0'}))), registry=[entry(RENO, '0.2.0')])
+R('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_renovation is evaluated: W8\'s data '
+  'breaks the schema, FS-RENO-SCH-001.', ['1.2.1', '1.3.2'],
+  redit(lambda d: (BAD_R(d), d['extensionsUsed'].update({RENO: '0.1'}))), [('FS-RENO-SCH-001', [])])
+R('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+  'FS_renovation is evaluated.', ['1.2.1', '1.3.2'],
+  redit(lambda d: (BAD_R(d), d['extensionsUsed'].update({RENO: {'version': '0.1.0', 'schema': entry(RENO)['schema']}}))),
+  [('FS-RENO-SCH-001', [])])
+R('activation', 'core-0.1-document', 'A document declaring "0.1" whose extension data is opaque (Core 1.2.4): '
+  'FS_renovation is not evaluated, even though it is known.', ['1.2.1'],
+  {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {RENO: '0.1.0'}, 'extensions': {RENO: {'colour': 'red'}}})
+R('activation', 'core-0.3-document', 'The remodel declaring Core "0.3", a draft FS_renovation 0.1.0 lists (1.1): '
+  'FS_renovation is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], redit(lambda d: d.update(floorspec='0.3')), check=check_reno)
+R('activation', 'core-0.3-invariants', 'The same "0.3" house with the Bath\'s wall W10 to be demolished and a new door '
+  'O3 in it: FS_renovation is evaluated for a Core 0.3 document, so the invariant is reported.',
+  ['1.2.1', '1.2.3', '2.3.1'], redit(lambda d: (d.update(floorspec='0.3'), INVALID_R(d), RD(d, 'walls', 'W10').update(status='demolish'))),
+  [('FS-RENO-INV-002', ['O3', 'W10'])])
+R('activation', 'core-0.4-document', 'The remodel declaring Core "0.4", a draft FS_renovation 0.1.0 lists (1.1): '
+  'FS_renovation is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+  ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], redit(lambda d: d.update(floorspec='0.4')), check=check_reno)
+
+R('order', 'core-error-first', 'A Core invariant breaks - the door O3 runs past the end of W10, FS-INV-302 - and so '
+  'does FS_renovation\'s schema: Core\'s error is reported, and FS_renovation is not evaluated.', ['1.2.2'],
+  redit(lambda d: (BAD_R(d), d['openings']['O3'].update(offset=3 * FT))), [('FS-INV-302', ['O3'])])
+R('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-RENO-SCH-001.',
+  ['1.2.2', '1.3.2'], redit(lambda d: (BAD_R(d), RD(d, 'openings', 'O4').update(status='existing'))),
+  [('FS-RENO-SCH-001', [])])
+R('order', 'no-lints-when-invalid', 'Nothing is renovated, so FS-RENO-LINT-001 would apply, and `elements` names the '
+  'wall W1: the document is invalid, so no lint is reported, FS_renovation\'s or Core\'s.', ['1.2.2', '1.2.3', '1.3.4'],
+  redit(lambda d: (unmark_all(d), d['extensions'][RENO].update(elements={'W1': 'existing'}))),
+  [('FS-RENO-INV-001', ['W1'])])
+
+R('schema', 'top-level-data-not-an-object', 'FS_renovation\'s top-level data is an array: Core allows any JSON there, '
+  'FS_renovation\'s schema does not.', ['1.3.1'], redit(lambda d: d['extensions'].update({RENO: []})),
+  [('FS-RENO-SCH-001', [])])
+R('schema', 'top-level-data-with-another-member', 'FS_renovation 0.1 gives its top-level data one member, `elements`.',
+  ['1.3.1'], redit(lambda d: d['extensions'][RENO].update(phases=['Phase 1'])), [('FS-RENO-SCH-001', [])])
+R('schema', 'an-element-status-not-a-status', 'X1\'s status in `elements` is "removed".', ['1.3.1'],
+  redit(lambda d: RTOP(d).update(X1='removed')), [('FS-RENO-SCH-001', [])])
+R('schema', 'an-element-id-not-an-id', '`elements` names "-X1", which no ID matches (Core 3.1).', ['1.3.1'],
+  redit(lambda d: RTOP(d).update({'-X1': 'new'})), [('FS-RENO-SCH-001', [])])
+R('schema', 'status-not-a-status', 'W8\'s status is "remove".', ['1.3.2'], redit(BAD_R), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-without-a-status', 'O5\'s FS_renovation data is an empty object: the status is always present.',
+  ['1.3.2'], redit(lambda d: d['openings']['O5']['extensions'].update({RENO: {}})), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-with-another-member', 'R4\'s data has a phase as well as its status.', ['1.3.2'],
+  redit(lambda d: RD(d, 'rooms', 'R4').update(phase=2)), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-not-an-object', 'S1\'s FS_renovation data is the string "new".', ['1.3.2'],
+  redit(lambda d: d['slabs']['S1']['extensions'].update({RENO: 'new'})), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-on-a-junction', 'J7 carries a status: a junction has none.', ['1.3.3'],
+  redit(lambda d: d['junctions']['J7'].update(extensions=RS('demolish'))), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-on-a-level', 'L1 carries a status.', ['1.3.3'],
+  redit(lambda d: d['levels']['L1'].update(extensions=RS('existing'))), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-on-a-wall-type', 'The wall type INT carries a status: a type is a library entry, not part of the '
+  'house.', ['1.3.3'], redit(lambda d: d['types']['INT'].update(extensions=RS('new'))), [('FS-RENO-SCH-001', [])])
+R('schema', 'data-on-a-program-item', 'A program item carries a status.', ['1.3.3'],
+  redit(lambda d: d.update(program={'items': {'P1': {'name': 'Laundry', 'function': 'laundry', 'extensions': RS('new')}}})),
+  [('FS-RENO-SCH-001', [])])
+R('schema', 'a-new-roof', 'The remodel as a Core 0.3 document with a new roof over the house (Core 16): a roof may '
+  'carry a status. Valid, and the roof is counted with the new work.', ['1.3.2', '5.1.1'],
+  redit(lambda d: d.update(floorspec='0.3', roofs={'RF1': {
+      'level': 'L1', 'footprint': [[-FT, -FT], [21 * FT, -FT], [21 * FT, 13 * FT], [-FT, 13 * FT]],
+      'pitch': {'rise': 6, 'run': 12}, 'extensions': RS('new')}})),
+  check=lambda r: ensure(RDER(r)['quantities']['new']['roofs'] == 1 and 'RF1' in RDER(r)['status']['new'],
+                         RDER(r)['quantities']))
+
+R('invariants', 'elements-names-a-wall', '`elements` gives the wall W1 a status: a core element\'s status is on the '
+  'element.', ['1.3.4'], redit(lambda d: RTOP(d).update(W1='demolish')), [('FS-RENO-INV-001', ['W1'])])
+R('invariants', 'elements-names-a-room', '`elements` names the Laundry R4, which is new on its own data too.',
+  ['1.3.4'], redit(lambda d: RTOP(d).update(R4='new')), [('FS-RENO-INV-001', ['R4'])])
+R('invariants', 'elements-names-a-program-item', '`elements` names a program item.', ['1.3.4'],
+  redit(lambda d: (d.update(program={'items': {'P1': {'name': 'Laundry', 'function': 'laundry'}}}), RTOP(d).update(P1='new'))),
+  [('FS-RENO-INV-001', ['P1'])])
+R('invariants', 'elements-names-nothing', '`elements` names X9, which is no element - one removed since: it means '
+  'nothing, and is ignored (1.3). Valid, and derived as without it.', ['1.3.4', '5.1.1'],
+  redit(lambda d: RTOP(d).update(X9='demolish')), check=check_reno)
+R('invariants', 'existing-door-in-a-demolished-wall', 'W10 is to be demolished and the Bath\'s door O3 in it is to '
+  'stay: the existing state has both, the proposed state has the door and not its wall.', ['2.3.1'],
+  redit(lambda d: RD(d, 'walls', 'W10').update(status='demolish')), [('FS-RENO-INV-002', ['O3', 'W10'])])
+R('invariants', 'existing-door-in-a-new-wall', 'The Laundry\'s door O5 is said to stand today, in the new wall W12.',
+  ['2.3.1'], redit(lambda d: d['openings']['O5'].pop('extensions')), [('FS-RENO-INV-002', ['O5', 'W12'])])
+R('invariants', 'new-door-in-a-demolished-wall', 'A new door O4 in W8, which is to come down.', ['2.3.1'],
+  redit(lambda d: RD(d, 'openings', 'O4').update(status='new')), [('FS-RENO-INV-002', ['O4', 'W8'])])
+R('invariants', 'demolished-door-in-a-new-wall', 'O5 is to be demolished, in the new wall W12: no state has both.',
+  ['2.3.1'], redit(lambda d: RD(d, 'openings', 'O5').update(status='demolish')), [('FS-RENO-INV-002', ['O5', 'W12'])])
+R('invariants', 'demolished-window-in-an-existing-wall', 'The Kitchen window O2 is to be filled in: a demolished '
+  'element may be in an existing wall. Valid.', ['2.3.1'], redit(lambda d: RD(d, 'openings', 'O2').update(status='demolish')),
+  check=lambda r: ensure('O2' in RDER(r)['status']['demolish'], RDER(r)['status']))
+R('invariants', 'new-cabinet-on-a-demolished-wall', 'The island X2 is moved onto the face of W8, which is to come down.',
+  ['2.3.1'], redit(lambda d: coll(d, FURN, 'casework')['X2'].update(host=wall_host('W8', 'left', 2 * FT))),
+  [('FS-RENO-INV-002', ['W8', 'X2'])])
+R('invariants', 'existing-appliance-in-a-new-room', 'The refrigerator X3, which stands today, is put on the floor of '
+  'the new Laundry R4.', ['2.3.1'],
+  redit(lambda d: coll(d, FURN, 'appliances')['X3'].update(host=floor_host('R4', 18 * FT, 2 * FT))),
+  [('FS-RENO-INV-002', ['R4', 'X3'])])
+R('invariants', 'every-reference-once', 'Three references across states at once: each reported once, naming both '
+  'elements.', ['1.2.3', '2.3.1'],
+  redit(lambda d: (RD(d, 'walls', 'W10').update(status='demolish'), d['openings']['O5'].pop('extensions'),
+                   RD(d, 'openings', 'O4').update(status='new'))),
+  [('FS-RENO-INV-002', ['O3', 'W10']), ('FS-RENO-INV-002', ['O4', 'W8']), ('FS-RENO-INV-002', ['O5', 'W12'])])
+R('invariants', 'two-rooms-in-the-proposed-kitchen', 'The Utility room R3 is to stay while the wall between it and '
+  'the Kitchen comes down: in the proposed state the Kitchen and the Utility room are one face with two anchors, which '
+  'Core refuses (FS-INV-202).', ['2.4.2'], redit(lambda d: d['rooms']['R3'].pop('extensions')),
+  [('FS-RENO-INV-004', ['R1', 'R3'])])
+R('invariants', 'two-rooms-in-the-existing-utility', 'The Laundry R4 is said to stand today, with the new wall that '
+  'makes it a room: in the existing state the Utility room and the Laundry are one face (FS-INV-202).', ['2.4.1'],
+  redit(lambda d: d['rooms']['R4'].pop('extensions')), [('FS-RENO-INV-003', ['R3', 'R4'])])
+R('invariants', 'both-states-broken', 'R3 stays and R4 stands today: each state breaks Core, and each is reported.',
+  ['2.4.1', '2.4.2', '1.2.3'], redit(lambda d: (d['rooms']['R3'].pop('extensions'), d['rooms']['R4'].pop('extensions'))),
+  [('FS-RENO-INV-003', ['R3', 'R4']), ('FS-RENO-INV-004', ['R1', 'R3'])])
+R('invariants', 'not-evaluated-with-a-reference-across-states', 'R3 stays while its wall comes down, and the Laundry\'s '
+  'door is said to stand today in the new wall: FS-RENO-INV-002 is reported, and the states\' views are not checked, '
+  'so FS-RENO-INV-004 is not (4.2).', ['4.2.1', '2.3.1'],
+  redit(lambda d: (d['rooms']['R3'].pop('extensions'), d['openings']['O5'].pop('extensions'))),
+  [('FS-RENO-INV-002', ['O5', 'W12'])])
+R('invariants', 'a-join-through-a-demolished-wall', 'J7\'s join runs W8 and W9 through it, and W8 is to come down: '
+  'the proposed state\'s view drops the join (2.2), so it names no missing wall. Valid.', ['2.4.2'], remodel(),
+  check=lambda r: ensure(RDER(r)['states']['proposed']['rooms']['R1'] != RDER(r)['states']['existing']['rooms']['R1'],
+                         RDER(r)['states']))
+R('invariants', 'a-wall-whose-room-goes-with-it', 'W10 comes down with the Bath\'s door and the Bath itself: the Bath '
+  'joins the Kitchen in the proposed state, and is not a room of it. Valid.', ['2.3.1', '2.4.2'],
+  redit(lambda d: (RD(d, 'walls', 'W10').update(status='demolish'), RD(d, 'openings', 'O3').update(status='demolish'),
+                   RD(d, 'rooms', 'R2').update(status='demolish'))),
+  check=lambda r: ensure(sorted(RDER(r)['states']['proposed']['rooms']) == ['R1', 'R4'], RDER(r)['states']))
+
+R('derived', 'a-diagonal-wall', 'A new wall W14 across the Bath\'s north-east corner, 3\' each way, cutting off a closet '
+  'whose face is unanchored: its length is 3\' times the square root of 2, rounded once (5.3).', ['5.1.1'],
+  redit(lambda d: (d['junctions'].update(J11=J(17 * FT, 12 * FT), J12=J(20 * FT, 9 * FT)),
+                   d['walls'].update(W3=RW('J3', 'J11', 'EXT'), W15=RW('J11', 'J4', 'EXT'), W4=RW('J4', 'J12', 'EXT'),
+                                     W16=RW('J12', 'J8', 'EXT'), W14=RW('J11', 'J12', 'INT', 'new')))),
+  [('FS-LINT-003', [])],
+  check=lambda r: ensure(RDER(r)['quantities']['new']['wallLength'] == 6 * FT + land._round_sqrt(2 * (3 * FT) ** 2)
+                         and RDER(r)['quantities']['new']['walls'] == 2, RDER(r)['quantities']['new']))
+R('derived', 'the-deck-demolished', 'The deck stands today and is to come down: its area moves to `demolish`.',
+  ['5.1.1'], redit(lambda d: RD(d, 'slabs', 'S1').update(status='demolish')),
+  check=lambda r: ensure(RDER(r)['quantities']['demolish']['slabArea'] == str(8 * 7 * FT * FT)
+                         and RDER(r)['quantities']['new']['slabArea'] == '0', RDER(r)['quantities']))
+R('derived', 'a-second-level', 'A second level L2 with no walls: the states have the rooms of every level, and L2 has '
+  'none. Derived as without it.', ['5.1.1'],
+  redit(lambda d: d['levels'].update(L2={'building': 'B1', 'elevation': H, 'height': H})), check=check_reno)
+
+
+def kitchen_options(d):
+    """Core 0.3 design options: the island's option set OS1, with option A (OP1, the primary) having no
+    island and option B (OP2) the new island X2."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Island'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'No island'}, 'OP2': {'set': 'OS1', 'name': 'Island'}}
+    coll(d, FURN, 'casework')['X2']['option'] = 'OP2'
+
+
+R('options', 'island-option-a', 'An island as a Core 0.3 design option (Core 19): option A, the primary, has none, and '
+  'B has the new island X2, whose status is in `elements`. In the primary design X2 is not in the view, and its member '
+  'of `elements` names nothing there, and is ignored: valid, and X2 is in no status.',
+  ['1.2.1', '1.2.4', '1.3.4', '5.1.1', 'FS-CORE-19.3.1'], redit(kitchen_options),
+  check=lambda r: ensure(RDER(r)['status']['new'] == ['O5', 'O6', 'R4', 'S1', 'W12'], RDER(r)['status']))
+R('options', 'island-option-b', 'The same document, deriving the design that chooses B (design.json): the island is new.',
+  ['1.2.4', '5.1.1', 'FS-CORE-19.3.1'], redit(kitchen_options), design={'OS1': 'OP2'},
+  check=lambda r: ensure(RDER(r)['status']['new'] == ['O5', 'O6', 'R4', 'S1', 'W12', 'X2'], RDER(r)['status']))
+R('options', 'invariant-in-option-b', 'Option B\'s island stands on W8, which is to come down: FS_renovation is '
+  'evaluated in each checked design, so FS-RENO-INV-002 is reported for option B\'s design, with `design`.',
+  ['1.2.1', '1.2.3', '2.3.1'],
+  redit(lambda d: (kitchen_options(d), coll(d, FURN, 'casework')['X2'].update(host=wall_host('W8', 'left', 2 * FT)))),
+  [('FS-RENO-INV-002', ['W8', 'X2'], 'OP2')])
+
+RO = lambda *a, **k: O(RENO, *a, **k)    # noqa: E731
+RO('mark-a-window-demolished', 'setProperty of O2 /extensions/FS_renovation/status, creating O2\'s extensions and its '
+   'FS_renovation data on the way (Ops 2.3): the Kitchen window is to be filled in. It commits.',
+   ['1.2.1', '1.3.2', 'FS-OPS-2.3.1'], remodel(),
+   {'batch': [{'op': 'setProperty', 'id': 'O2', 'path': '/extensions/FS_renovation/status', 'value': 'demolish'}]},
+   check=lambda r, B: ensure('O2' in reno_derived(B)['status']['demolish'], reno_derived(B)['status']))
+RO('mark-a-wall-and-its-door', 'W10 and the Bath\'s door O3 are marked "demolish" in one batch, and the Bath R2 with '
+   'them: it commits, and the Bath is no room of the proposed state.', ['1.2.1', '2.3.1', '2.4.2', '6.1.1', 'FS-OPS-2.3.1'],
+   remodel(),
+   {'batch': [{'op': 'setProperty', 'id': i, 'path': '/extensions/FS_renovation/status', 'value': 'demolish'}
+              for i in ('W10', 'O3', 'R2')]},
+   check=lambda r, B: ensure(sorted(reno_derived(B)['states']['proposed']['rooms']) == ['R1', 'R4'], reno_derived(B)['states']))
+RO('a-wall-without-its-door-is-rejected', 'W10 alone is marked "demolish", its door O3 left standing: the result '
+   'breaks 2.3.1, and an applier that implements FS_renovation and knows it rejects the batch (Ops 1.2.3).',
+   ['2.3.1', '1.2.1', 'FS-OPS-1.2.3'], remodel(),
+   {'batch': [{'op': 'setProperty', 'id': 'W10', 'path': '/extensions/FS_renovation/status', 'value': 'demolish'}]},
+   'rejected', [('FS-RENO-INV-002', ['O3', 'W10'])])
+RO('keeping-a-room-whose-wall-goes-is-rejected', 'unsetProperty of R3 /extensions/FS_renovation: the Utility room '
+   'would stay while its wall to the Kitchen comes down, two rooms in one face of the proposed state; the batch is '
+   'rejected with FS-RENO-INV-004.', ['2.4.2', '1.2.1', 'FS-OPS-1.2.3'], remodel(),
+   {'batch': [{'op': 'unsetProperty', 'id': 'R3', 'path': '/extensions/FS_renovation'}]},
+   'rejected', [('FS-RENO-INV-004', ['R1', 'R3'])])
+RO('mark-an-extension-element', 'setProperty of $document /extensions/FS_renovation/elements/X3: the refrigerator is to '
+   'go. It commits.', ['1.2.1', '1.3.1', 'FS-OPS-2.3.1'], remodel(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_renovation/elements/X3', 'value': 'demolish'}]},
+   check=lambda r, B: ensure(reno_derived(B)['status']['demolish'] == ['O4', 'R3', 'W8', 'X1', 'X3'], reno_derived(B)['status']))
+RO('remove-an-element-and-its-status', 'removeElement X1 and unsetProperty of its member of `elements`, in one batch, '
+   'as 6.1.2 says: it commits, and X1 is in no status.', ['1.3.4', '6.1.2', 'FS-OPS-2.3.1'], remodel(),
+   {'batch': [{'op': 'removeElement', 'id': 'X1'},
+              {'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_renovation/elements/X1'}]},
+   check=lambda r, B: ensure('X1' not in ext(B, RENO)['elements'] and 'X1' not in reno_derived(B)['status']['demolish'],
+                             reno_derived(B)['status']))
+RO('remove-an-element-and-not-its-status', 'removeElement X1 alone: its member of `elements` names nothing, and is '
+   'ignored (1.3). It commits.', ['1.3.4', 'FS-OPS-2.3.1'], remodel(), {'batch': [{'op': 'removeElement', 'id': 'X1'}]},
+   check=lambda r, B: ensure(ext(B, RENO)['elements'] == {'X1': 'demolish', 'X2': 'new'}
+                             and reno_derived(B)['status']['demolish'] == ['O4', 'R3', 'W8'], reno_derived(B)['status']))
+RO('a-status-on-a-junction-is-rejected', 'setProperty of J7 /extensions/FS_renovation: a junction has no status, and '
+   'the batch is rejected with FS-RENO-SCH-001.', ['1.3.3', '1.2.1', 'FS-OPS-1.2.3'], remodel(),
+   {'batch': [{'op': 'setProperty', 'id': 'J7', 'path': '/extensions/FS_renovation', 'value': {'status': 'demolish'}}]},
+   'rejected', [('FS-RENO-SCH-001', [])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -3135,7 +3545,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):
