@@ -61,7 +61,7 @@ test('extension specifications are found in registry/, each in its own ID space'
   assert.deepEqual(r.problems, []);
   assert.deepEqual(
     r.specs.map((s) => [s.name, s.code, s.version]),
-    [['FS_electrical', 'ELEC', '0.1.0'], ['FS_furniture', 'FURN', '0.1.0'], ['FS_landscape', 'LAND', '0.1.0'], ['FS_lighting', 'LGHT', '0.1.0'], ['FS_lowvoltage', 'LOWV', '0.1.0'], ['FS_mechanical', 'MECH', '0.1.0'], ['FS_plumbing', 'PLMB', '0.1.0'], ['FS_renovation', 'RENO', '0.1.0'], ['FS_structural', 'STRC', '0.1.0'], ['FS_views', 'VIEW', '0.1.0']],
+    [['FS_annotation', 'ANNO', '0.1.0'], ['FS_electrical', 'ELEC', '0.1.0'], ['FS_furniture', 'FURN', '0.1.0'], ['FS_landscape', 'LAND', '0.1.0'], ['FS_lighting', 'LGHT', '0.1.0'], ['FS_lowvoltage', 'LOWV', '0.1.0'], ['FS_mechanical', 'MECH', '0.1.0'], ['FS_plumbing', 'PLMB', '0.1.0'], ['FS_renovation', 'RENO', '0.1.0'], ['FS_structural', 'STRC', '0.1.0'], ['FS_views', 'VIEW', '0.1.0']],
   );
 });
 

@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`, `FS-ANNO-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -644,8 +644,34 @@ option only; its `ops` group marks a window, a wall with its door and room, and 
 removes an element with and without its status, and rejects a wall marked without its door, a room
 kept whose wall goes, and a status on a junction.
 
+
+FS_annotation's suite starts from the lit house with its views, a kitchen window and its owner's
+annotation (`examples/…-p13-house-with-annotation`): an overall dimension string along the south side
+from the west wall's outside face through the corner J6 to the east wall's, a string locating the
+window by its centre, the Kitchen's clear width between two wall faces, a north-south string of clear
+dimensions through the Utility and Living rooms with the wall between them, and two notes with
+leaders, about the window and about the panel. FS_annotation adds no kind of element, requires no other
+extension, and reads FS_lighting's scenes and FS_views's views as data: its suite is run by an
+implementation of FS_annotation alone, and its `examples` group also reads the house without them and
+with FS_annotation as the only extension it uses. Its `schema` group tests every member's form - points
+and directions of two lengths, the four forms of an anchor, exactly one at a time (`oneOf`), 2 to 64
+anchors, and a note's text of 1 to 500 characters; its `invariants` group an annotation's ID in the one
+space of IDs (scenes and views among them, and a note's against the strings'), a level that does not
+exist, and a direction of [0, 0]; its `lints` group anchors that name nothing, the wrong kind of thing
+or a feature of another level, a face line parallel to the string or an arc wall's, two consecutive
+anchors at one position - exactly, so a segment of less than half a unit is not one - and a note about
+nothing. Its `derived` group measures exactly and rounds once: along an oblique direction, across an
+oblique wall's faces whose position depends on where the string is drawn, round a chamfered corner
+whose every position is irrational (checked against 60-digit decimals), to a window in an arc wall,
+and a total that is not the sum of its rounded segments; and it follows a moved junction, a thicker
+wall and a justified one. Its `options` group resolves a string in the design that has the window it
+measures and lints it in the one that does not; its `ops` group adds, moves and removes annotation with
+`setProperty` and `unsetProperty` of `$document` - the first note creating FS_annotation's data -
+rejects a direction of [0, 0] and a note on a level the house does not have, and commits a removeWall
+of a wall a string measures, and a moveJunction, after which the strings lint or measure anew.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation; the lit house with views, a window and annotation, for FS_annotation), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
