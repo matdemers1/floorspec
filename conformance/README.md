@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -628,8 +628,24 @@ the ID of an element of one design option only; its `ops` group adds, renames, r
 views with `setProperty` and `unsetProperty` of `$document` - the first view creating FS_views's
 data - and rejects a name in use, an eye at its target, and the removal of a scene a view shows.
 
+FS_renovation's suite starts from a kitchen remodel (`examples/…-kitchen-remodel`): the framed house's
+plan with the wall between the Kitchen and the Utility room to come down with its door, the Utility
+room and an old counter, a new wall and door making a Laundry of the Utility room's east half, a new
+window, an island and a deck - statuses on the walls, openings, rooms and slab themselves, and the
+casework's in FS_renovation's top-level `elements`. Its `schema` group tests the statuses' form and
+where they may be; its `invariants` group `elements` naming a core element, a program item or
+nothing, every kind of reference across the two states - an existing door in a demolished or a new
+wall, a new door in a demolished wall, casework on a demolished wall, an appliance in a new room -
+and Core's invariants of each state's view: two rooms in one face of the proposed or the existing
+state, a join through a demolished wall dropped from the view, and the views not checked while a
+reference crosses states. Its `derived` group the length of a diagonal wall, a slab's area and a level
+with no rooms; its `options` group keys a status in `elements` by an extension element of one design
+option only; its `ops` group marks a window, a wall with its door and room, and an extension element,
+removes an element with and without its status, and rejects a wall marked without its door, a room
+kept whose wall goes, and a status on a junction.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
