@@ -23,5 +23,5 @@ Modules:
     options     design options: views of designs, the checked designs, option invariants and `options` (Core 0.3, chapter 19)
     validate    the tiers and the order of evaluation of chapter 10, and the lints
     ext         the official extensions (registry/), each written from its own specification:
-                FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views and FS_renovation 0.1.0
+                FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation and FS_annotation 0.1.0
 """

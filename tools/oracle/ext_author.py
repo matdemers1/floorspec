@@ -1,5 +1,6 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views and FS_renovation 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation and FS_annotation 0.1.0 - as the script that
+writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -35,7 +36,10 @@ luminaire, and the scenes "Evening" and "Night light". FS_views's start from the
 (views_house() below) - a two-point hero shot of the exterior, a two-point view of the Kitchen's island with every light
 on, a view from the garden at dusk with the "Evening" scene, and a cutaway from above. FS_renovation's start from a kitchen
 remodel (remodel() below) - the framed house's plan with a wall, its door, a room and a counter to be demolished, and a
-new wall, door, window, room, island and deck. Every expected diagnostic is written by hand and cross-checked against the
+new wall, door, window, room, island and deck. FS_annotation's start from the lit house with views, a kitchen window and its
+owner's annotation (annotation_house() below) - an overall string along the south side, a string locating the window by its
+centre, the Kitchen's clear width between two wall faces, a north-south string of clear dimensions through two rooms, and two
+notes with leaders. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -3445,6 +3449,676 @@ RO('a-status-on-a-junction-is-rejected', 'setProperty of J7 /extensions/FS_renov
    'rejected', [('FS-RENO-SCH-001', [])])
 
 
+# ============================================================================= FS_annotation
+
+ANNO = 'FS_annotation'
+CODE[ANNO] = 'ANNO'
+MM50 = 50 * MM                                     # half the demo walls' 100 mm
+
+
+def jA(j):
+    return {'junction': j}
+
+
+def wA(w, face):
+    return {'wall': w, 'face': face}
+
+
+def oA(o):
+    return {'opening': o}
+
+
+def pA(x, y):
+    return {'point': [x, y]}
+
+
+def dim(level, direction, through, anchors, name=None):
+    out = {'level': level, 'direction': direction, 'through': through, 'anchors': anchors}
+    if name is not None:
+        out['name'] = name
+    return out
+
+
+WINDOW_T = {'kind': 'windowType', 'width': 4 * FT, 'height': 48 * IN, 'sill': 36 * IN}
+ANNOTATION = {
+    'dimensions': {
+        'DM1': dim('L1', [1, 0], [0, -1200 * MM], [wA('W1', 'left'), jA('J6'), wA('W5', 'left')], 'Overall, south'),
+        'DM2': dim('L1', [1, 0], [0, 12 * FT + 1200 * MM], [wA('W1', 'left'), oA('O1'), jA('J3')], 'Kitchen window'),
+        'DM3': dim('L1', [1, 0], [0, 3 * FT], [wA('W1', 'right'), wA('W8', 'left')], 'Kitchen, clear'),
+        'DM4': dim('L1', [0, 1], [16 * FT, 0], [wA('W6', 'right'), wA('W10', 'right'), wA('W10', 'left'), wA('W3', 'right')],
+                   'Utility and living, clear'),
+    },
+    'notes': {
+        'NT1': {'level': 'L1', 'text': 'Verify the rough opening on site\nbefore ordering the window.',
+                'at': [2 * FT, 15 * FT], 'leader': [6 * FT, 12 * FT], 'about': 'O1'},
+        'NT2': {'level': 'L1', 'text': 'Keep the panel\'s working space clear.', 'at': [13 * FT, FT],
+                'leader': [20 * FT - 100 * MM, 3 * FT], 'about': 'X1'},
+    },
+}
+
+
+def annotation_house():
+    """The Phase 13 lit house with its four saved views (views_house()), a 4' kitchen window O1 in the
+    north wall W2 - 4' from J2, so its centre is 6' east of the west wall's location line - and the
+    owner's annotation of FS_annotation:
+
+    - DM1 "Overall, south": below the house, from the west wall's outside face, through the corner
+      J6 under the interior wall, to the east wall's outside face - 12' 2" (12' and 50 mm) and 8' and
+      50 mm, 20' and 100 mm in all;
+    - DM2 "Kitchen window": above the house, from the west wall's outside face to the window's centre
+      and on to the corner J3 - 6' and 50 mm, then 6';
+    - DM3 "Kitchen, clear": across the Kitchen, from the west wall's inside face to the interior
+      wall's - 12' less 100 mm;
+    - DM4 "Utility and living, clear": north-south through the Utility room and the Living room, from
+      the south wall's inside face to the north wall's, with the wall between them: 6' less 100 mm,
+      100 mm, 6' less 100 mm;
+    - NT1, a note of two lines north of the house, its leader at the window's centre, about O1;
+    - NT2, a note in the Utility room, its leader at the panel's face, about the panel X1.
+
+    FS_annotation requires no other extension; the house uses FS_electrical, FS_furniture,
+    FS_lighting and FS_views as well, and FS_annotation reads the scenes and the views as data."""
+    d = views_house()
+    d['types']['WN'] = dict(WINDOW_T)
+    d['openings'] = {'O1': {'wall': 'W2', 'offset': 4 * FT, 'fill': 'WN', 'name': 'Kitchen window'}}
+    d['extensionsUsed'][ANNO] = '0.1.0'
+    d['extensions'][ANNO] = copy.deepcopy(ANNOTATION)
+    return d
+
+
+def aedit(fn):
+    """The Phase 13 house with annotation, changed by fn(d) in place."""
+    d = annotation_house()
+    fn(d)
+    return d
+
+
+DMS = lambda d: ext(d, ANNO)['dimensions']                                          # noqa: E731
+NTS = lambda d: ext(d, ANNO)['notes']                                               # noqa: E731
+ADER = derived_of(ANNO)
+AN = lambda *a, **k: V(ANNO, *a, **k)    # noqa: E731
+ANNOTATED = {'dimensions': {'DM1': {'level': 'L1', 'lengths': [12 * FT + MM50, 8 * FT + MM50], 'total': 20 * FT + 2 * MM50},
+                            'DM2': {'level': 'L1', 'lengths': [6 * FT + MM50, 6 * FT], 'total': 12 * FT + MM50},
+                            'DM3': {'level': 'L1', 'lengths': [12 * FT - 2 * MM50], 'total': 12 * FT - 2 * MM50},
+                            'DM4': {'level': 'L1', 'lengths': [6 * FT - 2 * MM50, 2 * MM50, 6 * FT - 2 * MM50],
+                                    'total': 12 * FT - 2 * MM50}},
+             'notes': {'NT1': {'level': 'L1', 'about': 'O1'}, 'NT2': {'level': 'L1', 'about': 'X1'}}}
+ANNO_KNOWN = VIEW_KNOWN + (ANNO,)
+UNRESOLVED = {'level': 'L1', 'lengths': None, 'total': None}
+
+
+def check_anno(r):
+    # every length by hand: the walls are 100 mm thick and centred on their location lines, so a face is
+    # 50 mm from the line; the window's centre is 4' + 4'/2 from J2
+    ensure(ADER(r) == ANNOTATED and list(ADER(r)['dimensions']) == ['DM1', 'DM2', 'DM3', 'DM4'], ADER(r))
+
+
+def level2(d):
+    """A second level L2 above L1, with nothing on it."""
+    d['levels']['L2'] = {'building': 'B1', 'elevation': H, 'height': H}
+
+
+def without_scenes_and_views(d):
+    """Neither FS_lighting nor FS_views: their declarations and their data."""
+    for x in (LGHT, VIEW):
+        d['extensionsUsed'].pop(x)
+        d['extensions'].pop(x)
+
+
+def annotation_alone(d):
+    """FS_annotation the only extension the house uses - no lights, no lamp, no scenes, no views - and
+    the panel's note about nothing in particular."""
+    for x in (ELEC, FURN, LGHT, VIEW):
+        d['extensionsUsed'].pop(x)
+        d['extensions'].pop(x)
+    d.pop('assets')
+    NTS(d)['NT2'].pop('about')
+
+
+def chamfer(d):
+    """The Kitchen's north-west corner cut off: J2 gone, the west wall W1 ending at J9 (0, 9'), a wall
+    W11 from J9 to J10 (2', 12') - 2' east for every 3' north, sqrt(13) feet long - and the north wall
+    W2 starting at J10; and a 2' window O2 in W11, 6" from J9."""
+    d['junctions'].pop('J2')
+    d['junctions']['J9'] = J(0, 9 * FT)
+    d['junctions']['J10'] = J(2 * FT, 12 * FT)
+    d['walls']['W1']['end'] = 'J9'
+    d['walls']['W2']['start'] = 'J10'
+    d['walls']['W11'] = W('J9', 'J10')
+    d['openings']['O2'] = {'wall': 'W11', 'offset': 6 * IN, 'width': 2 * FT, 'fill': 'WN', 'name': 'Corner window'}
+
+
+def arc_w3(d):
+    """The house as a Core 0.4 document whose north wall W3, over the Living room, bulges 2' out
+    northwards as an arc (Core 0.4, 21.1)."""
+    d['floorspec'] = '0.4'
+    d['walls']['W3']['arc'] = {'sagitta': 2 * FT}
+
+
+def _dec_sqrt(n):
+    from decimal import Decimal
+    return Decimal(n).sqrt()
+
+
+def chamfer_check(r):
+    """DM5's lengths by an independent route: each position in 60-digit decimals, rounded at the end."""
+    from decimal import Decimal, getcontext, ROUND_HALF_EVEN
+    getcontext().prec = 60
+    d, T = (1, -1), (FT, 10 * FT + 6 * IN)
+    nd = _dec_sqrt(2)
+    S, e = (0, 9 * FT), (2 * FT, 3 * FT)
+    le = _dec_sqrt(e[0] ** 2 + e[1] ** 2)
+    nu = (-e[1], e[0])
+    nud = nu[0] * d[0] + nu[1] * d[1]
+
+    def face(lam):
+        t = (Decimal(lam) * le - (nu[0] * (T[0] - S[0]) + nu[1] * (T[1] - S[1]))) / nud
+        return t * nd
+
+    def at(P):
+        return ((P[0] - T[0]) * d[0] + (P[1] - T[1]) * d[1]) / nd
+
+    c = Decimal(6 * IN + FT) / le                          # the window's centre, 6" + 1' along W11
+    centre = (S[0] + e[0] * c, S[1] + e[1] * c)
+    p = [face(MM50), at(centre), face(-MM50), at((12 * FT, 12 * FT))]
+    q = lambda x: int(abs(x).quantize(Decimal(1), rounding=ROUND_HALF_EVEN))      # noqa: E731
+    want = {'level': 'L1', 'lengths': [q(p[i + 1] - p[i]) for i in range(3)], 'total': q(p[3] - p[0])}
+    ensure(ADER(r)['dimensions']['DM5'] == want, (ADER(r)['dimensions']['DM5'], want))
+
+
+BAD_A = lambda d: DMS(d)['DM1'].update(direction=[1, 0, 0])                         # noqa: E731  the schema tier
+INV_A = lambda d: DMS(d)['DM3'].update(direction=[0, 0])                           # noqa: E731  FS-ANNO-INV-003
+INV_A_DIAG = [('FS-ANNO-INV-003', ['DM3'])]
+LINT_A = lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, jA('J9'))              # noqa: E731  FS-ANNO-LINT-001
+
+AN('examples', 'p13-house-with-annotation', 'The Phase 13 lit house with a kitchen window and its owner\'s annotation, '
+   'read by an implementation of FS_annotation that knows it: an overall string along the south side, from the west '
+   'wall\'s outside face through the corner J6 to the east wall\'s outside face; a string locating the kitchen window '
+   'by its centre; the Kitchen\'s clear width between two wall faces; a north-south string of clear dimensions through '
+   'the Utility and Living rooms, the wall between them included; and two notes with leaders, about the window and '
+   'about the panel. FS_lighting and FS_views are unknown to it, their scenes and views read as data. It is valid, '
+   'reports nothing, and derives every length exactly - 20\' and 100 mm south, 12\' less 100 mm across the Kitchen - '
+   'and each note\'s level and what it is about.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '1.3.3', '2.1.1', '2.2.1', '2.2.2', '2.3.1', '3.1.1', '6.1.1'],
+   annotation_house(), check=check_anno)
+AN('examples', 'core-only-reader', 'The same house read with no known extensions: FS_annotation is not evaluated, so '
+   'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every extension element\'s '
+   'fallback and host (Core 1.6.9), and the window; FS_annotation has no elements of its own.',
+   ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2'], annotation_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['fallbacks'])
+                          == ['X1', 'X10', 'X11', 'X12', 'X13', 'X2', 'X20', 'X3', 'X4', 'X5', 'X6', 'X7']
+                          and list(r['derived']['openings']) == ['O1'], r['derived']['extensions']))
+AN('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of '
+   'FS_annotation alone: FS_electrical, FS_furniture, FS_lighting and FS_views are checked only as Core 12 checks a '
+   'known extension, and only FS_annotation is evaluated and derived.',
+   ['1.2.1', '1.2.4'], annotation_house(), registry=[entry(x) for x in ANNO_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [ANNO] and ADER(r) == ANNOTATED, list(r['derived']['extensions'])))
+AN('examples', 'no-annotation', 'FS_annotation used with empty top-level data: valid, and no dimension string or note '
+   'derived.', ['1.3.1', '6.1.1'], aedit(lambda d: d['extensions'].update({ANNO: {}})),
+   check=lambda r: ensure(ADER(r) == {'dimensions': {}, 'notes': {}}, ADER(r)))
+AN('examples', 'notes-only', 'FS_annotation\'s data with notes and no `dimensions`: valid, and no dimension string '
+   'derived.', ['1.3.1', '6.1.1'], aedit(lambda d: ext(d, ANNO).pop('dimensions')),
+   check=lambda r: ensure(ADER(r) == {'dimensions': {}, 'notes': ANNOTATED['notes']}, ADER(r)))
+AN('examples', 'without-scenes-and-views', 'The house without FS_lighting and FS_views - neither their declarations '
+   'nor their data: FS_annotation requires no other extension, so the annotation is valid as it is, and measures the '
+   'same.', ['1.2.1', '1.3.1', '1.3.2', '6.1.1'], aedit(without_scenes_and_views),
+   check=lambda r: ensure(ADER(r) == ANNOTATED and list(r['derived']['extensions']) == [ANNO], ADER(r)))
+AN('examples', 'annotation-alone', 'The house with FS_annotation the only extension it uses - no lights, no lamp, no '
+   'scenes, no views - and the panel\'s note about nothing in particular: valid, and the four strings measured as '
+   'before.', ['1.2.1', '1.2.4', '1.3.1', '3.1.1', '6.1.1'], aedit(annotation_alone),
+   check=lambda r: ensure(ADER(r)['dimensions'] == ANNOTATED['dimensions'] and r['derived']['fallbacks'] == {}
+                          and ADER(r)['notes']['NT2'] == {'level': 'L1', 'about': None}, ADER(r)))
+
+AN('activation', 'unknown-data-not-evaluated', 'The overall string\'s direction is three numbers, which FS_annotation\'s '
+   'schema does not allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   aedit(BAD_A), registry=None)
+AN('activation', 'another-version-known', 'The document uses FS_annotation at 0.2.0, which is known (a later entry), but '
+   'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+   ['1.2.1'], aedit(lambda d: (BAD_A(d), d['extensionsUsed'].update({ANNO: '0.2.0'}))), registry=[entry(ANNO, '0.2.0')])
+AN('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_annotation is evaluated: its data '
+   'breaks the schema, FS-ANNO-SCH-001.', ['1.2.1', '1.3.1'],
+   aedit(lambda d: (BAD_A(d), d['extensionsUsed'].update({ANNO: '0.1'}))), [('FS-ANNO-SCH-001', [])])
+AN('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_annotation is evaluated.', ['1.2.1', '1.3.1'],
+   aedit(lambda d: (BAD_A(d), d['extensionsUsed'].update({ANNO: {'version': '0.1.0', 'schema': entry(ANNO)['schema']}}))),
+   [('FS-ANNO-SCH-001', [])])
+AN('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_annotation is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {ANNO: '0.1.0'},
+    'extensions': {ANNO: {'colour': 'red'}}})
+AN('activation', 'core-0.3-document', 'The house declaring Core "0.3", a draft FS_annotation 0.1.0 lists (1.1): '
+   'FS_annotation is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], aedit(lambda d: d.update(floorspec='0.3')), check=check_anno)
+AN('activation', 'core-0.3-invariants', 'The same "0.3" house with the Kitchen\'s clear width measured along no '
+   'direction: FS_annotation is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.1.1'],
+   aedit(lambda d: (d.update(floorspec='0.3'), INV_A(d))), INV_A_DIAG)
+AN('activation', 'core-0.4-document', 'The house declaring Core "0.4", a draft FS_annotation 0.1.0 lists (1.1): '
+   'FS_annotation is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], aedit(lambda d: d.update(floorspec='0.4')), check=check_anno)
+AN('activation', 'scenes-and-views-known-too', 'The house read with FS_lighting\'s and FS_views\'s entries known as '
+   'well as FS_annotation\'s, by an implementation of FS_annotation alone: FS_lighting and FS_views are checked only as '
+   'Core 12 checks a known extension, and FS_annotation is evaluated and derived exactly as with its own entry alone.',
+   ['1.2.1', '1.2.4', '6.1.1'], annotation_house(), registry=[entry(ELEC), entry(LGHT), entry(VIEW), entry(ANNO)],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [ANNO] and ADER(r) == ANNOTATED, r['derived']['extensions']))
+
+AN('order', 'core-error-first', 'A Core invariant breaks - the porch light\'s switch 13\' along the 12\' wall W2, '
+   'FS-INV-501 - and so does FS_annotation\'s schema: Core\'s error is reported, and FS_annotation is not evaluated.',
+   ['1.2.2'], aedit(lambda d: (BAD_A(d), GK(d, 'switches')['X13']['host'].update(wall='W2', offset=13 * FT))),
+   [('FS-INV-501', ['X13'])])
+AN('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-ANNO-SCH-001.',
+   ['1.2.2', '1.3.1'], aedit(lambda d: (BAD_A(d), INV_A(d))), [('FS-ANNO-SCH-001', [])])
+AN('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the overall string measures to '
+   'a junction J9 the house does not have: the document is invalid, so no lint is reported, FS_annotation\'s or Core\'s.',
+   ['1.2.2', '1.2.3'], aedit(lambda d: (INV_A(d), LINT_A(d))), INV_A_DIAG)
+AN('order', 'views-not-evaluated', 'FS_views\'s data breaks FS_views\'s own rules - the island view looks at its own eye, '
+   'and the cutaway is named "Hero exterior" - but this implementation does not implement FS_views: it reports nothing '
+   'of FS_views, and reads its views as data. Valid.', ['1.2.1', '1.3.2'],
+   aedit(lambda d: (VWS(d)['SV2'].update(target=VWS(d)['SV2']['eye']), VWS(d)['SV4'].update(name='Hero exterior'))),
+   check=check_anno)
+
+AS = lambda slug, text, fn: AN('schema', slug, text, ['1.3.1'], aedit(fn), [('FS-ANNO-SCH-001', [])])   # noqa: E731
+AS('data-not-an-object', 'FS_annotation\'s top-level data is an array: Core allows any JSON there, FS_annotation\'s '
+   'schema does not.', lambda d: d['extensions'].update({ANNO: []}))
+AS('unknown-member', 'A top-level member FS_annotation does not define, `tags`: tags are derived, never stored.',
+   lambda d: ext(d, ANNO).update(tags={}))
+AS('empty-collections', 'An empty `collections` member: FS_annotation adds no kind of element, so its data has no '
+   '`collections`, even an empty one. Core finds no collection in it; FS_annotation\'s schema rejects it.',
+   lambda d: ext(d, ANNO).update(collections={}))
+AN('schema', 'a-collection', 'A collection `labels` in FS_annotation\'s data: its registry entry names no kind, so Core '
+   '12.4.1 reports it (FS-INV-604), and FS_annotation is not evaluated.', ['1.2.2', 'FS-CORE-12.4.1'],
+   aedit(lambda d: ext(d, ANNO).update(collections={'labels': {}})), [('FS-INV-604', [])])
+AS('dimensions-not-an-object', 'FS_annotation\'s `dimensions` is a list of strings, not an object of them.',
+   lambda d: ext(d, ANNO).update(dimensions=list(DMS(d).values())))
+AS('notes-not-an-object', 'FS_annotation\'s `notes` is a string.', lambda d: ext(d, ANNO).update(notes='see the plan'))
+AS('dimension-id-not-an-id', 'A dimension string keyed by "Overall south", which is not an ID (Core 3.1.1).',
+   lambda d: DMS(d).update({'Overall south': DMS(d).pop('DM1')}))
+AS('note-id-not-an-id', 'A note keyed by "#1", which is not an ID.', lambda d: NTS(d).update({'#1': NTS(d).pop('NT1')}))
+AS('dimension-without-a-level', 'A dimension string is always drawn on a level.', lambda d: DMS(d)['DM1'].pop('level'))
+AS('dimension-without-a-direction', 'A dimension string always has a direction.', lambda d: DMS(d)['DM1'].pop('direction'))
+AS('dimension-without-through', 'A dimension string always has a point its line passes through.',
+   lambda d: DMS(d)['DM1'].pop('through'))
+AS('dimension-without-anchors', 'A dimension string always has anchors.', lambda d: DMS(d)['DM1'].pop('anchors'))
+AS('direction-of-three-lengths', 'A direction is two lengths, [dx, dy]: [1, 0, 0] is not one.', BAD_A)
+AS('direction-of-one-length', 'A direction of one length.', lambda d: DMS(d)['DM1'].update(direction=[1]))
+AN('schema', 'direction-with-a-fraction', 'A direction written with a fraction is not a vector of lengths, even when '
+   'its numbers are whole (1.4).', ['1.3.1'], None, [('FS-ANNO-SCH-001', [])],
+   raw=(fmt(annotation_house()) + '\n').replace('"direction": [1, 0]', '"direction": [1.0, 0]', 1).encode('utf-8'))
+AS('direction-an-angle', 'A direction written as an angle, 90: it is a vector of two lengths.',
+   lambda d: DMS(d)['DM4'].update(direction=90))
+AS('through-of-three-lengths', 'A point of the plan is two lengths: [x, y, z] is not one.',
+   lambda d: DMS(d)['DM1'].update(through=[0, -1200 * MM, 0]))
+AS('through-beyond-a-length', 'A point 2^53 base units east, one more than any length (Core 2.1).',
+   lambda d: DMS(d)['DM1'].update(through=[2 ** 53, 0]))
+AS('through-in-millimetres', 'A point written in millimetres as strings: a length is an integer of base units.',
+   lambda d: DMS(d)['DM1'].update(through=['0 mm', '-1200 mm']))
+AS('one-anchor', 'A dimension string of one anchor measures nothing: it has 2 to 64.',
+   lambda d: DMS(d)['DM3'].update(anchors=DMS(d)['DM3']['anchors'][:1]))
+AS('sixty-five-anchors', 'A dimension string of 65 anchors: it has 2 to 64.',
+   lambda d: DMS(d)['DM1'].update(anchors=[pA(k * FT, 0) for k in range(65)]))
+AS('anchors-not-an-array', 'A dimension string\'s anchors are an array, not an object of them.',
+   lambda d: DMS(d)['DM3'].update(anchors={'from': wA('W1', 'right'), 'to': wA('W8', 'left')}))
+AS('anchor-of-two-forms', 'An anchor naming a junction and an opening at once: it is exactly one of the four forms.',
+   lambda d: DMS(d)['DM2']['anchors'].__setitem__(1, {'opening': 'O1', 'junction': 'J3'}))
+AS('anchor-of-no-form', 'An empty anchor, {}: it is exactly one of the four forms.',
+   lambda d: DMS(d)['DM2']['anchors'].__setitem__(1, {}))
+AS('anchor-wall-without-a-face', 'A wall anchor without its face: which of the wall\'s lines it measures to is always '
+   'said.', lambda d: DMS(d)['DM3']['anchors'].__setitem__(0, {'wall': 'W1'}))
+AS('anchor-face-not-listed', 'A wall anchor whose face is "centre": the faces are "left", "right" and "location".',
+   lambda d: DMS(d)['DM3']['anchors'].__setitem__(0, wA('W1', 'centre')))
+AS('anchor-face-without-a-wall', 'A face without its wall.', lambda d: DMS(d)['DM3']['anchors'].__setitem__(0, {'face': 'right'}))
+AS('anchor-wall-and-a-junction', 'A wall anchor that also names a junction.',
+   lambda d: DMS(d)['DM3']['anchors'].__setitem__(0, {**wA('W1', 'right'), 'junction': 'J1'}))
+AS('anchor-junction-not-an-id', 'A junction anchor naming "J 1", which is not an ID.',
+   lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, jA('J 1')))
+AS('anchor-point-of-one-length', 'A point anchor of one length.', lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, pA(0, 0) | {'point': [0]}))
+AS('anchor-with-an-offset', 'An anchor with a member no anchor defines, `offset`: an anchor measures to its feature, '
+   'never to a point beside it.', lambda d: DMS(d)['DM2']['anchors'].__setitem__(1, {'opening': 'O1', 'offset': 0}))
+AS('anchor-a-string', 'An anchor written as the ID it names, "J6": it is an object of one of the four forms.',
+   lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, 'J6'))
+AS('name-empty', 'A dimension string\'s name is 1 to 200 characters: never empty.', lambda d: DMS(d)['DM1'].update(name=''))
+AS('name-too-long', 'A dimension string\'s name is 1 to 200 characters.', lambda d: DMS(d)['DM1'].update(name='N' * 201))
+AS('dimension-with-an-unknown-member', 'A dimension string has a member a string does not define: `lengths`, which '
+   'are derived, never stored.', lambda d: DMS(d)['DM1'].update(lengths=[12 * FT, 8 * FT]))
+AS('dimension-extras-not-an-object', 'A dimension string\'s `extras` is an object (Core 1.7).',
+   lambda d: DMS(d)['DM1'].update(extras='site'))
+AS('note-without-a-level', 'A note is always drawn on a level.', lambda d: NTS(d)['NT1'].pop('level'))
+AS('note-without-text', 'A note always says something.', lambda d: NTS(d)['NT1'].pop('text'))
+AS('note-without-at', 'A note\'s text is always drawn somewhere.', lambda d: NTS(d)['NT1'].pop('at'))
+AS('text-empty', 'A note\'s text is 1 to 500 characters: never empty.', lambda d: NTS(d)['NT1'].update(text=''))
+AS('text-too-long', 'A note\'s text is 1 to 500 characters.', lambda d: NTS(d)['NT1'].update(text='x' * 501))
+AS('text-not-a-string', 'A note\'s text is a string, not a list of its lines.',
+   lambda d: NTS(d)['NT1'].update(text=['Verify the rough opening on site', 'before ordering the window.']))
+AS('at-of-three-lengths', 'A note\'s `at` is a point of the plan, two lengths.', lambda d: NTS(d)['NT1'].update(at=[0, 0, 0]))
+AS('leader-of-one-length', 'A note\'s `leader` is a point of the plan, two lengths.', lambda d: NTS(d)['NT1'].update(leader=[0]))
+AS('about-not-an-id', 'A note about "the kitchen window", which is not an ID.',
+   lambda d: NTS(d)['NT1'].update(about='the kitchen window'))
+AS('note-with-a-rotation', 'A note with a member a note does not define, `rotation`: FS_annotation 0.1 draws a note\'s '
+   'text along +x.', lambda d: NTS(d)['NT1'].update(rotation=90))
+AS('note-extras-not-an-object', 'A note\'s `extras` is an object (Core 1.7).', lambda d: NTS(d)['NT1'].update(extras=1))
+AN('schema', 'every-form', 'Every form the schema allows at its bounds - a string of 64 anchors, the last a point; a '
+   'string of two anchors, a point and a location line; a name of 200 characters; a note of 500 characters with line '
+   'feeds and no leader, and a note without `about`; `extras` on a string and a note. Valid.', ['1.3.1', '6.1.1'],
+   aedit(lambda d: (DMS(d).update(DM5=dim('L1', [1, 0], [0, 20 * FT], [pA(k * FT // 4, 0) for k in range(64)], 'N' * 200),
+                                  DM6=dim('L1', [1, 0], [0, -2 * FT], [pA(-FT, 0), wA('W1', 'location')])),
+                    DMS(d)['DM1'].update(extras={'style': 'architectural'}),
+                    NTS(d).update(NT3={'level': 'L1', 'text': ('Line\n' * 100)[:500], 'at': [0, 0], 'extras': {'pen': 2}}),
+                    NTS(d)['NT2'].pop('about'))),
+   check=lambda r: ensure(ADER(r)['dimensions']['DM5']['lengths'] == [FT // 4] * 63
+                          and ADER(r)['dimensions']['DM5']['total'] == 63 * FT // 4
+                          and ADER(r)['dimensions']['DM6'] == {'level': 'L1', 'lengths': [FT], 'total': FT}
+                          and ADER(r)['notes']['NT3'] == {'level': 'L1', 'about': None}
+                          and ADER(r)['notes']['NT2'] == {'level': 'L1', 'about': None}, ADER(r)))
+
+AI = lambda slug, text, covers, fn, diags=(), **k: AN('invariants', slug, text, covers, aedit(fn), diags, **k)   # noqa: E731
+AI('dimension-id-of-a-wall', 'The overall string is keyed by W7, the south wall\'s ID: an annotation\'s ID is in the '
+   'document\'s one space of IDs.', ['1.3.2'], lambda d: DMS(d).update(W7=DMS(d).pop('DM1')), [('FS-ANNO-INV-001', ['W7'])])
+AI('dimension-id-of-a-room', 'The Kitchen\'s clear width is keyed by R1, the Kitchen\'s ID.', ['1.3.2'],
+   lambda d: DMS(d).update(R1=DMS(d).pop('DM3')), [('FS-ANNO-INV-001', ['R1'])])
+AI('dimension-id-of-a-level', 'A string keyed by L1, the level it is drawn on.', ['1.3.2'],
+   lambda d: DMS(d).update(L1=DMS(d).pop('DM4')), [('FS-ANNO-INV-001', ['L1'])])
+AI('dimension-id-of-an-opening', 'The window\'s string keyed by O1, the window it locates.', ['1.3.2'],
+   lambda d: DMS(d).update(O1=DMS(d).pop('DM2')), [('FS-ANNO-INV-001', ['O1'])])
+AI('note-id-of-a-lamp', 'A note keyed by X20, the table lamp\'s ID: an extension element of any extension, known or '
+   'not.', ['1.3.2'], lambda d: NTS(d).update(X20=NTS(d).pop('NT2')), [('FS-ANNO-INV-001', ['X20'])])
+AI('note-id-of-a-program-item', 'The house has a program with an item P1, and a note is keyed by P1.', ['1.3.2'],
+   lambda d: (d.update(program={'items': {'P1': {'function': 'kitchen'}}}), NTS(d).update(P1=NTS(d).pop('NT1'))),
+   [('FS-ANNO-INV-001', ['P1'])])
+AI('dimension-id-of-a-scene', 'A string keyed by LS1, an FS_lighting scene\'s ID: a scene\'s ID is in the one space of '
+   'IDs, read as data.', ['1.3.2'], lambda d: DMS(d).update(LS1=DMS(d).pop('DM4')), [('FS-ANNO-INV-001', ['LS1'])])
+AI('note-id-of-a-view', 'A note keyed by SV2, the ID of FS_views\'s view of the Kitchen island, read as data.', ['1.3.2'],
+   lambda d: NTS(d).update(SV2=NTS(d).pop('NT2')), [('FS-ANNO-INV-001', ['SV2'])])
+AI('note-id-of-a-dimension', 'The window\'s note is keyed by DM2, the ID of the string that locates the window: a note '
+   'and a dimension string never share an ID. Reported once, for the note.', ['1.3.2', '1.2.3'],
+   lambda d: NTS(d).update(DM2=NTS(d).pop('NT1')), [('FS-ANNO-INV-001', ['DM2'])])
+AI('ids-without-scenes-and-views', 'The house without FS_lighting and FS_views, a string keyed by LS1 and a note by SV2: '
+   'there are no scenes and no views, so neither is anyone\'s ID. Valid.', ['1.3.2'],
+   lambda d: (without_scenes_and_views(d), DMS(d).update(LS1=DMS(d).pop('DM4')), NTS(d).update(SV2=NTS(d).pop('NT2'))),
+   check=lambda r: ensure(sorted(ADER(r)['dimensions']) == ['DM1', 'DM2', 'DM3', 'LS1'] and sorted(ADER(r)['notes']) == ['NT1', 'SV2'], ADER(r)))
+AI('ids-of-data-not-an-object', 'FS_views\'s data is a string and FS_lighting\'s `scenes` a list, which no implementation '
+   'of FS_annotation checks: they hold no view and no scene, so a string keyed SV1 and a note keyed LS1 take no one\'s '
+   'ID. Valid.', ['1.3.2'],
+   lambda d: (d['extensions'].update({VIEW: 'four views'}), ext(d, LGHT).update(scenes=list(SCN(d).values())),
+              DMS(d).update(SV1=DMS(d).pop('DM4')), NTS(d).update(LS1=NTS(d).pop('NT2'))),
+   check=lambda r: ensure(sorted(ADER(r)['dimensions']) == ['DM1', 'DM2', 'DM3', 'SV1'], ADER(r)))
+AI('level-of-nothing', 'The overall string is drawn on L2, which the house does not have.', ['1.3.3'],
+   lambda d: DMS(d)['DM1'].update(level='L2'), [('FS-ANNO-INV-002', ['DM1'])])
+AI('note-level-of-nothing', 'The window\'s note is drawn on L0, which the house does not have.', ['1.3.3'],
+   lambda d: NTS(d)['NT1'].update(level='L0'), [('FS-ANNO-INV-002', ['NT1'])])
+AI('level-of-a-room', 'The Kitchen\'s clear width is drawn on R1, the Kitchen: a room is no level.', ['1.3.3'],
+   lambda d: DMS(d)['DM3'].update(level='R1'), [('FS-ANNO-INV-002', ['DM3'])])
+AI('level-of-another-level', 'A second level L2, and the panel\'s note drawn on it: any level of the document. Valid, '
+   'and its level derived.', ['1.3.3', '6.1.1'], lambda d: (level2(d), NTS(d)['NT2'].update(level='L2')),
+   check=lambda r: ensure(ADER(r)['notes']['NT2'] == {'level': 'L2', 'about': 'X1'}, ADER(r)['notes']))
+AI('direction-zero', 'The Kitchen\'s clear width measured along [0, 0]: no direction at all.', ['2.1.1'], INV_A, INV_A_DIAG)
+AI('direction-reversed', 'The overall string measured along [-2, 0]: the same direction as [1, 0], backwards and longer. '
+   'Valid, and its lengths the same.', ['2.1.1', '6.1.1'], lambda d: DMS(d)['DM1'].update(direction=[-2, 0]),
+   check=check_anno)
+AI('direction-zero-on-a-level-of-nothing', 'The Kitchen\'s clear width measured along [0, 0] on a level L9 the house '
+   'does not have: both reported.', ['1.2.3', '1.3.3', '2.1.1'],
+   lambda d: (INV_A(d), DMS(d)['DM3'].update(level='L9')), [('FS-ANNO-INV-002', ['DM3']), ('FS-ANNO-INV-003', ['DM3'])])
+AI('every-one-once', 'Every invariant broken at once - a string keyed X1, the panel\'s ID; a note keyed DM3, a string\'s; '
+   'a note on L9; and a string along [0, 0]: each reported once, naming its annotation.',
+   ['1.2.3', '1.3.2', '1.3.3', '2.1.1'],
+   lambda d: (DMS(d).update(X1=DMS(d).pop('DM1')), NTS(d).update(DM3=NTS(d).pop('NT2')), NTS(d)['NT1'].update(level='L9'),
+              DMS(d)['DM4'].update(direction=[0, 0])),
+   [('FS-ANNO-INV-001', ['DM3']), ('FS-ANNO-INV-001', ['X1']), ('FS-ANNO-INV-002', ['NT1']), ('FS-ANNO-INV-003', ['DM4'])])
+
+AL = lambda slug, text, covers, fn, diags=(), **k: AN('lints', slug, text, covers, aedit(fn), diags, **k)   # noqa: E731
+L1 = lambda did: ('FS-ANNO-LINT-001', [did])                                                               # noqa: E731
+L2_ = lambda did: ('FS-ANNO-LINT-002', [did])                                                              # noqa: E731
+AL('junction-of-nothing', 'The overall string measures to J9, which the house does not have: it is not resolved, '
+   'and derives no lengths.', ['1.2.3', '2.2.1', '6.1.1'], LINT_A, [L1('DM1')],
+   check=lambda r: ensure(ADER(r)['dimensions']['DM1'] == UNRESOLVED, ADER(r)['dimensions']))
+AL('wall-of-nothing', 'The Kitchen\'s clear width measures to the right face of W12, which the house does not have.',
+   ['1.2.3', '2.2.1'], lambda d: DMS(d)['DM3']['anchors'].__setitem__(0, wA('W12', 'right')), [L1('DM3')])
+AL('opening-of-nothing', 'The window\'s string measures to the centre of O2, which the house does not have.',
+   ['1.2.3', '2.2.1'], lambda d: DMS(d)['DM2']['anchors'].__setitem__(1, oA('O2')), [L1('DM2')])
+AL('junction-of-a-wall', 'The overall string\'s junction anchor names W8, a wall: an anchor names a feature of its own '
+   'kind.', ['1.2.3', '2.2.1'], lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, jA('W8')), [L1('DM1')])
+AL('wall-of-a-separator', 'The wall W10 between the Living and Utility rooms made a room separator S1, and the north-south '
+   'string measuring to S1 as a wall: a separator is no wall.', ['1.2.3', '2.2.1'],
+   lambda d: (d['walls'].pop('W10'), d.update(separators={'S1': {'level': 'L1', 'start': 'J7', 'end': 'J8'}}),
+              DMS(d)['DM4'].update(anchors=[wA('W6', 'right'), wA('S1', 'location'), wA('W3', 'right')])),
+   [L1('DM4')])
+AL('on-another-level', 'A second level L2, and the overall string drawn on it: its anchors are walls and a junction of '
+   'L1, another level, so it is not resolved.', ['1.2.3', '2.2.1', '6.1.1'],
+   lambda d: (level2(d), DMS(d)['DM1'].update(level='L2')), [L1('DM1')],
+   check=lambda r: ensure(ADER(r)['dimensions']['DM1'] == {'level': 'L2', 'lengths': None, 'total': None}, ADER(r)['dimensions']))
+AL('opening-on-another-level', 'A string DM5 on L2 from a point to the window\'s centre: the window is on its wall\'s '
+   'level, L1.', ['1.2.3', '2.2.1'],
+   lambda d: (level2(d), DMS(d).update(DM5=dim('L2', [1, 0], [0, 0], [pA(0, 0), oA('O1')]))), [L1('DM5')])
+AL('points-on-any-level', 'A string DM5 on L2 between two points: a point is associated with nothing, so on any level. '
+   'Resolved, 3\' long.', ['2.2.1', '6.1.1'],
+   lambda d: (level2(d), DMS(d).update(DM5=dim('L2', [0, 1], [0, 0], [pA(5 * FT, 0), pA(-7 * FT, 3 * FT)]))),
+   check=lambda r: ensure(ADER(r)['dimensions']['DM5'] == {'level': 'L2', 'lengths': [3 * FT], 'total': 3 * FT}, ADER(r)['dimensions']))
+AL('two-anchors-of-nothing', 'The window\'s string measures to J9 and to O2, neither of which the house has: reported '
+   'once, for the string.', ['1.2.3', '2.2.1'],
+   lambda d: DMS(d)['DM2'].update(anchors=[jA('J9'), oA('O2'), jA('J3')]), [L1('DM2')])
+AL('face-parallel-to-the-direction', 'The window\'s string measures east-west to the inside face of the north wall W2, '
+   'which runs east-west too: the face never crosses the dimension line.', ['1.2.3', '2.2.2', '6.1.1'],
+   lambda d: DMS(d)['DM2']['anchors'].append(wA('W2', 'right')), [L2_('DM2')],
+   check=lambda r: ensure(ADER(r)['dimensions']['DM2'] == UNRESOLVED, ADER(r)['dimensions']))
+AL('location-parallel-to-the-direction', 'A string along [3, 0] to the location line of W7, the south wall, which runs '
+   'east-west.', ['1.2.3', '2.2.2'],
+   lambda d: DMS(d)['DM1']['anchors'].__setitem__(1, wA('W7', 'location')) or DMS(d)['DM1'].update(direction=[3, 0]),
+   [L2_('DM1')])
+AL('arc-wall', 'The house as a Core 0.4 document whose north wall over the Living room, W3, is an arc bulging 2\' '
+   'out: the north-south string through the Living room measures to its inside face, a curve, which FS_annotation '
+   '0.1 does not measure to.', ['1.2.3', '2.2.2', '6.1.1'], arc_w3, [L2_('DM4')],
+   check=lambda r: ensure(ADER(r)['dimensions']['DM4'] == UNRESOLVED and ADER(r)['dimensions']['DM1'] == ANNOTATED['dimensions']['DM1'],
+                          ADER(r)['dimensions']))
+AL('arc-wall-location', 'The same arc wall W3, measured to its location line by a string along its chord\'s normal: an '
+   'arc wall\'s lines are curves, whichever is named.', ['1.2.3', '2.2.2'],
+   lambda d: (arc_w3(d), DMS(d)['DM4']['anchors'].__setitem__(3, wA('W3', 'location'))), [L2_('DM4')])
+AL('both-lints', 'The overall string measures to the face of W12, which the house does not have, and along [1, 0] to '
+   'the face of W10, which runs east-west: each lint reported once.', ['1.2.3', '2.2.1', '2.2.2'],
+   lambda d: DMS(d)['DM1'].update(anchors=[wA('W12', 'right'), wA('W10', 'right'), jA('J5')]),
+   [L1('DM1'), L2_('DM1')])
+AL('same-junction-twice', 'The overall string measures to J6 twice in a row: a segment of no length.',
+   ['1.2.3', '2.3.1'], lambda d: DMS(d)['DM1']['anchors'].insert(1, jA('J6')), [('FS-ANNO-LINT-003', ['DM1'])],
+   check=lambda r: ensure(ADER(r)['dimensions']['DM1']['lengths'] == [12 * FT + MM50, 0, 8 * FT + MM50], ADER(r)['dimensions']))
+AL('a-junction-and-its-location-line', 'A string along [1, 0] from the location line of W1 to J2, a junction on it: '
+   'two anchors at the same position.', ['1.2.3', '2.3.1'],
+   lambda d: DMS(d).update(DM5=dim('L1', [1, 0], [0, 14 * FT], [wA('W1', 'location'), jA('J2'), jA('J3')])),
+   [('FS-ANNO-LINT-003', ['DM5'])])
+AL('not-consecutive', 'A string from J1 to J6 and back to J1: no two consecutive anchors at one position, so no lint; '
+   'its total is from J1 to J1, 0.', ['2.3.1', '6.1.1'],
+   lambda d: DMS(d).update(DM5=dim('L1', [1, 0], [0, -3 * FT], [jA('J1'), jA('J6'), jA('J1')])),
+   check=lambda r: ensure(ADER(r)['dimensions']['DM5'] == {'level': 'L1', 'lengths': [12 * FT, 12 * FT], 'total': 0},
+                          ADER(r)['dimensions']))
+AL('less-than-half-a-unit', 'A string along [1, 2] between the points (0, 0) and (1, 0), 1/sqrt(5) of a base unit apart '
+   'along it: not of no length, though it is written 0. No lint.', ['2.3.1', '6.1.1'],
+   lambda d: DMS(d).update(DM5=dim('L1', [1, 2], [0, 0], [pA(0, 0), pA(1, 0)])),
+   check=lambda r: ensure(ADER(r)['dimensions']['DM5'] == {'level': 'L1', 'lengths': [0], 'total': 0}, ADER(r)['dimensions']))
+AL('unresolved-not-tested', 'The overall string measures to J9, which the house does not have, and to J6 twice: it is '
+   'not resolved, so it has no positions to compare - FS-ANNO-LINT-001 alone.', ['1.2.3', '2.3.1'],
+   lambda d: DMS(d)['DM1'].update(anchors=[jA('J9'), jA('J6'), jA('J6')]), [L1('DM1')])
+AL('about-nothing', 'The window\'s note is about O2, which the house does not have.', ['1.2.3', '3.1.1', '6.1.1'],
+   lambda d: NTS(d)['NT1'].update(about='O2'), [('FS-ANNO-LINT-004', ['NT1'])],
+   check=lambda r: ensure(ADER(r)['notes']['NT1'] == {'level': 'L1', 'about': 'O2'}, ADER(r)['notes']))
+AL('about-a-dimension', 'The window\'s note is about DM2, the string that locates the window. No lint.', ['3.1.1'],
+   lambda d: NTS(d)['NT1'].update(about='DM2'))
+AL('about-a-scene-and-a-view', 'The notes are about LS1, the Evening scene, and SV3, the dusk view: read as data. No '
+   'lint.', ['3.1.1'], lambda d: (NTS(d)['NT1'].update(about='LS1'), NTS(d)['NT2'].update(about='SV3')))
+AL('about-another-note', 'The panel\'s note is about NT1, another note: a note is not among what a note is about.',
+   ['1.2.3', '3.1.1'], lambda d: NTS(d)['NT2'].update(about='NT1'), [('FS-ANNO-LINT-004', ['NT2'])])
+AL('about-a-scene-without-lighting', 'The house without FS_lighting and FS_views, and a note about LS1: there are no '
+   'scenes.', ['1.2.3', '3.1.1'], lambda d: (without_scenes_and_views(d), NTS(d)['NT1'].update(about='LS1')),
+   [('FS-ANNO-LINT-004', ['NT1'])])
+AL('every-one-once', 'Every lint at once: a string of a missing junction, one along a parallel face, one of a '
+   'segment of no length, and two notes about nothing - each once.', ['1.2.3', '2.2.1', '2.2.2', '2.3.1', '3.1.1'],
+   lambda d: (LINT_A(d), DMS(d)['DM2']['anchors'].append(wA('W2', 'right')), DMS(d)['DM3']['anchors'].insert(1, wA('W1', 'right')),
+              NTS(d)['NT1'].update(about='O9'), NTS(d)['NT2'].update(about='X99')),
+   [L1('DM1'), L2_('DM2'), ('FS-ANNO-LINT-003', ['DM3']), ('FS-ANNO-LINT-004', ['NT1']), ('FS-ANNO-LINT-004', ['NT2'])])
+
+AD = lambda slug, text, fn, check, covers=('6.1.1',), diags=(): AN('derived', slug, text, list(covers), aedit(fn), diags, check=check)   # noqa: E731
+AD('note-defaults', 'A note NT3 of only a level, a text and a point: no leader, and about nothing, so `about` null.',
+   lambda d: NTS(d).update(NT3={'level': 'L1', 'text': 'North', 'at': [10 * FT, 14 * FT]}),
+   lambda r: ensure(ADER(r)['notes']['NT3'] == {'level': 'L1', 'about': None}, ADER(r)['notes']))
+AD('in-id-order', 'A string DM10 and a note NT10: annotations are in ID order by code unit, DM1, DM10, DM2.',
+   lambda d: (DMS(d).update(DM10=dim('L1', [0, 1], [-FT, 0], [jA('J1'), jA('J2')])),
+              NTS(d).update(NT10={'level': 'L1', 'text': 'West', 'at': [-3 * FT, 6 * FT]})),
+   lambda r: ensure(list(ADER(r)['dimensions']) == ['DM1', 'DM10', 'DM2', 'DM3', 'DM4'] and list(ADER(r)['notes']) == ['NT1', 'NT10', 'NT2']
+                    and ADER(r)['dimensions']['DM10'] == {'level': 'L1', 'lengths': [12 * FT], 'total': 12 * FT}, ADER(r)))
+AD('total-not-the-sum', 'A string along [1, 2] through four points a base unit apart east-west, each 1/sqrt(5) of a unit '
+   'from the next along it: each segment is 0, and the total, 3/sqrt(5), is 1 - measured, not added up.',
+   lambda d: DMS(d).update(DM5=dim('L1', [1, 2], [0, 0], [pA(k, 0) for k in range(4)])),
+   lambda r: ensure(ADER(r)['dimensions']['DM5'] == {'level': 'L1', 'lengths': [0, 0, 0], 'total': 1}, ADER(r)['dimensions']))
+AD('anchors-in-any-order', 'A string from J6 to J1 to J5: segments are lengths, whichever way they run, and the total '
+   'is from the first anchor to the last, J6 to J5 - 8\'.',
+   lambda d: DMS(d).update(DM5=dim('L1', [1, 0], [0, -3 * FT], [jA('J6'), jA('J1'), jA('J5')])),
+   lambda r: ensure(ADER(r)['dimensions']['DM5'] == {'level': 'L1', 'lengths': [12 * FT, 20 * FT], 'total': 8 * FT},
+                    ADER(r)['dimensions']))
+AD('kitchen-diagonal', 'A string along [1, 1] from J1 to J3, the Kitchen\'s diagonal: 12\' x sqrt(2), irrational, rounded '
+   'once.', lambda d: DMS(d).update(DM5=dim('L1', [1, 1], [0, 0], [jA('J1'), jA('J3')])),
+   lambda r: ensure(ADER(r)['dimensions']['DM5']['total'] == 6620963 and ADER(r)['dimensions']['DM5']['lengths'] == [6620963],
+                    ADER(r)['dimensions']['DM5']))
+AD('oblique-across-faces', 'The Kitchen\'s clear width measured along [1, 1]: the faces of W1 and W8 cross the oblique '
+   'line sqrt(2) times as far apart as they are, (12\' - 100 mm) x sqrt(2), and where it is drawn does not change it.',
+   lambda d: DMS(d)['DM3'].update(direction=[1, 1], through=[0, -5 * FT]),
+   lambda r: ensure(ADER(r)['dimensions']['DM3']['total'] == 6439944, ADER(r)['dimensions']['DM3']))
+AD('oblique-face-moves-with-through', 'The Kitchen\'s north-west corner cut off by a wall W11, 2\' east for every 3\' '
+   'north, and two strings along [1, 0] from J9, at its foot, to its location line: drawn 6" above J9 the line is 4" '
+   'east of it, and drawn 1\' 6" above, 1\' east. Where a string crosses an oblique wall\'s line depends on where it is '
+   'drawn; where it measures a junction does not.',
+   lambda d: (chamfer(d), DMS(d).pop('DM2'),
+              DMS(d).update(DM5=dim('L1', [1, 0], [0, 9 * FT + 6 * IN], [jA('J9'), wA('W11', 'location')]),
+                            DM6=dim('L1', [1, 0], [0, 10 * FT + 6 * IN], [jA('J9'), wA('W11', 'location')]))),
+   lambda r: ensure(ADER(r)['dimensions']['DM5']['total'] == 4 * IN and ADER(r)['dimensions']['DM6']['total'] == 12 * IN,
+                    ADER(r)['dimensions']))
+AD('chamfered-corner', 'The Kitchen\'s north-west corner cut off by a wall W11, 2\' east for every 3\' north, with a 2\' '
+   'window O2 in it, and a string along [1, -1] across the corner, through the middle of W11, from its outside face to '
+   'O2\'s centre, its inside face and J3: '
+   'every position irrational - sqrt(13) from the wall, sqrt(2) from the direction - and each length rounded once, as '
+   'an independent computation in 60-digit decimals finds.',
+   lambda d: (chamfer(d), DMS(d).pop('DM2'),
+              DMS(d).update(DM5=dim('L1', [1, -1], [FT, 10 * FT + 6 * IN], [wA('W11', 'left'), oA('O2'), wA('W11', 'right'), jA('J3')],
+                                    'Chamfer'))),
+   chamfer_check)
+AD('opening-on-an-arc-wall', 'The house as a Core 0.4 document with an arc north wall W3, a 3\' window O2 in it 2\' '
+   'along it, and a string from J3 to O2\'s centre - the middle of its chord (Core 21.6) - to J4: the window\'s centre is '
+   'measured - about 2\' 11" east of J3, since the window stands 2\' to 5\' along the arc\'s polyline, not its chord - and '
+   'the total is exactly 8\'.',
+   lambda d: (arc_w3(d), DMS(d).pop('DM4'),
+              d['openings'].update(O2={'wall': 'W3', 'offset': 2 * FT, 'width': 3 * FT, 'fill': 'WN', 'name': 'Bay window'}),
+              DMS(d).update(DM5=dim('L1', [1, 0], [0, 16 * FT], [jA('J3'), oA('O2'), jA('J4')]))),
+   lambda r: ensure(ADER(r)['dimensions']['DM5']['total'] == 8 * FT and sum(ADER(r)['dimensions']['DM5']['lengths']) == 8 * FT
+                    # on a circle of radius 5' about (16', 9'), 2' and 5' along the arc from J3: x = 13.484' and 16.364'
+                    and abs(ADER(r)['dimensions']['DM5']['lengths'][0] - round(2.924 * FT)) < FT // 100, ADER(r)['dimensions']['DM5']),
+   covers=('6.1.1', 'FS-CORE-21.6.1'))
+AD('moved-junction', 'The interior corner J6 moved 1\' east, to (13\', 0), with the walls that meet there: the overall '
+   'string follows it - 13\' and 50 mm, then 7\' and 50 mm - and its total is unchanged.',
+   lambda d: d['junctions']['J6'].update(position=[13 * FT, 0]),
+   lambda r: ensure(ADER(r)['dimensions']['DM1'] == {'level': 'L1', 'lengths': [13 * FT + MM50, 7 * FT + MM50], 'total': 20 * FT + 2 * MM50},
+                    ADER(r)['dimensions']['DM1']))
+AD('thicker-wall', 'The west wall W1 200 mm thick, still centred: its outside face moves 50 mm west and its inside face '
+   '50 mm east, and every string that measures to them changes with it.',
+   lambda d: (d['types'].update(WT2={'kind': 'wallType', 'layers': [{'thickness': 200 * MM, 'function': 'core'}]}),
+              d['walls']['W1'].update(type='WT2')),
+   lambda r: ensure([ADER(r)['dimensions'][x]['total'] for x in ('DM1', 'DM2', 'DM3')]
+                    == [20 * FT + 3 * MM50, 12 * FT + 2 * MM50, 12 * FT - 3 * MM50], ADER(r)['dimensions']))
+AD('justified-wall', 'The west wall W1 justified "interiorFace": its location line is its inside face, and its outside '
+   'face 100 mm west of it. The overall string grows by 50 mm, the Kitchen\'s clear width by 50 mm.',
+   lambda d: d['walls']['W1'].update(justification='interiorFace'),
+   lambda r: ensure([ADER(r)['dimensions'][x]['total'] for x in ('DM1', 'DM3')] == [20 * FT + 3 * MM50, 12 * FT - MM50],
+                    ADER(r)['dimensions']))
+
+
+def anno_options(d):
+    """Core 0.3 design options for the Kitchen's window: option A (OP1, the primary) keeps O1; option B
+    (OP2) has a wider window O2 of 6', 3' from J2, in its place."""
+    d['floorspec'] = '0.3'
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Kitchen window'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    d['openings']['O1']['option'] = 'OP1'
+    d['openings']['O2'] = {'wall': 'W2', 'offset': 3 * FT, 'width': 6 * FT, 'fill': 'WN', 'option': 'OP2'}
+
+
+AN('options', 'window-of-one-option', 'Kitchen window options A and B as Core 0.3 design options (Core 19), the window '
+   'string measuring A\'s window O1: FS_annotation is evaluated in each checked design, so in B\'s design, without O1, '
+   'the string is not resolved, reported with `design` (Core 19.5.2), and so is the note about O1; A\'s, the primary, '
+   'derives its lengths.', ['1.2.1', '1.2.3', '2.2.1', '3.1.1', 'FS-CORE-19.3.1'], aedit(anno_options),
+   [('FS-ANNO-LINT-001', ['DM2'], 'OP2'), ('FS-ANNO-LINT-004', ['NT1'], 'OP2')],
+   check=lambda r: ensure(ADER(r) == ANNOTATED and r['derived']['options']['OS1']['chosen'] == 'OP1', ADER(r)))
+AN('options', 'derived-for-a-design', 'The same options, the derived values asked for B\'s design (Core 19.6): the '
+   'window string is not resolved there, and derives no lengths.', ['1.2.4', '6.1.1', 'FS-CORE-19.6.1'], aedit(anno_options),
+   [('FS-ANNO-LINT-001', ['DM2'], 'OP2'), ('FS-ANNO-LINT-004', ['NT1'], 'OP2')], design={'OS1': 'OP2'},
+   check=lambda r: ensure(ADER(r)['dimensions']['DM2'] == UNRESOLVED and r['derived']['options']['OS1']['chosen'] == 'OP2', ADER(r)))
+AN('options', 'dimension-id-of-an-option-element', 'The same options, and a string keyed by O2, the ID of B\'s window: '
+   'in B\'s design it takes an element\'s ID, reported with `design`; in A\'s, without O2, it does not.',
+   ['1.2.1', '1.2.3', '1.3.2', 'FS-CORE-19.3.1'],
+   aedit(lambda d: (anno_options(d), DMS(d).update(O2=DMS(d).pop('DM4')))), [('FS-ANNO-INV-001', ['O2'], 'OP2')])
+
+
+def anno_lints(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(ANNO)]).encode('utf-8'), official.implemented(ANNO))
+    return [(x['code'], x['elements']) for x in result['diagnostics'] if x['code'].startswith('FS-ANNO-')]
+
+
+def anno_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(ANNO)]).encode('utf-8'), official.implemented(ANNO))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][ANNO]
+
+
+PORCH = dim('L1', [0, 1], [21 * FT, 0], [wA('W6', 'left'), jA('J8'), wA('W3', 'left')], 'Overall, east')
+AO = lambda *a, **k: O(ANNO, *a, **k)    # noqa: E731
+AO('add-a-dimension', 'setProperty of $document /extensions/FS_annotation/dimensions/DM5 adds an overall string up the '
+   'east side, from the south wall\'s outside face through J8 to the north wall\'s, with an ID Ops does not mint (1.3.2). '
+   'It commits, valid under FS_annotation, and measures 6\' and 50 mm twice.',
+   ['1.2.1', '1.3.2', '2.2.1', '6.1.1', 'FS-OPS-2.3.1'], annotation_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_annotation/dimensions/DM5', 'value': PORCH}]},
+   check=lambda r, B: ensure(anno_derived(B)['dimensions']['DM5'] == {'level': 'L1', 'lengths': [6 * FT + MM50] * 2,
+                                                                     'total': 12 * FT + 2 * MM50}, anno_derived(B)))
+AO('first-note-creates-the-data', 'The house declaring FS_annotation with no data of it yet: setProperty of $document '
+   '/extensions/FS_annotation/notes/NT1 creates FS_annotation\'s data, and its `notes`, on the way (Ops 2.3) - the '
+   'window\'s note. It commits, valid under FS_annotation.', ['1.2.1', '1.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   aedit(lambda d: d['extensions'].pop(ANNO)),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_annotation/notes/NT1',
+               'value': ANNOTATION['notes']['NT1']}]},
+   check=lambda r, B: ensure(B['extensions'][ANNO] == {'notes': {'NT1': ANNOTATION['notes']['NT1']}}
+                             and anno_derived(B) == {'dimensions': {}, 'notes': {'NT1': {'level': 'L1', 'about': 'O1'}}},
+                             B['extensions'].get(ANNO)))
+AO('move-a-dimension', 'setProperty of $document /extensions/FS_annotation/dimensions/DM1/through: the overall string '
+   'is drawn 2\' further south. It commits, and measures exactly what it did.', ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'],
+   annotation_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_annotation/dimensions/DM1/through',
+               'value': [0, -1200 * MM - 2 * FT]}]},
+   check=lambda r, B: ensure(anno_derived(B) == ANNOTATED and ext(B, ANNO)['dimensions']['DM1']['through'] == [0, -1200 * MM - 2 * FT],
+                             anno_derived(B)))
+AO('remove-a-dimension', 'unsetProperty of $document /extensions/FS_annotation/dimensions/DM3 removes the Kitchen\'s '
+   'clear width. It commits.', ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'], annotation_house(),
+   {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_annotation/dimensions/DM3'}]},
+   check=lambda r, B: ensure(list(anno_derived(B)['dimensions']) == ['DM1', 'DM2', 'DM4'], anno_derived(B)))
+AO('direction-zero-is-rejected', 'setProperty of $document /extensions/FS_annotation/dimensions/DM3/direction to [0, 0]: '
+   'the result breaks 2.1.1, and an applier that implements FS_annotation and knows it rejects the batch (Ops 1.2.3).',
+   ['2.1.1', '1.2.1', 'FS-OPS-1.2.3'], annotation_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_annotation/dimensions/DM3/direction',
+               'value': [0, 0]}]},
+   'rejected', INV_A_DIAG)
+AO('note-on-a-level-of-nothing-is-rejected', 'setProperty of $document /extensions/FS_annotation/notes/NT3, a note on '
+   'L2, which the house does not have: the result breaks 1.3.3, and the batch is rejected.',
+   ['1.3.3', '1.2.1', 'FS-OPS-1.2.3'], annotation_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_annotation/notes/NT3',
+               'value': {'level': 'L2', 'text': 'Upstairs', 'at': [0, 0]}}]},
+   'rejected', [('FS-ANNO-INV-002', ['NT3'])])
+AO('remove-a-wall-a-dimension-measures', 'removeWall W10, keeping the Living room: the Utility room joins it, and the '
+   'north-south string that measures to both faces of W10 names a wall the house no longer has. That is not an error '
+   'of FS_annotation: the batch commits - a committed result carries no lints (Ops 1.2) - and the document it makes, '
+   'validated, reports FS-ANNO-LINT-001 for the string, which derives no lengths until its owner mends it.',
+   ['2.2.1', '1.2.1', '6.1.1', 'FS-OPS-4.7.1'], annotation_house(),
+   {'batch': [{'op': 'removeWall', 'wall': 'W10', 'keep': 'R2'}]},
+   check=lambda r, B: ensure(anno_derived(B)['dimensions']['DM4'] == UNRESOLVED and 'W10' not in B['walls']
+                             and anno_lints(B) == [('FS-ANNO-LINT-001', ['DM4'])], anno_derived(B)['dimensions']))
+AO('move-a-junction-a-dimension-measures', 'moveJunction J6 to (13\', 0): the walls that meet there move with it, and '
+   'so do the strings that measure them - the overall string is 13\' and 50 mm, then 7\' and 50 mm. It commits.',
+   ['1.2.1', '6.1.1', 'FS-OPS-2.4.1'], annotation_house(),
+   {'batch': [{'op': 'moveJunction', 'id': 'J6', 'to': [13 * FT, 0]}]},
+   check=lambda r, B: ensure(anno_derived(B)['dimensions']['DM1']['lengths'] == [13 * FT + MM50, 7 * FT + MM50],
+                             anno_derived(B)['dimensions']))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -3545,7 +4219,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

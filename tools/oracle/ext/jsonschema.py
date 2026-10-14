@@ -5,7 +5,7 @@ published file of its own (registry/<NAME>/*.schema.json), and the oracle reads 
 a small, independent interpreter of the keywords those files use - `$ref` (local `#/$defs/...`),
 `type`, `properties`, `required`, `additionalProperties`, `propertyNames`, `enum`, `minimum`,
 `maximum`, `minLength`, `maxLength`, `pattern`, `items`, `minItems`, `maxItems`, `uniqueItems`,
-`dependentRequired` - and it refuses
+`dependentRequired`, `oneOf` - and it refuses
 a schema that uses any other keyword, so that a schema can never silently mean more than it checks.
 
 A JSON integer is a Python int that is not a bool (jsonparse keeps `1.0` a float, 2.1.1); a string's
@@ -20,7 +20,7 @@ import re
 ANNOTATIONS = {'$schema', '$id', '$comment', '$defs', 'title', 'description', 'default'}
 KEYWORDS = {'$ref', 'type', 'properties', 'required', 'additionalProperties', 'propertyNames', 'enum',
             'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'items', 'minItems', 'maxItems', 'uniqueItems',
-            'dependentRequired'}
+            'dependentRequired', 'oneOf'}
 
 
 def _type_ok(v, t: str) -> bool:
@@ -59,6 +59,8 @@ class Schema:
         for k in ('additionalProperties', 'propertyNames', 'items'):
             if isinstance(node.get(k), dict):
                 self._check(node[k], f'{where}/{k}')
+        for i, sub in enumerate(node.get('oneOf', [])):
+            self._check(sub, f'{where}/oneOf/{i}')
 
     def _resolve(self, ref: str) -> dict:
         if not ref.startswith('#/$defs/'):
@@ -71,6 +73,10 @@ class Schema:
         out = []
         if '$ref' in node:
             out.extend(self.errors(v, self._resolve(node['$ref']), path))
+        if 'oneOf' in node:
+            n = sum(1 for sub in node['oneOf'] if not self.errors(v, sub, path))
+            if n != 1:
+                out.append(f'{path or "/"}: matches {n} of oneOf, not exactly one')
         if 'type' in node and not _type_ok(v, node['type']):
             return out + [f'{path or "/"}: not of type {node["type"]}']
         if 'enum' in node and not any(_same(v, e) for e in node['enum']):

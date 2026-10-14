@@ -32,7 +32,7 @@ class SchemaSubset(unittest.TestCase):
 
     def test_a_keyword_outside_the_subset_is_refused(self):
         with self.assertRaises(ValueError):
-            Schema({'oneOf': [{'type': 'string'}]})
+            Schema({'anyOf': [{'type': 'string'}]})
 
 
 class RoomOfAnElement(unittest.TestCase):
