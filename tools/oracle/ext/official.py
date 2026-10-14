@@ -1,5 +1,5 @@
 """The official extensions the oracle implements: FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape and FS_lighting 0.1.0 (registry/). Each is a module with NAME, VERSION, CODE, CORE (the
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting and FS_views 0.1.0 (registry/). Each is a module with NAME, VERSION, CODE, CORE (the
 Core drafts it lists, 1.1), SCHEMA, SEVERITY and
 invariants / lints / derive; validate.check takes a mapping of the ones a run implements. A module whose
 data is also on core elements (FS_structural) has schema_errors(doc, data), its whole schema tier.
@@ -13,10 +13,10 @@ derived values for a valid document.
 from __future__ import annotations
 
 from .. import registry as reg
-from . import electrical, furniture, landscape, lighting, lowvoltage, mechanical, plumbing, structural
+from . import electrical, furniture, landscape, lighting, lowvoltage, mechanical, plumbing, structural, views
 from .common import Context
 
-OFFICIAL = {m.NAME: m for m in (electrical, plumbing, mechanical, lowvoltage, furniture, structural, landscape, lighting)}
+OFFICIAL = {m.NAME: m for m in (electrical, plumbing, mechanical, lowvoltage, furniture, structural, landscape, lighting, views)}
 SEVERITY = {code: sev for m in OFFICIAL.values() for code, sev in m.SEVERITY.items()}
 
 
