@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -610,8 +610,26 @@ its `ops` group adds, renames and removes scenes and describes a luminaire with 
 use, a scene turning on a switch and the removal of a light a scene still turns on, and removes one
 with its references.
 
+FS_views's suite starts from the lit house with four saved views (`examples/…-p13-house-with-views`):
+a 24 mm two-point hero shot from the south-west on a June evening, a 20 mm two-point view of the
+Kitchen's island at f/2.8 with every light on, a two-point view from the garden at dusk showing
+FS_lighting's "Evening" scene, and a square view from above with everything cut away above L1.
+FS_views adds no kind of element and requires no other extension, and reads FS_lighting's scenes as
+data: its suite is run by an implementation of FS_views alone, to which FS_lighting is usually
+unknown, and its `examples` group also reads the house without FS_lighting and with FS_views as the
+only extension it uses. Its `schema` group tests every member's form - points of three lengths, the
+lens and picture enumerations, `focus` only with `aperture` and `levels` only with `level`, and the
+ISO 8601 form of `at`; its `invariants` group a view's ID in the one space of IDs (FS_lighting's
+scenes among them), an eye at its target, a level and a scene that do not exist - a scene of data
+that is not an object, or of a house without FS_lighting - a scene with the lights off, names that
+repeat, and days a month does not have, by the Gregorian rule; its `lints` group a two-point view
+steeper than 30 degrees, on either side of the exact integer test. Its `options` group keys a view by
+the ID of an element of one design option only; its `ops` group adds, renames, replaces and removes
+views with `setProperty` and `unsetProperty` of `$document` - the first view creating FS_views's
+data - and rejects a name in use, an eye at its target, and the removal of a scene a view shows.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the

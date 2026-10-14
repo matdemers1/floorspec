@@ -4,7 +4,8 @@ The Core schema tier is transcribed by hand (tools/oracle/schema.py). An extensi
 published file of its own (registry/<NAME>/*.schema.json), and the oracle reads that file: this is
 a small, independent interpreter of the keywords those files use - `$ref` (local `#/$defs/...`),
 `type`, `properties`, `required`, `additionalProperties`, `propertyNames`, `enum`, `minimum`,
-`maximum`, `minLength`, `maxLength`, `pattern`, `items`, `minItems`, `maxItems`, `uniqueItems` - and it refuses
+`maximum`, `minLength`, `maxLength`, `pattern`, `items`, `minItems`, `maxItems`, `uniqueItems`,
+`dependentRequired` - and it refuses
 a schema that uses any other keyword, so that a schema can never silently mean more than it checks.
 
 A JSON integer is a Python int that is not a bool (jsonparse keeps `1.0` a float, 2.1.1); a string's
@@ -18,7 +19,8 @@ import re
 
 ANNOTATIONS = {'$schema', '$id', '$comment', '$defs', 'title', 'description', 'default'}
 KEYWORDS = {'$ref', 'type', 'properties', 'required', 'additionalProperties', 'propertyNames', 'enum',
-            'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'items', 'minItems', 'maxItems', 'uniqueItems'}
+            'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'items', 'minItems', 'maxItems', 'uniqueItems',
+            'dependentRequired'}
 
 
 def _type_ok(v, t: str) -> bool:
@@ -100,6 +102,10 @@ class Schema:
             for r in node.get('required', []):
                 if r not in v:
                     out.append(f'{path or "/"}: missing {r}')
+            for k, rs in node.get('dependentRequired', {}).items():
+                for r in rs if k in v else ():
+                    if r not in v:
+                        out.append(f'{path or "/"}: {k} without {r}')
             props = node.get('properties', {})
             for k, x in v.items():
                 p = f'{path}/{k.replace("~", "~0").replace("/", "~1")}'

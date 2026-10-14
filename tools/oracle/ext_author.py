@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape and FS_lighting 0.1.0 - as the script that writes them.
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting and FS_views 0.1.0 - as the script that writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
     python3.13 -m tools.oracle.ext_author --prune    ...and delete test directories no longer declared
@@ -31,7 +31,9 @@ a walled exterior courtyard, a patio, a lawn, beds, a raised planter, trees, shr
 groundcover, stepping stones and a seat wall. FS_lighting's start from the Phase 13 lit house (lit_house() below) -
 the demo house's plan with FS_electrical's pendants over an island on a dimmer, tunable downlights on a smart
 switch, a downlight that does not dim, a porch light, and an FS_furniture table lamp, each described as a
-luminaire, and the scenes "Evening" and "Night light". Every expected diagnostic is written by hand and cross-checked against the
+luminaire, and the scenes "Evening" and "Night light". FS_views's start from the lit house with four saved views
+(views_house() below) - a two-point hero shot of the exterior, a two-point view of the Kitchen's island with every light
+on, a view from the garden at dusk with the "Evening" scene, and a cutaway from above. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -2532,6 +2534,507 @@ GO('scene-turns-on-a-switch-is-rejected', 'setProperty of $document /extensions/
    'rejected', [('FS-LGHT-INV-005', ['LS2'])])
 
 
+# ============================================================================= FS_views
+
+VIEW = 'FS_views'
+CODE[VIEW] = 'VIEW'
+
+
+def pt(x_mm, y_mm, z_mm):
+    """A point of a view, from millimetres: plan x and y, and a height above project zero."""
+    return [x_mm * MM, y_mm * MM, z_mm * MM]
+
+
+VIEWS = {
+    'SV1': {'name': 'Hero exterior', 'eye': pt(-4000, -7000, 1600), 'target': pt(3048, 1829, 1350),
+            'focalLength': 24, 'twoPoint': True, 'aperture': 'f/8', 'exposure': 3, 'sky': 'clear',
+            'at': '2026-06-21T17:30'},
+    'SV2': {'name': 'Kitchen island', 'eye': pt(600, 600, 1500), 'target': pt(1829, 1829, 950),
+            'focalLength': 20, 'twoPoint': True, 'aspect': '16:9', 'aperture': 'f/2.8', 'focus': 1800 * MM,
+            'sky': 'overcast', 'lights': 'on'},
+    'SV3': {'name': 'Dusk from the garden', 'eye': pt(7500, -3000, 1700), 'target': pt(3048, 1829, 1200),
+            'twoPoint': True, 'exposure': -3, 'sky': 'dusk', 'at': '2026-10-15T18:40-04:00', 'scene': 'LS1'},
+    'SV4': {'name': 'Cutaway', 'eye': pt(-3000, -5000, 9000), 'target': pt(3048, 1829, 0), 'focalLength': 50,
+            'aspect': '1:1', 'level': 'L1', 'levels': 'cutaway', 'sky': 'studio'},
+}
+
+
+def views_house():
+    """The Phase 13 lit house (lit_house()) with four saved views of FS_views:
+
+    - SV1 "Hero exterior": from the south-west, outside, at eye height, a 24 mm two-point view of
+      the house at f/8 on a June evening;
+    - SV2 "Kitchen island": from the Kitchen's south-west corner, a 20 mm two-point view of the
+      island, 16:9, at f/2.8 focused on the pendants, under an overcast sky, with every light on;
+    - SV3 "Dusk from the garden": from the south-east, a 35 mm two-point view at dusk in October,
+      the lights as FS_lighting's scene LS1 "Evening" sets them;
+    - SV4 "Cutaway": from high above the south-west, a 50 mm square view looking down into L1 with
+      the roof and ceilings cut away, in a studio light.
+
+    FS_views requires no other extension; the house uses FS_electrical, FS_furniture and FS_lighting
+    as well, and FS_views reads FS_lighting's scenes as data."""
+    d = lit_house()
+    d['extensionsUsed'][VIEW] = '0.1.0'
+    d['extensions'][VIEW] = {'views': copy.deepcopy(VIEWS)}
+    return d
+
+
+def vedit(fn):
+    """The Phase 13 house with views, changed by fn(d) in place."""
+    d = views_house()
+    fn(d)
+    return d
+
+
+def without_lighting(d):
+    """No FS_lighting: neither its declaration nor its data, and no view showing its scene."""
+    d['extensionsUsed'].pop(LGHT)
+    d['extensions'].pop(LGHT)
+    VWS(d)['SV3'].pop('scene')
+
+
+def views_alone(d):
+    """FS_views the only extension the house uses: no lights, no lamp, no scenes."""
+    for x in (ELEC, FURN, LGHT):
+        d['extensionsUsed'].pop(x)
+        d['extensions'].pop(x)
+    d.pop('assets')
+    VWS(d)['SV3'].pop('scene')
+
+
+VWS = lambda d: ext(d, VIEW)['views']                                              # noqa: E731
+VDER = derived_of(VIEW)
+VW = lambda *a, **k: V(VIEW, *a, **k)    # noqa: E731
+VIEWED = {'views': {'SV1': {'name': 'Hero exterior', 'level': None, 'lights': 'off', 'scene': None},
+                    'SV2': {'name': 'Kitchen island', 'level': None, 'lights': 'on', 'scene': None},
+                    'SV3': {'name': 'Dusk from the garden', 'level': None, 'lights': 'on', 'scene': 'LS1'},
+                    'SV4': {'name': 'Cutaway', 'level': 'L1', 'lights': 'off', 'scene': None}}}
+VIEW_KNOWN = ALL_KNOWN + (VIEW,)
+
+
+def check_view(r):
+    # SV3's lights are on by its scene, though it says nothing of `lights`; a view without a level
+    # or a scene derives null for it
+    ensure(VDER(r) == VIEWED and list(VDER(r)['views']) == ['SV1', 'SV2', 'SV3', 'SV4'], VDER(r))
+
+
+BAD_V = lambda d: VWS(d)['SV1'].update(aspect='2:1')                               # noqa: E731  the schema tier
+INV_V = lambda d: VWS(d)['SV2'].update(target=pt(600, 600, 1500))                 # noqa: E731  FS-VIEW-INV-002
+INV_V_DIAG = [('FS-VIEW-INV-002', ['SV2'])]
+LINT_V = lambda d: VWS(d)['SV4'].update(twoPoint=True)                            # noqa: E731  FS-VIEW-LINT-001
+
+VW('examples', 'p13-house-with-views', 'The Phase 13 lit house with four saved views, read by an implementation of '
+   'FS_views that knows it: a 24 mm two-point hero shot from the south-west on a June evening, a 20 mm two-point view '
+   'of the Kitchen\'s island at f/2.8 with every light on, a two-point view from the garden at dusk with the lights as '
+   'FS_lighting\'s "Evening" scene sets them - FS_lighting unknown to it, its scenes read as data - and a square '
+   'view from high above with the roof and ceilings cut away above L1. It is valid, reports nothing, and derives each '
+   'view\'s name, level, lights and scene.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '2.1.1', '2.2.1', '3.1.1', '3.2.1', '3.3.1', '3.3.2', '6.1.1'],
+   views_house(), check=check_view)
+VW('examples', 'core-only-reader', 'The same house read with no known extensions: FS_views is not evaluated, so '
+   'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every extension element\'s '
+   'fallback and host (Core 1.6.9); FS_views has no elements of its own.',
+   ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2'], views_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['fallbacks'])
+                          == ['X1', 'X10', 'X11', 'X12', 'X13', 'X2', 'X20', 'X3', 'X4', 'X5', 'X6', 'X7'],
+                          r['derived']['extensions']))
+VW('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of '
+   'FS_views alone: FS_electrical, FS_furniture and FS_lighting are checked only as Core 12 checks a known extension - '
+   'FS_lighting\'s requirement of FS_electrical among them - and only FS_views is evaluated and derived.',
+   ['1.2.1', '1.2.4'], views_house(), registry=[entry(x) for x in VIEW_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [VIEW] and VDER(r) == VIEWED, list(r['derived']['extensions'])))
+VW('examples', 'no-views', 'FS_views used with empty top-level data: valid, and no view derived.',
+   ['1.3.1', '6.1.1'], vedit(lambda d: d['extensions'].update({VIEW: {}})),
+   check=lambda r: ensure(VDER(r) == {'views': {}}, VDER(r)))
+VW('examples', 'without-lighting', 'The house without FS_lighting - neither its declaration nor its data - and the '
+   'dusk view without a scene: FS_views requires no other extension, so the views are valid as they are, and the dusk '
+   'view\'s lights are off.', ['1.2.1', '1.3.1', '3.3.1', '6.1.1'], vedit(without_lighting),
+   check=lambda r: ensure(VDER(r)['views']['SV3'] == {'name': 'Dusk from the garden', 'level': None, 'lights': 'off',
+                                                      'scene': None} and list(r['derived']['extensions']) == [VIEW], VDER(r)))
+VW('examples', 'views-alone', 'The house with FS_views the only extension it uses - no lights, no lamp, no scenes - '
+   'and the dusk view without a scene: valid, and the four views derived.', ['1.2.1', '1.2.4', '1.3.1', '6.1.1'],
+   vedit(views_alone),
+   check=lambda r: ensure(sorted(VDER(r)['views']) == ['SV1', 'SV2', 'SV3', 'SV4'] and r['derived']['fallbacks'] == {}, VDER(r)))
+
+VW('activation', 'unknown-data-not-evaluated', 'The hero shot\'s aspect is "2:1", which FS_views\'s schema does not '
+   'allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   vedit(BAD_V), registry=None)
+VW('activation', 'another-version-known', 'The document uses FS_views at 0.2.0, which is known (a later entry), but '
+   'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+   ['1.2.1'], vedit(lambda d: (BAD_V(d), d['extensionsUsed'].update({VIEW: '0.2.0'}))), registry=[entry(VIEW, '0.2.0')])
+VW('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_views is evaluated: its data '
+   'breaks the schema, FS-VIEW-SCH-001.', ['1.2.1', '1.3.1'],
+   vedit(lambda d: (BAD_V(d), d['extensionsUsed'].update({VIEW: '0.1'}))), [('FS-VIEW-SCH-001', [])])
+VW('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_views is evaluated.', ['1.2.1', '1.3.1'],
+   vedit(lambda d: (BAD_V(d), d['extensionsUsed'].update({VIEW: {'version': '0.1.0', 'schema': entry(VIEW)['schema']}}))),
+   [('FS-VIEW-SCH-001', [])])
+VW('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_views is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {VIEW: '0.1.0'},
+    'extensions': {VIEW: {'colour': 'red'}}})
+VW('activation', 'core-0.3-document', 'The house declaring Core "0.3", a draft FS_views 0.1.0 lists (1.1): FS_views '
+   'is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], vedit(lambda d: d.update(floorspec='0.3')), check=check_view)
+VW('activation', 'core-0.3-invariants', 'The same "0.3" house with the island view\'s eye at its target: FS_views is '
+   'evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.2.1'],
+   vedit(lambda d: (d.update(floorspec='0.3'), INV_V(d))), INV_V_DIAG)
+VW('activation', 'core-0.4-document', 'The house declaring Core "0.4", a draft FS_views 0.1.0 lists (1.1): FS_views '
+   'is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], vedit(lambda d: d.update(floorspec='0.4')), check=check_view)
+VW('activation', 'lighting-known-too', 'The house read with FS_lighting\'s entry known as well as FS_views\'s, by an '
+   'implementation of FS_views alone: FS_lighting is checked only as Core 12 checks a known extension, and FS_views '
+   'is evaluated and derived exactly as with its own entry alone, reading the scenes as data.',
+   ['1.2.1', '1.2.4', '3.3.1', '6.1.1'], views_house(), registry=[entry(LGHT), entry(VIEW)],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [VIEW] and VDER(r) == VIEWED, r['derived']['extensions']))
+
+VW('order', 'core-error-first', 'A Core invariant breaks - the porch light\'s switch 13\' along the 12\' wall W2, '
+   'FS-INV-501 - and so does FS_views\'s schema: Core\'s error is reported, and FS_views is not evaluated.',
+   ['1.2.2'], vedit(lambda d: (BAD_V(d), GK(d, 'switches')['X13']['host'].update(wall='W2', offset=13 * FT))),
+   [('FS-INV-501', ['X13'])])
+VW('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-VIEW-SCH-001.',
+   ['1.2.2', '1.3.1'], vedit(lambda d: (BAD_V(d), INV_V(d))), [('FS-VIEW-SCH-001', [])])
+VW('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the cutaway, looking steeply '
+   'down, is made two-point: the document is invalid, so no lint is reported, FS_views\'s or Core\'s.',
+   ['1.2.2', '1.2.3'], vedit(lambda d: (INV_V(d), LINT_V(d))), INV_V_DIAG)
+VW('order', 'lighting-not-evaluated', 'FS_lighting\'s data breaks FS_lighting\'s own rules - a scene turns on the dimmer '
+   'X10, and the Night light is named "Evening" - but this implementation does not implement FS_lighting: it reports '
+   'nothing of FS_lighting, and reads its scenes as data, so the dusk view\'s scene is a scene. Valid.',
+   ['3.3.1'],
+   vedit(lambda d: (ON(d, 'LS2').update(X10={}), SCN(d)['LS2'].update(name='Evening'))))
+
+VW('schema', 'data-not-an-object', 'FS_views\'s top-level data is an array: Core allows any JSON there, FS_views\'s '
+   'schema does not.', ['1.3.1'], vedit(lambda d: d['extensions'].update({VIEW: []})), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'unknown-member', 'A top-level member FS_views does not define, `cameras`.', ['1.3.1'],
+   vedit(lambda d: ext(d, VIEW).update(cameras={})), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'empty-collections', 'An empty `collections` member: FS_views adds no kind of element, so its data has '
+   'no `collections`, even an empty one. Core finds no collection in it; FS_views\'s schema rejects it.', ['1.3.1'],
+   vedit(lambda d: ext(d, VIEW).update(collections={})), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'a-collection', 'A collection `cameras` in FS_views\'s data: its registry entry names no kind, so Core '
+   '12.4.1 reports it (FS-INV-604), and FS_views is not evaluated.', ['1.2.2', 'FS-CORE-12.4.1'],
+   vedit(lambda d: ext(d, VIEW).update(collections={'cameras': {}})), [('FS-INV-604', [])])
+VW('schema', 'views-not-an-object', 'FS_views\'s `views` is a list of views, not an object of them.', ['1.3.1'],
+   vedit(lambda d: ext(d, VIEW).update(views=list(VWS(d).values()))), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'view-id-not-an-id', 'A view keyed by "Hero exterior", which is not an ID (Core 3.1.1).', ['1.3.1'],
+   vedit(lambda d: VWS(d).update({'Hero exterior': VWS(d).pop('SV1')})), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'view-without-a-name', 'A view always has a name.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV4'].pop('name')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'empty-name', 'A view\'s name is 1 to 200 characters: never empty.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(name='')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'name-too-long', 'A view\'s name is 1 to 200 characters.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(name='N' * 201)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'view-without-an-eye', 'A view always has an eye.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].pop('eye')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'view-without-a-target', 'A view always has a target.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].pop('target')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'eye-of-two-lengths', 'An eye is a point in space, three lengths: [x, y] is a plan point, not one.',
+   ['1.3.1'], vedit(lambda d: VWS(d)['SV1'].update(eye=VWS(d)['SV1']['eye'][:2])), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'target-of-four-lengths', 'A target of four lengths.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(target=VWS(d)['SV1']['target'] + [0])), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'eye-with-a-fraction', 'A length written with a fraction is not an integer, even when it is a whole '
+   'number (1.4).', ['1.3.1'], None, [('FS-VIEW-SCH-001', [])],
+   raw=(fmt(views_house()) + '\n').replace(f'{1600 * MM}', f'{1600 * MM}.0', 1).encode('utf-8'))
+VW('schema', 'eye-in-millimetres', 'An eye written in millimetres as strings, ["-4000 mm", ...]: a length is an '
+   'integer of base units.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(eye=['-4000 mm', '-7000 mm', '1600 mm'])), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'eye-beyond-a-length', 'An eye\'s height of 2^53 base units, one more than any length (Core 2.1).',
+   ['1.3.1'], vedit(lambda d: VWS(d)['SV4']['eye'].__setitem__(2, 2 ** 53)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'focal-length-below-8', 'A focal length of 7 mm.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(focalLength=7)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'focal-length-above-1200', 'A focal length of 1,201 mm.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(focalLength=1201)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'two-point-not-a-boolean', 'Whether a view is two-point is true or false, not "yes".', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(twoPoint='yes')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'aspect-not-listed', 'An aspect of "2:1", which is not one of the four.', ['1.3.1'],
+   vedit(BAD_V), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'aperture-not-listed', 'An aperture of "f/3.5", which is not one of the nine.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(aperture='f/3.5')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'aperture-a-number', 'An aperture of 2.8: an aperture is written as its f-number, "f/2.8".', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(aperture=28)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'focus-without-an-aperture', 'The island view focused at 1.8 m with no aperture: a distance in focus '
+   'means nothing to a pinhole, and the schema requires `aperture` with `focus` (2.1).', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].pop('aperture')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'focus-zero', 'A focus of 0: the distance in focus is a positive length.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(focus=0)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'exposure-above-30', 'An exposure compensation of 31 tenths of a stop.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(exposure=31)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'exposure-below-minus-30', 'An exposure compensation of -31 tenths of a stop.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(exposure=-31)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'level-not-an-id', 'A level written as its name, "Ground floor", which is not an ID.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(level='Ground floor')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'levels-without-a-level', 'The cutaway\'s `levels` without its `level`: the schema requires `level` with '
+   '`levels` (2.1).', ['1.3.1'], vedit(lambda d: VWS(d)['SV4'].pop('level')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'levels-not-listed', 'A `levels` of "above", which is neither "cutaway" nor "only".', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(levels='above')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'sky-not-listed', 'A sky of "sunset", which is not one of the five.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV3'].update(sky='sunset')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-without-a-time', 'An `at` of a date alone, "2026-06-21": it is a date and a time.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-06-21')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-with-a-space', 'An `at` of "2026-06-21 17:30", with a space for the T.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-06-21 17:30')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-hour-24', 'An `at` at 24:00: the hours are 00 to 23.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-06-21T24:00')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-month-13', 'An `at` in month 13.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-13-01T12:00')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-day-32', 'An `at` on day 32.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-01-32T12:00')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-with-fractional-seconds', 'An `at` with fractional seconds, "17:30:00.5": whole seconds only.',
+   ['1.3.1'], vedit(lambda d: VWS(d)['SV1'].update(at='2026-06-21T17:30:00.5')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-offset-beyond-14-hours', 'An `at` with an offset of +15:00: offsets are at most 14 hours.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV3'].update(at='2026-10-15T18:40+15:00')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-offset-without-a-colon', 'An `at` with an offset of -0400: the offset is written ±HH:MM.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV3'].update(at='2026-10-15T18:40-0400')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'at-every-form', 'An `at` in each form the schema allows - with seconds, with Z, and with seconds and an '
+   'offset of -14:00 - and the bounds of a focal length, an exposure and a focus: 8 mm and 1,200 mm, -30 and 30, a focus '
+   'of 1. Valid.', ['1.3.1', '3.2.1'],
+   vedit(lambda d: (VWS(d)['SV1'].update(at='2026-06-21T17:30:45', focalLength=8, exposure=-30),
+                    VWS(d)['SV2'].update(at='2026-12-31T23:59Z', focalLength=1200, exposure=30, focus=1),
+                    VWS(d)['SV3'].update(at='2026-10-15T18:40:00-14:00'))),
+   check=lambda r: ensure(VDER(r) == VIEWED, VDER(r)))
+VW('schema', 'lights-not-listed', 'Lights "dim", which is neither "off" nor "on": a dimmed house is a scene of '
+   'FS_lighting.', ['1.3.1'], vedit(lambda d: VWS(d)['SV2'].update(lights='dim')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'lights-a-boolean', 'Lights true: they are "off" or "on".', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(lights=True)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'scene-not-an-id', 'A scene written as its name, "Night light", which is not an ID (Core 3.1.1).',
+   ['1.3.1'], vedit(lambda d: VWS(d)['SV3'].update(scene='Night light')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'view-with-an-unknown-member', 'A view has a member a view does not define: `fov`, an angle of view, '
+   'which FS_views gives as a focal length.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(fov=74)), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'extras-not-an-object', 'A view\'s `extras` is an object (Core 1.7).', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(extras='shot list')), [('FS-VIEW-SCH-001', [])])
+VW('schema', 'extras', 'A view\'s `extras`, data no specification defines: valid, and read by no one.', ['1.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(extras={'renderer': {'samples': 512}})),
+   check=lambda r: ensure(VDER(r) == VIEWED, VDER(r)))
+
+VW('invariants', 'view-id-of-a-light', 'The cutaway is keyed by X2, a pendant\'s ID: a view\'s ID is in the document\'s '
+   'one space of IDs.', ['1.3.2'], vedit(lambda d: VWS(d).update(X2=VWS(d).pop('SV4'))), [('FS-VIEW-INV-001', ['X2'])])
+VW('invariants', 'view-id-of-a-room', 'The island view is keyed by R1, the Kitchen\'s ID.', ['1.3.2'],
+   vedit(lambda d: VWS(d).update(R1=VWS(d).pop('SV2'))), [('FS-VIEW-INV-001', ['R1'])])
+VW('invariants', 'view-id-of-a-level', 'The cutaway is keyed by L1, the level it cuts away at.', ['1.3.2'],
+   vedit(lambda d: VWS(d).update(L1=VWS(d).pop('SV4'))), [('FS-VIEW-INV-001', ['L1'])])
+VW('invariants', 'view-id-of-a-lamp', 'The island view is keyed by X20, the table lamp\'s ID: an extension element of '
+   'any extension, known or not.', ['1.3.2'],
+   vedit(lambda d: VWS(d).update(X20=VWS(d).pop('SV2'))), [('FS-VIEW-INV-001', ['X20'])])
+VW('invariants', 'view-id-of-a-program-item', 'The house has a program with an item P1, and the hero shot is keyed '
+   'by P1.', ['1.3.2'],
+   vedit(lambda d: (d.update(program={'items': {'P1': {'function': 'kitchen'}}}), VWS(d).update(P1=VWS(d).pop('SV1')))),
+   [('FS-VIEW-INV-001', ['P1'])])
+VW('invariants', 'view-id-of-a-scene', 'The dusk view is keyed by LS1, the ID of the FS_lighting scene it shows: a '
+   'scene\'s ID is in the one space of IDs, read as data.', ['1.3.2'],
+   vedit(lambda d: VWS(d).update(LS1=VWS(d).pop('SV3'))), [('FS-VIEW-INV-001', ['LS1'])])
+VW('invariants', 'view-id-of-a-scene-without-lighting', 'The house without FS_lighting, and the cutaway keyed by '
+   'LS1: there are no scenes, so LS1 is no one\'s ID. Valid.', ['1.3.2'],
+   vedit(lambda d: (without_lighting(d), VWS(d).update(LS1=VWS(d).pop('SV4')))),
+   check=lambda r: ensure(sorted(VDER(r)['views']) == ['LS1', 'SV1', 'SV2', 'SV3'], VDER(r)))
+VW('invariants', 'eye-at-the-target', 'The island view\'s target is its eye.', ['2.2.1'], vedit(INV_V), INV_V_DIAG)
+VW('invariants', 'eye-below-the-target', 'The island view looks straight up from its eye, at a point 1 base unit '
+   'above it: the two differ, so it looks somewhere. Valid.', ['2.2.1'],
+   vedit(lambda d: VWS(d)['SV2'].update(target=pt(600, 600, 1500)[:2] + [1500 * MM + 1], twoPoint=False)),
+   check=lambda r: ensure(r['valid'] and r['diagnostics'] == [], r['diagnostics']))
+VW('invariants', 'level-of-nothing', 'The cutaway cuts away above L2, which the house does not have.', ['3.1.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(level='L2')), [('FS-VIEW-INV-003', ['SV4'])])
+VW('invariants', 'level-of-a-room', 'The cutaway cuts away above R1, the Kitchen: a room is no level.', ['3.1.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(level='R1')), [('FS-VIEW-INV-003', ['SV4'])])
+VW('invariants', 'level-only', 'The cutaway shows L1 only: valid, and its level derived.', ['3.1.1', '6.1.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(levels='only')),
+   check=lambda r: ensure(VDER(r)['views']['SV4']['level'] == 'L1', VDER(r)))
+VW('invariants', 'scene-of-nothing', 'The dusk view shows the scene LS9, which FS_lighting\'s data does not have.',
+   ['3.3.1'], vedit(lambda d: VWS(d)['SV3'].update(scene='LS9')), [('FS-VIEW-INV-004', ['SV3'])])
+VW('invariants', 'scene-of-a-light', 'The dusk view shows X2, a pendant: a light is no scene.', ['3.3.1'],
+   vedit(lambda d: VWS(d)['SV3'].update(scene='X2')), [('FS-VIEW-INV-004', ['SV3'])])
+VW('invariants', 'scene-of-another-scene', 'The dusk view shows LS2, the Night light: any scene of FS_lighting\'s data. '
+   'Valid.', ['3.3.1', '6.1.1'], vedit(lambda d: VWS(d)['SV3'].update(scene='LS2')),
+   check=lambda r: ensure(VDER(r)['views']['SV3'] == {'name': 'Dusk from the garden', 'level': None, 'lights': 'on',
+                                                      'scene': 'LS2'}, VDER(r)))
+VW('invariants', 'scene-without-lighting', 'The house without FS_lighting, and the dusk view still showing LS1: a '
+   'document without FS_lighting\'s data has no scenes (1.3).', ['3.3.1'],
+   vedit(lambda d: (without_lighting(d), VWS(d)['SV3'].update(scene='LS1'))), [('FS-VIEW-INV-004', ['SV3'])])
+VW('invariants', 'scene-of-lighting-data-not-an-object', 'FS_lighting\'s data is a string, which no implementation of '
+   'FS_views checks: it holds no scene, so LS1 names none.', ['3.3.1'],
+   vedit(lambda d: d['extensions'].update({LGHT: 'evening only'})), [('FS-VIEW-INV-004', ['SV3'])])
+VW('invariants', 'scene-of-scenes-not-an-object', 'FS_lighting\'s `scenes` is a list of scenes: a `scenes` that is not '
+   'an object holds no scene (1.3), and a view keyed LS1 is then no scene\'s either.', ['1.3.2', '3.3.1'],
+   vedit(lambda d: (ext(d, LGHT).update(scenes=list(SCN(d).values())), VWS(d).update(LS1=VWS(d).pop('SV4')))),
+   [('FS-VIEW-INV-004', ['SV3'])])
+VW('invariants', 'scene-and-lights-off', 'The dusk view shows the Evening scene with its lights "off".', ['3.3.2'],
+   vedit(lambda d: VWS(d)['SV3'].update(lights='off')), [('FS-VIEW-INV-005', ['SV3'])])
+VW('invariants', 'scene-and-lights-on', 'The dusk view shows the Evening scene and says its lights are "on": valid.',
+   ['3.3.2', '6.1.1'], vedit(lambda d: VWS(d)['SV3'].update(lights='on')),
+   check=lambda r: ensure(VDER(r) == VIEWED, VDER(r)))
+VW('invariants', 'scene-of-nothing-and-lights-off', 'The dusk view shows the scene LS9, which does not exist, with its '
+   'lights "off": both reported.', ['1.2.3', '3.3.1', '3.3.2'],
+   vedit(lambda d: VWS(d)['SV3'].update(scene='LS9', lights='off')),
+   [('FS-VIEW-INV-004', ['SV3']), ('FS-VIEW-INV-005', ['SV3'])])
+VW('invariants', 'two-views-one-name', 'The cutaway renamed "Hero exterior".', ['2.1.1'],
+   vedit(lambda d: VWS(d)['SV4'].update(name='Hero exterior')), [('FS-VIEW-INV-006', ['SV1', 'SV4'])])
+VW('invariants', 'three-views-one-name', 'Three views named "Kitchen island": once for each pair.', ['1.2.3', '2.1.1'],
+   vedit(lambda d: (VWS(d)['SV3'].update(name='Kitchen island'), VWS(d)['SV4'].update(name='Kitchen island'))),
+   [('FS-VIEW-INV-006', ['SV2', 'SV3']), ('FS-VIEW-INV-006', ['SV2', 'SV4']), ('FS-VIEW-INV-006', ['SV3', 'SV4'])])
+VW('invariants', 'names-differ-in-case', 'The cutaway named "hero exterior": names are compared exactly, so it is '
+   'another name. Valid.', ['2.1.1'], vedit(lambda d: VWS(d)['SV4'].update(name='hero exterior')))
+VW('invariants', 'name-of-a-scene', 'The dusk view named "Evening", as the scene it shows is: a view and a scene may '
+   'share a name. Valid.', ['2.1.1'], vedit(lambda d: VWS(d)['SV3'].update(name='Evening')))
+VW('invariants', 'at-31-april', 'The hero shot at 17:30 on 31 April, a day April does not have.', ['3.2.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-04-31T17:30')), [('FS-VIEW-INV-007', ['SV1'])])
+VW('invariants', 'at-31-june', 'The hero shot on 31 June.', ['3.2.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2026-06-31T17:30')), [('FS-VIEW-INV-007', ['SV1'])])
+VW('invariants', 'at-30-february', 'The hero shot on 30 February, a day no February has.', ['3.2.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2028-02-30T12:00')), [('FS-VIEW-INV-007', ['SV1'])])
+VW('invariants', 'at-29-february-2027', 'The hero shot on 29 February 2027, which is not a leap year.', ['3.2.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2027-02-29T12:00')), [('FS-VIEW-INV-007', ['SV1'])])
+VW('invariants', 'at-29-february-2028', 'The hero shot on 29 February 2028, a leap year. Valid.', ['3.2.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(at='2028-02-29T12:00')))
+VW('invariants', 'at-29-february-2100', 'The hero shot on 29 February 2100: divisible by 100 and not by 400, so not a '
+   'leap year.', ['3.2.1'], vedit(lambda d: VWS(d)['SV1'].update(at='2100-02-29T12:00')), [('FS-VIEW-INV-007', ['SV1'])])
+VW('invariants', 'at-29-february-2000', 'The hero shot on 29 February 2000: divisible by 400, so a leap year. Valid.',
+   ['3.2.1'], vedit(lambda d: VWS(d)['SV1'].update(at='2000-02-29T12:00Z')))
+VW('invariants', 'at-the-last-days', 'The views on the last day of months of 30 and 31 days - 30 April, 31 May, '
+   '30 September, 31 December - with an offset of -14:00 and +14:00 on the last two. Valid.', ['3.2.1'],
+   vedit(lambda d: (VWS(d)['SV1'].update(at='2026-04-30T17:30'), VWS(d)['SV2'].update(at='2026-05-31T09:00'),
+                    VWS(d)['SV3'].update(at='2026-09-30T19:00-14:00'), VWS(d)['SV4'].update(at='2026-12-31T23:59:59+14:00'))))
+VW('invariants', 'every-one-once', 'Every invariant broken at once - SV5 breaking three: each is reported once, '
+   'naming its view, or both views of a name.', ['1.2.3', '1.3.2', '2.1.1', '2.2.1', '3.1.1', '3.2.1', '3.3.1', '3.3.2'],
+   vedit(lambda d: (VWS(d).update(X1=VWS(d).pop('SV1')), INV_V(d), VWS(d)['SV4'].update(level='L9'),
+                    VWS(d)['SV3'].update(scene='LS9'),
+                    VWS(d).update(SV5={'name': 'Porch', 'eye': pt(2000, -2000, 1600), 'target': pt(1829, 0, 2000),
+                                       'scene': 'LS2', 'lights': 'off', 'at': '2027-02-29T20:00'},
+                                  SV6={'name': 'Porch', 'eye': pt(2000, -3000, 1600), 'target': pt(1829, 0, 2000)}))),
+   [('FS-VIEW-INV-001', ['X1']), ('FS-VIEW-INV-002', ['SV2']), ('FS-VIEW-INV-003', ['SV4']),
+    ('FS-VIEW-INV-004', ['SV3']), ('FS-VIEW-INV-005', ['SV5']), ('FS-VIEW-INV-006', ['SV5', 'SV6']),
+    ('FS-VIEW-INV-007', ['SV5'])])
+
+VW('lints', 'two-point-looking-down-steeply', 'The cutaway, looking down at about 45 degrees from high above, is made '
+   'two-point: steeper than 30 degrees.', ['1.2.3', '2.3.1'], vedit(LINT_V), [('FS-VIEW-LINT-001', ['SV4'])])
+VW('lints', 'steep-without-two-point', 'The cutaway looks down just as steeply, without two-point perspective: no '
+   'lint.', ['1.2.3', '2.3.1'], views_house())
+VW('lints', 'two-point-looking-up-steeply', 'The hero shot looks up at the ridge from close to the south wall - 2 m '
+   'across and 3 m up: steeper than 30 degrees.', ['1.2.3', '2.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(eye=pt(3048, -2000, 1600), target=pt(3048, 0, 4600))),
+   [('FS-VIEW-LINT-001', ['SV1'])])
+VW('lints', 'two-point-just-steeper-than-30', 'The hero shot\'s line of sight rises 1,000 units over 1,732 across: '
+   '3 x 1,000,000 > 2,999,824, just steeper than 30 degrees.', ['1.2.3', '2.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(eye=[0, -2000000, 1600000], target=[1732, -2000000, 1601000])),
+   [('FS-VIEW-LINT-001', ['SV1'])])
+VW('lints', 'two-point-just-shallower-than-30', 'The hero shot\'s line of sight rises 1,000 units over 1,733 across: '
+   '3 x 1,000,000 < 3,003,289, just shallower than 30 degrees. No lint.', ['1.2.3', '2.3.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(eye=[0, -2000000, 1600000], target=[1733, -2000000, 1601000])))
+VW('lints', 'two-point-across-a-diagonal', 'The hero shot rises 1,000 units over 1,000 east and 1,000 north - '
+   '3,000,000 > 2,000,000 - and the island view falls 1,000 over 1,000 east and 1,500 north - 3,000,000 < 3,250,000: '
+   'the horizontal distance counts both ways. One lint.', ['1.2.3', '2.3.1'],
+   vedit(lambda d: (VWS(d)['SV1'].update(eye=[0, -2000000, 1600000], target=[1000, -1999000, 1601000]),
+                    VWS(d)['SV2'].update(eye=[768000, 768000, 1920000], target=[769000, 769500, 1919000]))),
+   [('FS-VIEW-LINT-001', ['SV1'])])
+VW('lints', 'two-point-straight-down', 'A two-point view SV5 straight down onto the island, its eye above its target: '
+   'no level line of sight at all.', ['1.2.3', '2.3.1'],
+   vedit(lambda d: VWS(d).update(SV5={'name': 'Island from above', 'eye': pt(1829, 1829, 2600),
+                                      'target': pt(1829, 1829, 900), 'twoPoint': True})),
+   [('FS-VIEW-LINT-001', ['SV5'])])
+VW('lints', 'two-point-level', 'The hero shot looks level, its eye and target at the same height. No lint.',
+   ['1.2.3', '2.3.1'], vedit(lambda d: VWS(d)['SV1'].update(target=pt(3048, 1829, 1600))))
+VW('lints', 'every-view-once', 'The cutaway and a straight-down view SV5 both two-point: each view once.',
+   ['1.2.3', '2.3.1'],
+   vedit(lambda d: (LINT_V(d), VWS(d).update(SV5={'name': 'Island from above', 'eye': pt(1829, 1829, 2600),
+                                                   'target': pt(1829, 1829, 900), 'twoPoint': True}))),
+   [('FS-VIEW-LINT-001', ['SV4']), ('FS-VIEW-LINT-001', ['SV5'])])
+
+VW('derived', 'defaults', 'A view SV5 "Porch" of only a name, an eye and a target: no level and no scene, so both '
+   'null, and its lights off.', ['6.1.1'],
+   vedit(lambda d: VWS(d).update(SV5={'name': 'Porch', 'eye': pt(1829, -3000, 1600), 'target': pt(1829, 0, 1800)})),
+   check=lambda r: ensure(VDER(r)['views']['SV5'] == {'name': 'Porch', 'level': None, 'lights': 'off', 'scene': None},
+                          VDER(r)['views']))
+VW('derived', 'lights-on-by-a-scene', 'The dusk view says nothing of `lights` and shows a scene: its lights are on; '
+   'the island view says "on" and shows no scene: on as well; the hero shot says "off": off.', ['6.1.1'],
+   vedit(lambda d: VWS(d)['SV1'].update(lights='off')),
+   check=lambda r: ensure([VDER(r)['views'][v]['lights'] for v in ('SV1', 'SV2', 'SV3', 'SV4')] == ['off', 'on', 'on', 'off'],
+                          VDER(r)['views']))
+VW('derived', 'views-in-id-order', 'A fifth view SV10 "Late": views are in ID order by code unit, SV1, SV10, SV2.',
+   ['6.1.1'],
+   vedit(lambda d: VWS(d).update(SV10={'name': 'Late', 'eye': pt(7500, -3000, 1700), 'target': pt(3048, 1829, 1200),
+                                       'sky': 'night', 'scene': 'LS2', 'lights': 'on'})),
+   check=lambda r: ensure(list(VDER(r)['views']) == ['SV1', 'SV10', 'SV2', 'SV3', 'SV4']
+                          and VDER(r)['views']['SV10'] == {'name': 'Late', 'level': None, 'lights': 'on', 'scene': 'LS2'},
+                          VDER(r)))
+
+
+def view_options(d):
+    """The lit house's island options (island_options()) - the pendants in option A, the primary, and
+    a linear pendant X8 in option B - with the house's views."""
+    island_options(d)
+
+
+VW('options', 'view-id-of-an-option-element', 'Island options A and B as Core 0.3 design options (Core 19), and the '
+   'island view keyed by X8, the ID of option B\'s linear pendant: FS_views is evaluated in each checked design, so '
+   'B\'s design breaks 1.3.2, reported with `design` (Core 19.5.2); A\'s, without X8, does not.',
+   ['1.2.1', '1.2.3', '1.3.2', 'FS-CORE-19.3.1'],
+   vedit(lambda d: (view_options(d), VWS(d).update(X8=VWS(d).pop('SV2')))), [('FS-VIEW-INV-001', ['X8'], 'OP2')])
+VW('options', 'views-of-every-design', 'The same options with the views as they are: every view is valid in every '
+   'design. Valid, and the primary design derived.', ['1.2.1', '1.2.4', '6.1.1', 'FS-CORE-19.3.1'],
+   vedit(view_options),
+   check=lambda r: ensure(VDER(r) == VIEWED and r['derived']['options']['OS1']['chosen'] == 'OP1', VDER(r)))
+
+
+def view_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(VIEW)]).encode('utf-8'), official.implemented(VIEW))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][VIEW]
+
+
+BATH = {'name': 'Living room', 'eye': pt(5900, 3400, 1500), 'target': pt(4300, 2400, 1100), 'focalLength': 16,
+        'twoPoint': True, 'aspect': '4:5', 'scene': 'LS2', 'sky': 'night'}
+VO = lambda *a, **k: O(VIEW, *a, **k)    # noqa: E731
+VO('add-a-view', 'setProperty of $document /extensions/FS_views/views/SV5 adds a view "Living room" - a 16 mm '
+   'portrait two-point view at night with the Night light on - with an ID Ops does not mint (1.3.2). It commits, '
+   'valid under FS_views.', ['1.2.1', '1.3.2', '3.3.1', '6.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV5', 'value': BATH}]},
+   check=lambda r, B: ensure(view_derived(B)['views']['SV5'] == {'name': 'Living room', 'level': None, 'lights': 'on',
+                                                                 'scene': 'LS2'}, view_derived(B)))
+VO('first-view-creates-the-data', 'The house declaring FS_views with no data of it yet: setProperty of $document '
+   '/extensions/FS_views/views/SV1 creates FS_views\'s data, and its `views`, on the way (Ops 2.3) - the hero shot. It '
+   'commits, valid under FS_views.', ['1.2.1', '1.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   vedit(lambda d: d['extensions'].pop(VIEW)),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1', 'value': VIEWS['SV1']}]},
+   check=lambda r, B: ensure(B['extensions'][VIEW] == {'views': {'SV1': VIEWS['SV1']}}
+                             and view_derived(B) == {'views': {'SV1': VIEWED['views']['SV1']}}, B['extensions'].get(VIEW)))
+VO('rename-a-view', 'setProperty of $document /extensions/FS_views/views/SV1/name: the hero shot is now "Front of '
+   'house". It commits.', ['1.2.1', '2.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1/name',
+               'value': 'Front of house'}]},
+   check=lambda r, B: ensure(view_derived(B)['views']['SV1']['name'] == 'Front of house', view_derived(B)['views']))
+VO('rename-to-a-name-in-use-is-rejected', 'setProperty of the cutaway\'s name to "Hero exterior": the result breaks '
+   '2.1.1, and an applier that implements FS_views and knows it rejects the batch (Ops 1.2.3).',
+   ['2.1.1', '1.2.1', 'FS-OPS-1.2.3'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV4/name',
+               'value': 'Hero exterior'}]},
+   'rejected', [('FS-VIEW-INV-006', ['SV1', 'SV4'])])
+VO('remove-a-view', 'unsetProperty of $document /extensions/FS_views/views/SV4 removes the cutaway. It commits.',
+   ['1.2.1', '6.1.1', 'FS-OPS-2.3.1'], views_house(),
+   {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV4'}]},
+   check=lambda r, B: ensure(list(view_derived(B)['views']) == ['SV1', 'SV2', 'SV3'], view_derived(B)))
+VO('replace-a-view', 'setProperty of $document /extensions/FS_views/views/SV2 replaces the island view\'s record: a '
+   '35 mm view from the Kitchen\'s north-east corner, 3:2, everything in focus, with the Evening scene at dusk. It '
+   'commits, and nothing of the old record is left.', ['1.2.1', '2.2.1', '3.3.1', '6.1.1', 'FS-OPS-2.3.1'],
+   views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV2',
+               'value': {'name': 'Kitchen island', 'eye': pt(3300, 3300, 1500), 'target': pt(1829, 1829, 950),
+                         'twoPoint': True, 'sky': 'dusk', 'scene': 'LS1'}}]},
+   check=lambda r, B: ensure('aperture' not in ext(B, VIEW)['views']['SV2']
+                             and view_derived(B)['views']['SV2'] == {'name': 'Kitchen island', 'level': None,
+                                                                     'lights': 'on', 'scene': 'LS1'},
+                             ext(B, VIEW)['views']['SV2']))
+VO('eye-at-the-target-is-rejected', 'setProperty of $document /extensions/FS_views/views/SV1/target to the hero '
+   'shot\'s own eye: the result breaks 2.2.1, and the batch is rejected with FS-VIEW-INV-002.',
+   ['2.2.1', '1.2.1', 'FS-OPS-1.2.3'], views_house(),
+   {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_views/views/SV1/target',
+               'value': VIEWS['SV1']['eye']}]},
+   'rejected', [('FS-VIEW-INV-002', ['SV1'])])
+VO('remove-a-scene-a-view-shows-is-rejected', 'unsetProperty of $document /extensions/FS_lighting/scenes/LS1 removes the '
+   'Evening scene, which the dusk view shows: an applier that implements FS_views - and not FS_lighting - reads the '
+   'scenes as data, so the result breaks 3.3.1, and the batch is rejected.', ['3.3.1', '1.2.1', 'FS-OPS-1.2.3'],
+   views_house(), {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_lighting/scenes/LS1'}]},
+   'rejected', [('FS-VIEW-INV-004', ['SV3'])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -2632,7 +3135,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT):
+        for name in ALL + (STRC, LAND, LGHT, VIEW):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):
