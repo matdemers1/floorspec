@@ -131,7 +131,7 @@ for (const v of OPS_VERSIONS) {
 // its schema compiles and is the one the entry names, and its suite (conformance/ext/<NAME>/<v>/)
 // agrees with it - documents with the schema of the Core draft each declares (0.2, or 0.3 or 0.4 for a
 // document declaring it: the drafts every official extension lists), registry.json with the entry
-// schema, the extension's data with its own schema, Ops requests with Ops 0.2's (0.3's for a "0.3" document).
+// schema, the extension's data with its own schema, Ops requests with Ops 0.2's (0.3's for a "0.3" document, 0.4's for a "0.4" one).
 const CODES = Object.fromEntries(extensionSpecs(root).specs.map((x) => [x.name, x.code]));
 for (const x of extensionSchemas(root)) {
   if (!registry(x.entry)) problems.push(`registry/${x.name}/extension.json does not match the registry entry schema:\n    ${formatErrors(registry.errors ?? []).join('\n    ')}`);
@@ -155,7 +155,7 @@ for (const x of extensionSchemas(root)) {
   // An extension with data on core elements (FS_structural) defines it at #/$defs/coreElements.
   const onElements = (own.schema.$defs as Record<string, unknown> | undefined)?.coreElements ? ajv.getSchema(`${own.id}#/$defs/coreElements`) : undefined;
   const data = checkExtensionSuite(suiteDir, x.name, code, validateData, requestValidator(opsAjv['0.2'], '0.2'), root,
-    requestValidator(opsAjv['0.3'], '0.3'), onElements);
+    requestValidator(opsAjv['0.3'], '0.3'), onElements, requestValidator(opsAjv['0.4'], '0.4'));
   problems.push(...data.problems);
   console.log(`schema: ${x.name} ${x.version}: ${docs.checked} documents checked against Core's schema, ${data.checked} against the extension's or Ops's`);
 }
