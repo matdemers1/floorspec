@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor and FS_context 0.1.0 - as the script that
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor, FS_context and FS_energy 0.1.0 - as the script that
 writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
@@ -45,6 +45,7 @@ slab and a pad under the house. Every expected diagnostic is written by hand and
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
+from math import isqrt
 import json
 import os
 import shutil
@@ -5447,6 +5448,458 @@ CO_('a-taken-id-is-rejected', 'setProperty of $document /extensions/FS_context/t
     'FS_site\'s pad: the result breaks 1.3.2, and the batch is rejected.', ['1.3.2', '1.2.1', 'FS-OPS-1.2.3'], street_house(),
     {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('trees', 'GP1'), 'value': {'at': F(-20, 45), 'height': 30 * FT, 'spread': 20 * FT}}]},
     'rejected', [('FS-CTXT-INV-001', ['GP1'])])
+
+
+# ============================================================================= FS_energy
+
+ENGY = 'FS_energy'
+CODE[ENGY] = 'ENGY'
+ENGY_KNOWN = CTXT_KNOWN + (ENGY,)
+GAP_E = IN                                          # 1" (2.1)
+SOUTH = -90_000_000                                 # the direction of (0, -1): facing south (Core 13.1)
+EAVE_E = H                                          # the roofs' eave: L1's elevation 0 plus its height, 2,700 mm
+MODULE = {'width': 3 * FT, 'length': 5 * FT, 'watts': 350}     # a 3' x 5' module of 350 W
+B1 = 5 * 3 * FT + 4 * IN                            # PV1's breadth: five modules 3' wide and four 1" gaps
+B2 = 3 * 5 * FT + 2 * IN                            # PV2's: three modules 5' long, landscape, and two gaps
+
+
+def round_over_sqrt(n, D):
+    """round(n / sqrt(D)) for integers n >= 0 and D > 0, by hand: the k with (2k - 1)^2 D < 4 n^2 < (2k + 1)^2 D,
+    or the even one of two at a tie."""
+    k = isqrt(n * n // D)
+    while (2 * k + 1) ** 2 * D < 4 * n * n:
+        k += 1
+    while k > 0 and (2 * k - 1) ** 2 * D > 4 * n * n:
+        k -= 1
+    if (2 * k + 1) ** 2 * D == 4 * n * n and k % 2 == 1:
+        k += 1
+    return k
+
+
+P2 = round_over_sqrt(3 * FT * 12, 3 * 3 + 12 * 12)   # one rack's depth in plan: 3' at 3:12, rounded once
+D2 = 2 * P2 + 2 * FT                                 # PV2's depth: two racks and a 2' row gap
+
+
+def free(x, y, rotation=SOUTH):
+    host = {'mode': 'free', 'level': 'L1', 'position': F(x, y)}
+    if rotation is not None:
+        host['rotation'] = rotation
+    return host
+
+
+def pv(roof, host, rows, columns, z0_ft, z1_ft, depth, breadth, **members):
+    return {'roof': roof, **members, 'module': dict(MODULE), 'rows': rows, 'columns': columns, 'host': host,
+            'fallback': {'level': 'L1', 'box': {'min': [-depth, 0, EAVE_E + int(z0_ft * FT)],
+                                                'max': [0, breadth, EAVE_E + int(z1_ft * FT)]}}}
+
+
+ROOFS_E = {
+    'RF1': {'level': 'L1', 'name': 'House roof', 'footprint': [F(-2, -4), F(22, -4), F(22, 16), F(-2, 16)],
+            'pitch': {'rise': 9, 'run': 12}, 'edges': {'1': {'gable': True}, '3': {'gable': True}}},
+    'RF2': {'level': 'L1', 'name': 'Carport roof', 'footprint': [F(24, -2), F(44, -2), F(44, 12), F(24, 12)]},
+}
+ENERGY_DATA = {
+    'collections': {
+        'pvArrays': {
+            'PV1': pv('RF1', free(2, -2), 1, 5, 1.5, 4.5, 4 * FT, B1, face=0, name='South roof'),
+            'PV2': pv('RF2', free(26, 0), 2, 3, 0, 1, D2, B2, layout='landscape', rowGap=2 * FT,
+                      tilt={'rise': 3, 'run': 12}, rapidShutdown='array', name='Carport'),
+        },
+        'inverters': {
+            'INV1': {**on_wall('W1', 'right', 3 * FT, 1200, box(0, -250, 0, 200, 250, 700)), 'kind': 'hybrid',
+                     'watts': 3800, 'inputs': 2, 'arrays': ['PV1', 'PV2'], 'name': 'Inverter'},
+        },
+        'shutdowns': {
+            'RS1': {**on_wall('W1', 'right', 6 * FT, 1200, box(0, -80, 0, 60, 80, 160)), 'arrays': ['PV1', 'PV2']},
+        },
+    },
+}
+
+
+def sunny_house():
+    """The garden on its slope (site_house()) with two roofs and solar on them, as a Core 0.4 document that uses
+    FS_energy too:
+
+    - RF1, the house's roof: a gable over a footprint 24' x 20', from (-2', -4') to (22', 16'), pitched 9:12 - so that
+      a length up its slope is 5/4 of its run - its east and west edges gables; its ridge at y = 6', 7' 6" above
+      its eaves at 2,700 mm. Its south face, of sloped edge 0, faces exactly south.
+    - RF2, a flat carport roof east of the courtyard, 20' x 14', from (24', -2') to (44', 12').
+    - PV1, flush on RF1's south face: one row of five 3' x 5' 350 W modules, portrait, 1" apart - 5' up the slope,
+      4' in plan - its corner at (2', -2'), 2' from the eave, 4' below the ridge and 4' from the west rake.
+    - PV2, racked on RF2 at 3:12 facing south: two rows of three modules, landscape, the racks 2' apart in plan,
+      its corner at (26', 0).
+    - INV1, a 3,800 W hybrid inverter on W1, serving both arrays, and RS1, a rapid-shutdown initiator beside it.
+    FS_site's and FS_landscape's data stay: an implementation of FS_energy alone reads neither."""
+    d = site_house()
+    d['project']['name'] = 'Phase 16 sunny house'
+    d['roofs'] = copy.deepcopy(ROOFS_E)
+    d['extensionsUsed'][ENGY] = '0.1.0'
+    d['extensions'][ENGY] = copy.deepcopy(ENERGY_DATA)
+    return d
+
+
+def eedit(fn):
+    """The sunny house, changed by fn(d) in place."""
+    d = sunny_house()
+    fn(d)
+    return d
+
+
+ED_ = lambda d: ext(d, ENGY)                                                       # noqa: E731
+PVS = lambda d: coll(d, ENGY, 'pvArrays')                                          # noqa: E731
+INVS = lambda d: coll(d, ENGY, 'inverters')                                        # noqa: E731
+RSS = lambda d: coll(d, ENGY, 'shutdowns')                                         # noqa: E731
+EDER = derived_of(ENGY)
+EN = lambda *a, **k: V(ENGY, *a, **k)    # noqa: E731
+
+PV1_DER = {'roof': 'RF1', 'face': 0, 'mount': 'flush', 'pitch': {'rise': 9, 'run': 12}, 'modules': 5, 'watts': 1750,
+           'area': str(5 * 3 * FT * 5 * FT), 'footprint': [F(2, -2), [2 * FT + B1, -2 * FT], [2 * FT + B1, 2 * FT], F(2, 2)],
+           'inverter': 'INV1'}
+PV2_DER = {'roof': 'RF2', 'mount': 'racked', 'pitch': {'rise': 3, 'run': 12}, 'modules': 6, 'watts': 2100,
+           'area': str(6 * 3 * FT * 5 * FT), 'footprint': [F(26, 0), [26 * FT + B2, 0], [26 * FT + B2, D2], [26 * FT, D2]],
+           'inverter': 'INV1'}
+ENERGY_DER = {'arrays': {'PV1': PV1_DER, 'PV2': PV2_DER}, 'inverters': {'INV1': {'arrays': ['PV1', 'PV2'], 'watts': 3850}},
+              'shutdowns': {'RS1': {'arrays': ['PV1', 'PV2']}}, 'modules': 11, 'watts': 3850}
+
+
+def check_energy(r):
+    ensure(EDER(r) == ENERGY_DER, EDER(r))
+    ensure(P2 == 1135486, P2)                       # 3' x 12 / sqrt(153) = 1,135,485.83 base units, by hand
+
+
+def at_corner(x, y):
+    """PV1 moved, its corner at (x, y), its footprint 4' x B1 from there."""
+    return lambda d: PVS(d)['PV1']['host'].update(position=[x, y])
+
+
+
+def south_west(d):
+    """PV2 cut to one module on one rack and turned to face south-west, its corner at (34', 5')."""
+    PVS(d)['PV2'].update(rows=1, columns=1)
+    PVS(d)['PV2']['host'].update(rotation=-135_000_000, position=F(34, 5))
+
+
+def side_lengths(ring):
+    """The four sides of a footprint, each rounded to the nearest base unit, sorted - a hand check of a turned one."""
+    return sorted(round(((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5) for a, b in zip(ring, ring[1:] + ring[:1]))
+
+
+BAD_E = lambda d: PVS(d)['PV1'].update(rows=0)                                     # noqa: E731  the schema tier
+INV_E = lambda d: PVS(d)['PV1'].update(roof='RF9')                                 # noqa: E731  FS-ENGY-INV-001
+INV_E_DIAG = [('FS-ENGY-INV-001', ['PV1'])]
+LINT_E = at_corner(2 * FT, -3 * FT)                                                # noqa: E731  FS-ENGY-LINT-001
+
+EN('examples', 'p16-sunny-house', 'The garden on its slope with a gable roof over the house and a flat carport roof, '
+   'read by an implementation of FS_energy that knows it: PV1, five 350 W modules flush on the house roof\'s south '
+   'face - 5\' up its 9:12 slope, so 4\' in plan - and PV2, two racks of three on the carport at 3:12, each rack 3\' '
+   'deep projected once, 2\' apart; one hybrid inverter serving both and a rapid-shutdown initiator. Valid, every '
+   'corner clear of its face\'s setbacks, nothing reported; it derives each array\'s mount, pitch, modules, watts, '
+   'area and footprint, the inverter\'s 3,850 W offered and the totals.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '2.2.1', '2.2.2', '2.3.1', '2.3.2', '3.1.1', '3.1.2', '3.2.1', '4.3.1', '7.1.1',
+    'FS-CORE-13.1.1'], sunny_house(), check=check_energy)
+EN('examples', 'core-only-reader', 'The same house read with no known extensions: FS_energy is not evaluated, so nothing '
+   'of it is derived, and a reader without it still derives each array\'s fallback and placement.',
+   ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'], sunny_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and 'PV1' in r['derived']['fallbacks']
+                          and r['derived']['placements']['PV1']['facing'] == SOUTH, r['derived']['placements'].get('PV1')))
+EN('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of FS_energy '
+   'alone: only FS_energy is evaluated and derived.', ['1.2.1', '1.2.4'], sunny_house(),
+   registry=[entry(x) for x in ENGY_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [ENGY], list(r['derived']['extensions'])))
+EN('examples', 'no-data', 'FS_energy used with empty top-level data: valid, and nothing derived but empty maps and zero '
+   'totals.', ['1.3.1', '7.1.1'], eedit(lambda d: d['extensions'].update({ENGY: {}})),
+   check=lambda r: ensure(EDER(r) == {'arrays': {}, 'inverters': {}, 'shutdowns': {}, 'modules': 0, 'watts': 0}, EDER(r)))
+EN('examples', 'every-default', 'An array with only the members it always has, on the house roof: portrait, 1" gaps, '
+   'its row gap its gap, rapid shutdown at each module; an inverter with only its watts; and the default setbacks. '
+   'One row of two: 6\' 1" along the slope, 4\' in plan. The array has no inverter: FS-ENGY-LINT-002 (info).',
+   ['1.3.1', '7.1.1', '3.1.3'],
+   eedit(lambda d: d['extensions'].update({ENGY: {'collections': {
+       'pvArrays': {'PV1': pv('RF1', free(2, -2), 1, 2, 1.5, 4.5, 4 * FT, 6 * FT + IN, face=0)},
+       'inverters': {'INV1': {**on_wall('W1', 'right', 3 * FT, 1200, box(0, -250, 0, 200, 250, 700)), 'watts': 3800}}}}})),
+   [('FS-ENGY-LINT-002', ['PV1'])],
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['footprint'][2] == [2 * FT + 6 * FT + IN, 2 * FT]
+                          and EDER(r)['inverters'] == {'INV1': {'arrays': [], 'watts': 0}}, EDER(r)))
+
+EN('activation', 'unknown-data-not-evaluated', 'An array with no rows, which FS_energy\'s schema does not allow, but no '
+   'extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'], eedit(BAD_E), registry=None)
+EN('activation', 'another-version-known', 'The document uses FS_energy at 0.2.0, which is known (a later entry), but the '
+   'implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.', ['1.2.1'],
+   eedit(lambda d: (BAD_E(d), d['extensionsUsed'].update({ENGY: '0.2.0'}))), registry=[entry(ENGY, '0.2.0')])
+EN('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_energy is evaluated: its data breaks '
+   'the schema, FS-ENGY-SCH-001.', ['1.2.1', '1.3.1'],
+   eedit(lambda d: (BAD_E(d), d['extensionsUsed'].update({ENGY: '0.1'}))), [('FS-ENGY-SCH-001', [])])
+EN('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_energy is evaluated.', ['1.2.1', '1.3.1'],
+   eedit(lambda d: (BAD_E(d), d['extensionsUsed'].update({ENGY: {'version': '0.1.0', 'schema': entry(ENGY)['schema']}}))),
+   [('FS-ENGY-SCH-001', [])])
+EN('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_energy is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {ENGY: '0.1.0'}, 'extensions': {ENGY: {'colour': 'red'}}})
+
+
+def as_02_e(d):
+    """The sunny house declaring Core "0.2": no roofs (Core 0.3 added them), so PV2 is dropped and PV1 names a roof
+    that is not there."""
+    as_02(d)
+    d.pop('roofs')
+    PVS(d).pop('PV2')
+    for el in (INVS(d)['INV1'], RSS(d)['RS1']):
+        el['arrays'] = ['PV1']
+
+
+EN('activation', 'core-0.2-document', 'The sunny house declaring Core "0.2", a draft FS_energy 0.1.0 lists (1.1): a 0.2 '
+   'document has no roofs, so FS_energy is evaluated and PV1 names no roof, FS-ENGY-INV-001.',
+   ['1.2.1', '1.2.3', '2.2.1'], eedit(as_02_e), INV_E_DIAG)
+EN('activation', 'core-0.2-without-arrays', 'The same "0.2" house with no array: an inverter and an initiator that serve '
+   'nothing yet. FS_energy is evaluated, reports nothing and derives them.', ['1.2.1', '1.2.4', '7.1.1'],
+   eedit(lambda d: (as_02_e(d), PVS(d).clear(), INVS(d)['INV1'].update(arrays=[]), RSS(d)['RS1'].update(arrays=[]))),
+   check=lambda r: ensure(EDER(r) == {'arrays': {}, 'inverters': {'INV1': {'arrays': [], 'watts': 0}},
+                                      'shutdowns': {'RS1': {'arrays': []}}, 'modules': 0, 'watts': 0}, EDER(r)))
+EN('activation', 'core-0.3-document', 'The sunny house declaring Core "0.3": its gable and its flat roof derive the same '
+   'faces for a 0.3 reader, so FS_energy reports nothing and derives exactly what it derives for "0.4".',
+   ['1.2.1', '1.2.3', '1.2.4', '7.1.1'], eedit(lambda d: d.update(floorspec='0.3')),
+   check=lambda r: ensure(EDER(r) == ENERGY_DER, EDER(r)))
+
+EN('order', 'core-error-first', 'A Core invariant breaks - the lot\'s boundary crosses itself, FS-INV-009 - and so does '
+   'FS_energy\'s schema: Core\'s error is reported, and FS_energy is not evaluated.', ['1.2.2'],
+   eedit(lambda d: (BAD_E(d), d['site'].update(boundary=[LOT[0], LOT[2], LOT[1], LOT[3]]))), [('FS-INV-009', [])])
+EN('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-ENGY-SCH-001.',
+   ['1.2.2', '1.3.1'], eedit(lambda d: (BAD_E(d), INV_E(d))), [('FS-ENGY-SCH-001', [])])
+EN('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - PV2 has no inverter: the document '
+   'is invalid, so no lint is reported, FS_energy\'s or Core\'s.', ['1.2.2', '1.2.3'],
+   eedit(lambda d: (INV_E(d), INVS(d)['INV1'].update(arrays=['PV1']))), INV_E_DIAG)
+
+EN('schema', 'data-not-an-object', 'FS_energy\'s top-level data is an array: Core allows any JSON there, FS_energy\'s '
+   'schema does not.', ['1.3.1'], eedit(lambda d: d['extensions'].update({ENGY: []})), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'unknown-member', 'FS_energy\'s data has a member it does not define: `batteries`.', ['1.3.1'],
+   eedit(lambda d: ED_(d).update(batteries={})), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'unknown-kind', 'A collection FS_energy 0.1.0\'s registry entry does not name: `batteries`. Core reports it '
+   '(Core 12.4.1, FS-INV-604) before FS_energy is evaluated.', ['1.2.2', 'FS-CORE-12.4.1'],
+   eedit(lambda d: ED_(d)['collections'].update(batteries={})), [('FS-INV-604', [])])
+EN('schema', 'array-without-a-module', 'An array always says its module.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].pop('module')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'module-without-watts', 'A module always says its watts.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1']['module'].pop('watts')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'module-of-zero-width', 'A module is at least one base unit wide.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1']['module'].update(width=0)), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'no-rows', 'An array has at least one row.', ['1.3.1'], eedit(BAD_E), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'too-many-columns', 'At most 1,000 modules in a row.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(columns=1001)), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'layout-not-known', 'An array whose layout is "diagonal".', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(layout='diagonal')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'negative-gap', 'A gap is a distance: at least 0.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(gap=-IN)), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'tilt-of-zero-rise', 'A tilt is a Core pitch: its rise is at least 1.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV2'].update(tilt={'rise': 0, 'run': 12})), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'rapid-shutdown-not-known', 'Rapid shutdown "string" is not a place it acts.', ['1.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(rapidShutdown='string')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'array-with-an-unknown-member', 'An array has a member it does not define: `azimuth` - the way it faces is '
+   'its host\'s rotation.', ['1.3.1'], eedit(lambda d: PVS(d)['PV1'].update(azimuth=180)), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'inverter-without-watts', 'An inverter always says its rating.', ['1.3.1'],
+   eedit(lambda d: INVS(d)['INV1'].pop('watts')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'inverter-kind-not-known', 'An inverter whose kind is "central".', ['1.3.1'],
+   eedit(lambda d: INVS(d)['INV1'].update(kind='central')), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'an-array-listed-twice', 'An inverter that lists PV1 twice: `arrays` is a set.', ['1.3.1'],
+   eedit(lambda d: INVS(d)['INV1'].update(arrays=['PV1', 'PV1', 'PV2'])), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'setbacks-with-an-unknown-member', 'Setbacks have an eave, a ridge and a rake, not a `valley`.', ['1.3.1'],
+   eedit(lambda d: ED_(d).update(setbacks={'valley': FT})), [('FS-ENGY-SCH-001', [])])
+EN('schema', 'watts-with-a-fraction', 'A number written with a fraction is not an integer, even when it is a whole '
+   'number.', ['1.3.1'], None, [('FS-ENGY-SCH-001', [])],
+   raw=(fmt(eedit(lambda d: INVS(d)['INV1'].update(watts=3801))) + '\n').replace('3801', '3801.0', 1).encode('utf-8'))
+
+EN('invariants', 'roof-not-a-roof', 'PV1 names RF9, which is no roof: FS-ENGY-INV-001 - and its face, host and rotation '
+   'are not tested.', ['2.2.1'], eedit(INV_E), INV_E_DIAG)
+EN('invariants', 'roof-a-wall', 'PV1 names W1, a wall, as its roof: FS-ENGY-INV-001.', ['2.2.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(roof='W1')), INV_E_DIAG)
+EN('invariants', 'face-on-a-flat-roof', 'PV2, on the flat carport roof, given face 0: a flat roof has no sloped edge, '
+   'FS-ENGY-INV-002.', ['2.2.2'], eedit(lambda d: PVS(d)['PV2'].update(face=0)), [('FS-ENGY-INV-002', ['PV2'])])
+EN('invariants', 'no-face-on-a-gable', 'PV1 without a face, on the gable roof: FS-ENGY-INV-002, and its rotation is not '
+   'tested.', ['2.2.2'], eedit(lambda d: PVS(d)['PV1'].pop('face')), [('FS-ENGY-INV-002', ['PV1'])])
+EN('invariants', 'face-a-gable-edge', 'PV1 on face 1, the roof\'s east edge, which is a gable: FS-ENGY-INV-002.',
+   ['2.2.2'], eedit(lambda d: PVS(d)['PV1'].update(face=1)), [('FS-ENGY-INV-002', ['PV1'])])
+EN('invariants', 'face-out-of-range', 'PV1 on face 4 of a roof with four edges: FS-ENGY-INV-002.', ['2.2.2'],
+   eedit(lambda d: PVS(d)['PV1'].update(face=4)), [('FS-ENGY-INV-002', ['PV1'])])
+EN('invariants', 'without-a-host', 'PV1 without a host: FS-ENGY-INV-003, and its rotation is not tested.', ['2.3.1'],
+   eedit(lambda d: PVS(d)['PV1'].pop('host')), [('FS-ENGY-INV-003', ['PV1'])])
+EN('invariants', 'on-a-wall', 'PV2 hosted on W1\'s face: FS-ENGY-INV-003.', ['2.3.1'],
+   eedit(lambda d: PVS(d)['PV2'].update(host=on_wall('W1', 'right', 3 * FT, 1200, box(0, 0, 0, 1, 1, 1))['host'])),
+   [('FS-ENGY-INV-003', ['PV2'])])
+EN('invariants', 'on-another-level', 'PV2 on a free host on L2, an upper level, while the carport roof is on L1: '
+   'FS-ENGY-INV-003.', ['2.3.1'],
+   eedit(lambda d: (d['levels'].update(L2={'building': 'B1', 'elevation': H, 'height': H}),
+                    PVS(d)['PV2']['host'].update(level='L2'), PVS(d)['PV2']['fallback'].update(level='L2'))),
+   [('FS-ENGY-INV-003', ['PV2'])])
+EN('invariants', 'rotation-a-microdegree-off', 'PV1 turned one microdegree from due south: on a sloped face its rotation '
+   'is the face\'s, exactly - FS-ENGY-INV-004.', ['2.3.2'],
+   eedit(lambda d: PVS(d)['PV1']['host'].update(rotation=SOUTH + 1)), [('FS-ENGY-INV-004', ['PV1'])])
+EN('invariants', 'facing-up-the-slope', 'PV1 facing north, up its face: FS-ENGY-INV-004.', ['2.3.2'],
+   eedit(lambda d: PVS(d)['PV1']['host'].update(rotation=90_000_000)), [('FS-ENGY-INV-004', ['PV1'])])
+EN('invariants', 'tilt-on-a-sloped-face', 'PV1 racked at 3:12 on the house roof\'s south face: racks stand on a flat '
+   'roof - FS-ENGY-INV-004.', ['2.3.2'], eedit(lambda d: PVS(d)['PV1'].update(tilt={'rise': 3, 'run': 12})),
+   [('FS-ENGY-INV-004', ['PV1'])])
+EN('invariants', 'the-north-face', 'PV1 moved to the north face, sloped edge 2, facing north - rotation 90,000,000, the '
+   'direction of (0, 20\'), the edge\'s outward normal: valid. It is clear and derives a footprint north of the ridge.',
+   ['2.3.2', '7.1.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(face=2, host=free(18, 14, 90_000_000))),
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['footprint'] == [[18 * FT - B1, 10 * FT], [18 * FT, 10 * FT], F(18, 14),
+                                                                      [18 * FT - B1, 14 * FT]], EDER(r)['arrays']['PV1']))
+EN('invariants', 'clockwise-footprint', 'The house roof\'s footprint written clockwise, its gables renumbered: its south '
+   'edge is now edge 2, whose outward normal is still (0, -24\'), so PV1 on face 2 facing south is valid and derives '
+   'what it derived on face 0.', ['2.3.2', '7.1.1'],
+   eedit(lambda d: (d['roofs']['RF1'].update(footprint=[F(-2, 16), F(22, 16), F(22, -4), F(-2, -4)],
+                                              edges={'1': {'gable': True}, '3': {'gable': True}}),
+                    PVS(d)['PV1'].update(face=2))),
+   check=lambda r: ensure(EDER(r)['arrays']['PV1'] == {**PV1_DER, 'face': 2}, EDER(r)['arrays']['PV1']))
+EN('invariants', 'flat-roof-any-rotation', 'PV2, one module on one rack, on the flat roof turned to face south-west, '
+   '-135,000,000: a flat roof\'s array faces the way its writer turns it, so it is valid.', ['2.3.2'], eedit(south_west))
+EN('invariants', 'inverter-lists-a-wall', 'INV1 lists W1, a wall, among its arrays: FS-ENGY-INV-005, once.', ['3.1.1'],
+   eedit(lambda d: INVS(d)['INV1'].update(arrays=['PV1', 'PV2', 'W1'])), [('FS-ENGY-INV-005', ['INV1'])])
+EN('invariants', 'inverter-lists-two-strangers', 'INV1 lists RF1 and RS1, a roof and the initiator: reported once.',
+   ['3.1.1'], eedit(lambda d: INVS(d)['INV1'].update(arrays=['PV1', 'PV2', 'RF1', 'RS1'])), [('FS-ENGY-INV-005', ['INV1'])])
+EN('invariants', 'shutdown-lists-an-inverter', 'RS1 lists INV1 among the arrays it controls: FS-ENGY-INV-005.', ['3.2.1'],
+   eedit(lambda d: RSS(d)['RS1'].update(arrays=['INV1', 'PV1'])), [('FS-ENGY-INV-005', ['RS1'])])
+EN('invariants', 'array-on-two-inverters', 'A second inverter, INV2, also serves PV2: FS-ENGY-INV-006, naming the array '
+   'and both inverters.', ['3.1.2'],
+   eedit(lambda d: INVS(d).update(INV2={**on_wall('W1', 'right', 9 * FT, 1200, box(0, -250, 0, 200, 250, 700)),
+                                        'watts': 2000, 'arrays': ['PV2']})),
+   [('FS-ENGY-INV-006', ['INV1', 'INV2', 'PV2'])])
+EN('invariants', 'every-array-invariant', 'One of each: PV1 names no roof, PV2 has a face on a flat roof and a wall host, '
+   'and RS1 lists a wall.', ['2.2.1', '2.2.2', '2.3.1', '3.2.1', '1.2.3'],
+   eedit(lambda d: (INV_E(d), PVS(d)['PV2'].update(face=0, host=on_wall('W1', 'right', 3 * FT, 1200, box(0, 0, 0, 1, 1, 1))['host']),
+                    RSS(d)['RS1'].update(arrays=['W1']))),
+   [('FS-ENGY-INV-001', ['PV1']), ('FS-ENGY-INV-002', ['PV2']), ('FS-ENGY-INV-003', ['PV2']), ('FS-ENGY-INV-005', ['RS1'])])
+
+EN('lints', 'in-the-eave-setback', 'PV1 moved 1\' toward the eave: its eave-side corners are 1\' from it, inside its 18" '
+   'setback - FS-ENGY-LINT-001.', ['4.3.1', '1.2.3'], eedit(LINT_E), [('FS-ENGY-LINT-001', ['PV1'])])
+EN('lints', 'on-the-eave-setback', 'PV1 moved 6" toward the eave: its corners are exactly 18" from it, at the setback - '
+   'clear, nothing reported.', ['4.3.1'], eedit(at_corner(2 * FT, -2 * FT - FT // 2)))
+EN('lints', 'a-unit-into-the-setback', 'PV1 one base unit nearer the eave than that: FS-ENGY-LINT-001.', ['4.3.1'],
+   eedit(at_corner(2 * FT, -2 * FT - FT // 2 - 1)), [('FS-ENGY-LINT-001', ['PV1'])])
+EN('lints', 'under-the-ridge', 'PV1 moved 1\' 6" up the slope: its top corners are 2\' 6" below the ridge, inside its 3\' '
+   'setback - FS-ENGY-LINT-001.', ['4.3.1'], eedit(at_corner(2 * FT, -FT // 2)), [('FS-ENGY-LINT-001', ['PV1'])])
+EN('lints', 'beside-the-rake', 'PV1 moved 2\' west: its west corners are 2\' from the rake, inside its 3\' setback - '
+   'FS-ENGY-LINT-001.', ['4.3.1'], eedit(at_corner(0, -2 * FT)), [('FS-ENGY-LINT-001', ['PV1'])])
+EN('lints', 'over-the-ridge', 'PV1 moved 4\' up the slope: its top corners lie on the north face, beyond its own - '
+   'FS-ENGY-LINT-001.', ['4.3.1'], eedit(at_corner(2 * FT, 3 * FT)), [('FS-ENGY-LINT-001', ['PV1'])])
+EN('lints', 'zero-setbacks', 'Setbacks of 0 and PV1 moved to the eave and the west rake: its corners are on the face\'s '
+   'edges, which is clear.', ['4.3.1'],
+   eedit(lambda d: (ED_(d).update(setbacks={'eave': 0, 'ridge': 0, 'rake': 0}), at_corner(-2 * FT, -4 * FT)(d))))
+EN('lints', 'a-wider-eave-setback', 'An eave setback of 3\': PV1, 2\' from the house roof\'s eave, and PV2, 2\' from the '
+   'carport\'s south edge - an eave of a flat roof - are both inside it, FS-ENGY-LINT-001 each; the ridge and rake setbacks '
+   'keep their defaults.', ['4.3.1'],
+   eedit(lambda d: ED_(d).update(setbacks={'eave': 3 * FT})), [('FS-ENGY-LINT-001', ['PV1']), ('FS-ENGY-LINT-001', ['PV2'])])
+EN('lints', 'carport-edge', 'PV2 moved 1\' 6" west on the flat carport roof: its west corners are 6" from the roof\'s edge, '
+   'an eave of a flat roof - FS-ENGY-LINT-001.', ['4.3.1'],
+   eedit(lambda d: PVS(d)['PV2']['host'].update(position=F(24.5, 0))), [('FS-ENGY-LINT-001', ['PV2'])])
+EN('lints', 'no-inverter', 'INV1 serves PV1 alone: PV2 has no inverter, FS-ENGY-LINT-002 (info).', ['3.1.3', '1.2.3'],
+   eedit(lambda d: INVS(d)['INV1'].update(arrays=['PV1'])), [('FS-ENGY-LINT-002', ['PV2'])])
+EN('lints', 'no-inverter-at-all', 'No inverter: both arrays are reported.', ['3.1.3'],
+   eedit(lambda d: INVS(d).clear()), [('FS-ENGY-LINT-002', ['PV1']), ('FS-ENGY-LINT-002', ['PV2'])])
+
+
+def two_pitches(d):
+    """The house roof as a "0.3" hip of two pitches - 9:12 on the long sides, 6:12 at the ends - whose surface a 0.3
+    reader does not derive (Core 0.3, 16.4.3)."""
+    d['floorspec'] = '0.3'
+    d['roofs']['RF1']['edges'] = {'1': {'pitch': {'rise': 6, 'run': 12}}, '3': {'pitch': {'rise': 6, 'run': 12}}}
+
+
+EN('lints', 'roof-not-derived', 'The house roof a "0.3" hip of two pitches, whose surface Core does not derive: PV1 is '
+   'on it - FS-ENGY-LINT-003, beside Core\'s FS-LINT-015 - and is not tested against setbacks.', ['2.2.3', '4.3.1'],
+   eedit(lambda d: (two_pitches(d), at_corner(2 * FT, -4 * FT)(d))),
+   [('FS-ENGY-LINT-003', ['PV1']), ('FS-LINT-015', ['RF1'])])
+
+EN('derived', 'landscape-flush', 'PV1 turned landscape: two rows of three modules 3\' up the slope - 2 x 3\' + 1" = 6\' 1", '
+   '4\' 10.8" in plan, rounded once - and 5\' along it.', ['7.1.1'],
+   eedit(lambda d: PVS(d)['PV1'].update(layout='landscape', rows=2, columns=3)),
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['footprint'][2]
+                          == [2 * FT + 3 * 5 * FT + 2 * IN, -2 * FT + round_over_sqrt((6 * FT + IN) * 12, 225)]
+                          and EDER(r)['arrays']['PV1']['modules'] == 6, EDER(r)['arrays']['PV1']))
+EN('derived', 'a-row-gap', 'PV1 in two rows with a row gap of 6": 10\' 6" up the slope, 8\' 4.8" in plan.', ['7.1.1'],
+   eedit(lambda d: (PVS(d)['PV1'].update(rows=2, rowGap=6 * IN), at_corner(2 * FT, -2 * FT - FT // 2)(d))),
+   [('FS-ENGY-LINT-001', ['PV1'])],
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['footprint'][2][1] == -2 * FT - FT // 2 + round_over_sqrt((10 * FT + 6 * IN) * 12, 225),
+                          EDER(r)['arrays']['PV1']))
+EN('derived', 'flush-on-a-flat-roof', 'PV2 without its tilt: flush on the flat roof, two rows 3\' deep and its 2\' row gap '
+   '- 8\' in plan, exactly - and no pitch.', ['7.1.1'],
+   eedit(lambda d: PVS(d)['PV2'].pop('tilt')),
+   check=lambda r: ensure(EDER(r)['arrays']['PV2'] == {**PV2_DER, 'mount': 'flush', 'pitch': None,
+                                                        'footprint': [F(26, 0), [26 * FT + B2, 0], [26 * FT + B2, 8 * FT], F(26, 8)]},
+                          EDER(r)['arrays']['PV2']))
+EN('derived', 'turned-in-plan', 'PV2, one module on one rack, facing south-west: its footprint is mapped by Core 13.1 '
+   'and each corner rounded once - its corner is its host\'s position, and its sides are the rack\'s depth and the '
+   'module\'s length.', ['7.1.1', 'FS-CORE-13.1.1'], eedit(south_west),
+   check=lambda r: ensure(F(34, 5) in EDER(r)['arrays']['PV2']['footprint'] and side_lengths(EDER(r)['arrays']['PV2']['footprint'])
+                          == sorted([P2, 5 * FT, P2, 5 * FT]), EDER(r)['arrays']['PV2']))
+EN('derived', 'a-steep-face', 'The house roof at 12:12: PV1, 5\' up the slope, is round(5\' / sqrt(2)) in plan, rounded '
+   'once - and its pitch is derived as the roof\'s.', ['7.1.1'],
+   eedit(lambda d: d['roofs']['RF1'].update(pitch={'rise': 12, 'run': 12})),
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['footprint'][2][1] == -2 * FT + round_over_sqrt(5 * FT * 12, 288)
+                          and EDER(r)['arrays']['PV1']['pitch'] == {'rise': 12, 'run': 12}, EDER(r)['arrays']['PV1']))
+EN('derived', 'an-edge-pitch', 'The house roof\'s south edge pitched 6:12 of its own, the north edge the roof\'s 9:12: PV1 '
+   'derives its own edge\'s pitch; the ridge moves north, to y = 8\'.', ['7.1.1'],
+   eedit(lambda d: d['roofs']['RF1']['edges'].update({'0': {'pitch': {'rise': 6, 'run': 12}}})),
+   check=lambda r: ensure(EDER(r)['arrays']['PV1']['pitch'] == {'rise': 6, 'run': 12}, EDER(r)['arrays']['PV1']))
+
+
+def energy_options(d):
+    """Core 0.3 design options for the carport: option A (OP1, the primary) keeps PV2; option B (OP2) has no array there."""
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Carport'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'Solar'}, 'OP2': {'set': 'OS1', 'name': 'Bare'}}
+    PVS(d)['PV2']['option'] = 'OP1'
+
+
+EN('options', 'array-of-one-option', 'PV2 in carport option A only (Core 19): the primary design has both arrays; option '
+   'B\'s design has PV1 alone, and INV1 lists an array B does not have - FS-ENGY-INV-005 in B (Core 19.5.2).',
+   ['1.2.1', '3.1.1', 'FS-CORE-19.3.1'], eedit(energy_options), [('FS-ENGY-INV-005', ['INV1'], 'OP2'), ('FS-ENGY-INV-005', ['RS1'], 'OP2')])
+
+
+def energy_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(ENGY)]).encode('utf-8'), official.implemented(ENGY))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][ENGY]
+
+
+EO_ = lambda *a, **k: O(ENGY, *a, **k)    # noqa: E731
+EO_('place-an-array', 'placeElement puts PV3 on the house roof\'s north face, sloped edge 2, with a free host on L1 at '
+    '(18\', 14\') facing north, and INV1 is set to serve it. It commits, valid under FS_energy, and derives its footprint.',
+    ['1.2.1', '2.2.2', '2.3.1', '2.3.2', '7.1.1', 'FS-OPS-4.10.1'], sunny_house(),
+    {'batch': [{'op': 'placeElement', 'extension': ENGY, 'collection': 'pvArrays', 'id': 'PV3',
+                'host': {'mode': 'free', 'level': 'L1', 'at': ["18'", "14'"], 'rotation': 90_000_000},
+                'element': {'roof': 'RF1', 'face': 2, 'module': MODULE, 'rows': 1, 'columns': 5,
+                            'fallback': {'box': {'min': [-4 * FT, 0, EAVE_E], 'max': [0, B1, EAVE_E + 5 * FT]}}}},
+               {'op': 'setProperty', 'id': 'INV1', 'path': '/arrays', 'value': ['PV1', 'PV2', 'PV3']}]},
+    check=lambda r, B: ensure(energy_derived(B)['arrays']['PV3']['footprint'] == [[18 * FT - B1, 10 * FT], [18 * FT, 10 * FT],
+                                                                                    F(18, 14), [18 * FT - B1, 14 * FT]]
+                              and energy_derived(B)['watts'] == 5600, energy_derived(B)))
+EO_('move-an-array', 'moveElement moves PV2 4\' east on the carport roof, its rotation kept. It commits, and its footprint '
+    'moves with it.', ['1.2.1', '7.1.1', 'FS-OPS-4.10.1'], sunny_house(),
+    {'batch': [{'op': 'moveElement', 'element': 'PV2', 'host': {'mode': 'free', 'level': 'L1', 'at': ["30'", "0'"], 'rotation': SOUTH}}]},
+    check=lambda r, B: ensure(energy_derived(B)['arrays']['PV2']['footprint'][0] == F(30, 0), energy_derived(B)['arrays']['PV2']))
+EO_('fewer-columns', 'setProperty of PV1\'s /columns makes it four modules wide. It commits: 1,400 W on the house roof.',
+    ['1.2.1', '7.1.1', 'FS-OPS-2.3.1'], sunny_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'PV1', 'path': '/columns', 'value': 4}]},
+    check=lambda r, B: ensure(energy_derived(B)['arrays']['PV1']['watts'] == 1400, energy_derived(B)['arrays']['PV1']))
+EO_('remove-a-served-array-is-rejected', 'removeElement of PV2 alone: INV1 and RS1 still list it, so the result breaks '
+    '3.1.1 and 3.2.1, and an applier that implements FS_energy and knows it rejects the batch (Ops 1.2.3).',
+    ['3.1.1', '3.2.1', '1.2.1', 'FS-OPS-1.2.3'], sunny_house(), {'batch': [{'op': 'removeElement', 'id': 'PV2'}]},
+    'rejected', [('FS-ENGY-INV-005', ['INV1']), ('FS-ENGY-INV-005', ['RS1'])])
+EO_('remove-an-array-and-its-references', 'The same removal, with INV1\'s and RS1\'s arrays set without PV2 in the same '
+    'batch: it commits.', ['3.1.1', '1.2.1'], sunny_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'INV1', 'path': '/arrays', 'value': ['PV1']},
+               {'op': 'setProperty', 'id': 'RS1', 'path': '/arrays', 'value': ['PV1']},
+               {'op': 'removeElement', 'id': 'PV2'}]},
+    check=lambda r, B: ensure(energy_derived(B)['modules'] == 5, energy_derived(B)))
+EO_('tilt-on-a-sloped-face-is-rejected', 'setProperty of PV1\'s /tilt racks it on the sloped house roof: the result '
+    'breaks 2.3.2, and the batch is rejected.', ['2.3.2', '1.2.1', 'FS-OPS-1.2.3'], sunny_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'PV1', 'path': '/tilt', 'value': {'rise': 3, 'run': 12}}]},
+    'rejected', [('FS-ENGY-INV-004', ['PV1'])])
+EO_('setbacks', 'setProperty of $document /extensions/FS_energy/setbacks sets an eave setback of 2\' 6": PV1, 2\' from the '
+    'eave, is now inside it - a lint, which never rejects a batch. It commits.', ['1.2.1', '4.3.1', 'FS-OPS-2.3.1'],
+    sunny_house(), {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_energy/setbacks',
+                               'value': {'eave': 5 * FT // 2}}]},
+    check=lambda r, B: ensure(ED_(B)['setbacks'] == {'eave': 5 * FT // 2}, ED_(B)))
 
 
 # ============================================================================= write
