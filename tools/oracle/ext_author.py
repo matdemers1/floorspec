@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation and FS_annotation 0.1.0 - as the script that
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation and FS_site 0.1.0 - as the script that
 writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
@@ -39,7 +39,9 @@ remodel (remodel() below) - the framed house's plan with a wall, its door, a roo
 new wall, door, window, room, island and deck. FS_annotation's start from the lit house with views, a kitchen window and its
 owner's annotation (annotation_house() below) - an overall string along the south side, a string locating the window by its
 centre, the Kitchen's clear width between two wall faces, a north-south string of clear dimensions through two rooms, and two
-notes with leaders. Every expected diagnostic is written by hand and cross-checked against the
+notes with leaders. FS_site's start from the garden on a slope (site_house() below) - the Phase 13 garden as a Core 0.4
+document on a 70' lot that falls to the street, with setbacks, a survey of spots and contour lines, the patio as a patio
+slab and a pad under the house. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -53,7 +55,7 @@ from tools.oracle.ext import landscape as land, official
 from tools.oracle.jsonparse import parse
 from tools.oracle.ops.engine import apply
 from tools.oracle.ops.suite import dumps as ops_dumps, expected_view, properties
-from tools.oracle.ops.version import OPS_02, OPS_03
+from tools.oracle.ops.version import OPS_02, OPS_03, OPS_04
 from tools.oracle.report import dumps
 from tools.oracle.validate import SEVERITY, check, ext_reader
 
@@ -270,15 +272,17 @@ def V(name, group, slug, description, covers, doc, diags=(), registry=KNOWN, che
 
 
 def O(name, slug, description, covers, a, request, status='committed', diags=(), check=None):
-    """An Ops test - Ops 0.2, or Ops 0.3 for a document declaring "0.3" - applied by an applier that
+    """An Ops test - Ops 0.2, or Ops 0.3 or 0.4 for a document declaring "0.3" or "0.4" - applied by an applier that
     implements the extension and knows it."""
     TESTS.append(dict(kind='ops', ext=name, group='ops', slug=slug, description=description, covers=cov(name, covers),
                       doc=a, request=request, registry=[entry(name)], status=status, check=check, diags=hand(diags)))
 
 
 def ops_profile(doc):
-    """The Ops draft an extension suite's Ops test is applied as: Ops 0.3 for a document declaring "0.3"."""
-    return OPS_03 if isinstance(doc, dict) and doc.get('floorspec') == '0.3' else OPS_02
+    """The Ops draft an extension suite's Ops test is applied as: Ops 0.3 for a document declaring "0.3", Ops 0.4 for
+    one declaring "0.4" (FS_site's), Ops 0.2 for every other."""
+    v = doc.get('floorspec') if isinstance(doc, dict) else None
+    return OPS_04 if v == '0.4' else OPS_03 if v == '0.3' else OPS_02
 
 
 def ensure(cond, what):
@@ -4119,6 +4123,570 @@ AO('move-a-junction-a-dimension-measures', 'moveJunction J6 to (13\', 0): the wa
                              anno_derived(B)['dimensions']))
 
 
+# ============================================================================= FS_site
+
+SITE = 'FS_site'
+CODE[SITE] = 'SITE'
+FT3 = FT ** 3                                      # a cubic foot, in cubic base units
+
+
+def F(x, y):
+    """A point in feet, exactly: x and y in whole or half feet."""
+    return [int(x * 2) * FT // 2, int(y * 2) * FT // 2]
+
+
+SURVEY_DATUM = 814 * FT + FT // 2                  # the survey's 814' 6": the first floor
+LOT = [F(-30, -40), F(40, -40), F(40, 30), F(-30, 30)]
+SITE_DATA = {
+    'benchmark': SURVEY_DATUM,
+    'spots': {
+        'SP1': {'at': F(-30, 30), 'elevation': 5 * FT // 2, 'name': 'NW corner'},
+        'SP2': {'at': F(40, 30), 'elevation': 2 * FT, 'name': 'NE corner'},
+        'SP3': {'at': F(40, -40), 'elevation': -5 * FT, 'name': 'SE corner'},
+        'SP4': {'at': F(-30, -40), 'elevation': -9 * FT // 2, 'name': 'SW corner'},
+        'SP5': {'at': F(5, 6), 'elevation': -FT // 2},
+    },
+    'contours': {
+        'CT1': {'elevation': -3 * FT // 2, 'points': [F(-30, -8), F(0, -6), F(40, -10)], 'name': '813\''},
+        'CT2': {'elevation': FT // 2, 'points': [F(-30, 16), F(10, 18), F(40, 14)], 'name': '815\''},
+    },
+    'setbacks': {'street': [0], 'front': 25 * FT, 'side': 5 * FT, 'rear': 10 * FT},
+    'pads': {'GP1': {'name': 'House', 'elevation': -8 * IN, 'boundary': [F(-1, -1), F(29, -1), F(29, 13), F(-1, 13)]}},
+}
+
+
+def site_house():
+    """The Phase 13 garden (garden()) on a lot that falls to the street, as a Core 0.4 document:
+
+    - the lot, the site's boundary: 70' x 70', from (-30', -40') to (40', 30'), its south edge (edge 0)
+      on the street;
+    - setbacks of 25' at the front, 5' at the sides and 10' at the rear - the house, 20' x 12' with its
+      8' courtyard, from (0, 0) to (28', 12'), and its patio, 2' to 12' east and 1' to 10' south, sit
+      well inside them;
+    - a survey whose datum puts the first floor at 814' 6": spots at the four corners - 817' at the
+      north-west, 816' 6" at the north-east, 809' 6" at the south-east and 810' at the south-west - and
+      one in the Kitchen at 814', and two contour lines across the lot at 813' and 815';
+    - the patio S1 a patio slab (Core 0.3), stepped down 6" from the floor, 100 mm thick, which grades
+      the ground to its bottom; and a pad GP1 under the house, 1' beyond its walls, at 8" below the
+      floor."""
+    d = garden()
+    d['floorspec'] = '0.4'
+    d['project']['name'] = 'Phase 15 garden on a slope'
+    d['site'] = {'boundary': copy.deepcopy(LOT)}
+    d['slabs']['S1'].update(purpose='patio', offset=-6 * IN)
+    d['extensionsUsed'][SITE] = '0.1.0'
+    d['extensions'][SITE] = copy.deepcopy(SITE_DATA)
+    return d
+
+
+def sedit_(fn):
+    """The garden on its slope, changed by fn(d) in place."""
+    d = site_house()
+    fn(d)
+    return d
+
+
+SD_ = lambda d: ext(d, SITE)                                                       # noqa: E731
+SPOTS = lambda d: ext(d, SITE)['spots']                                            # noqa: E731
+CONT = lambda d: ext(d, SITE)['contours']                                          # noqa: E731
+PADS = lambda d: ext(d, SITE)['pads']                                              # noqa: E731
+SITE_DER = derived_of(SITE)
+SI = lambda *a, **k: V(SITE, *a, **k)    # noqa: E731
+SITE_ENTRY_KNOWN = ALL_KNOWN + (VIEW, RENO, ANNO, SITE)
+PATIO_BOTTOM = -6 * IN - 100 * MM
+LOT_EDGES = [{'kind': 'front', 'length': 70 * FT, 'setback': 25 * FT}, {'kind': 'side', 'length': 70 * FT, 'setback': 5 * FT},
+             {'kind': 'rear', 'length': 70 * FT, 'setback': 10 * FT}, {'kind': 'side', 'length': 70 * FT, 'setback': 5 * FT}]
+
+
+def check_site(r):
+    x = SITE_DER(r)
+    ensure(x['lot'] == {'area': str(70 * 70 * FT * FT), 'edges': LOT_EDGES}, x['lot'])
+    s = x['surface']
+    # 5 spots and 6 contour vertices, all at distinct positions; the low is the SE corner, the high the NW
+    ensure(s['low'] == -5 * FT and s['high'] == 5 * FT // 2 and len(s['points']) == 11, s)
+    ensure(s['points'][0] == F(-30, -40) + [-9 * FT // 2] and s['points'][-1] == F(40, 30) + [2 * FT], s['points'])
+    # Euler: 11 points, 8 of them on the hull - the four corners and the contour lines' ends on its west and east
+    # edges: 2n - h - 2 triangles
+    ensure(len(s['triangles']) == 2 * 11 - 8 - 2, len(s['triangles']))
+    g = x['grading']
+    ensure(list(g) == ['GP1', 'S1'] and g['GP1']['kind'] == 'pad' and g['GP1']['elevation'] == -8 * IN
+           and g['S1'] == {**g['S1'], 'kind': 'slab', 'elevation': PATIO_BOTTOM}, g)
+    # the house pad cuts into the slope at its north side and fills at its south; the patio, down the slope, is filled
+    ensure(int(g['GP1']['cut']) > 0 and int(g['GP1']['fill']) > 0 and g['S1']['cut'] == '0' and int(g['S1']['fill']) > 0, g)
+    ensure(g['GP1']['low'] < -8 * IN < g['GP1']['high'], g['GP1'])
+    # each total is rounded once from the exact sum: within a unit of the sum of the rounded volumes
+    ensure(abs(int(x['cut']) - int(g['GP1']['cut']) - int(g['S1']['cut'])) <= 1, x)
+    ensure(abs(int(x['fill']) - int(g['GP1']['fill']) - int(g['S1']['fill'])) <= 1, x)
+
+
+def plane_ground(d):
+    """The survey replaced by the four corners of the lot on one plane rising 1' for every 10' north: z = y / 10, 0
+    at y = 0 - so every elevation and volume over it can be checked by hand."""
+    SD_(d)['spots'] = {f'SP{i + 1}': {'at': p, 'elevation': p[1] // 10} for i, p in enumerate(LOT)}
+    SD_(d)['contours'] = {}
+
+
+def only_pad(d, boundary, e=0):
+    """The patio no longer graded, and one pad GP1 with this outline at elevation e."""
+    d['slabs']['S1'].pop('purpose')
+    PADS(d).clear()
+    PADS(d)['GP1'] = {'boundary': boundary, 'elevation': e}
+
+
+BAD_SI = lambda d: SPOTS(d)['SP5'].update(at=[0, 0, 0])                           # noqa: E731  the schema tier
+INV_SI = lambda d: CONT(d)['CT1']['points'].insert(1, F(-30, -8))                  # noqa: E731  FS-SITE-INV-003
+INV_SI_DIAG = [('FS-SITE-INV-003', ['CT1'])]
+
+SI('examples', 'p15-garden-on-a-slope', 'The Phase 13 garden on a 70\' square lot that falls about 7\' to the street, '
+   'read by an implementation of FS_site that knows it: setbacks of 25\' at the front, 5\' at the sides and 10\' at the '
+   'rear; a survey of five spot elevations and two contour lines; the patio, a patio slab stepped 6" down, and a pad '
+   'under the house 8" below its floor. It is valid, reports nothing - the house, its patio and its pad are clear of '
+   'the setbacks, and the survey covers the lot - and derives the lot\'s area and its edges (front, side, rear, side, '
+   'each 70\' with its setback), the surface\'s eleven points and their triangles, and the cut and fill under the pad '
+   'and the patio.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '2.2.1', '3.1.1', '3.1.2', '3.2.1', '4.1.1', '4.2.1', '7.1.1'],
+   site_house(), check=check_site)
+SI('examples', 'core-only-reader', 'The same garden read with no known extensions: FS_site is not evaluated, so nothing '
+   'of it is derived (`derived.extensions` is empty); FS_site has no elements of its own, and Core derives the patio slab '
+   'as ever.', ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'], site_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and r['derived']['slabs']['S1']['bottom'] == PATIO_BOTTOM,
+                          r['derived']['extensions']))
+SI('examples', 'all-official-known', 'The garden read with every official entry known, by an implementation of FS_site '
+   'alone: FS_landscape is checked only as Core 12 checks a known extension, and only FS_site is evaluated and derived.',
+   ['1.2.1', '1.2.4'], site_house(), registry=[entry(x) for x in SITE_ENTRY_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [SITE], list(r['derived']['extensions'])))
+SI('examples', 'no-data', 'FS_site used with empty top-level data: valid. The lot is Core\'s, so its area and edges are '
+   'derived - each edge of no kind and no setback, since there are no setbacks - but there is no surface, and the patio, '
+   'still a grading slab, has nothing to be measured against: its low, high, cut and fill are null, and so are the '
+   'totals.', ['1.3.1', '2.2.1', '7.1.1'], sedit_(lambda d: d['extensions'].update({SITE: {}})),
+   check=lambda r: ensure(SITE_DER(r) == {'lot': {'area': str(70 * 70 * FT * FT), 'edges': [{'kind': None, 'length': 70 * FT, 'setback': None}] * 4},
+                                          'surface': None, 'grading': {'S1': {'kind': 'slab', 'elevation': PATIO_BOTTOM, 'low': None,
+                                                                              'high': None, 'cut': None, 'fill': None}},
+                                          'cut': None, 'fill': None}, SITE_DER(r)))
+SI('examples', 'without-a-lot', 'The garden with no site and no setbacks, its survey and grading as before: no lot, and '
+   'everything else as on the lot.', ['1.2.4', '2.2.1', '7.1.1'],
+   sedit_(lambda d: (d.pop('site'), SD_(d).pop('setbacks'))),
+   check=lambda r: ensure(SITE_DER(r)['lot'] is None and SITE_DER(r)['surface'] is not None and SITE_DER(r)['cut'] is not None,
+                          SITE_DER(r)))
+SI('examples', 'the-benchmark-is-a-label', 'The survey\'s datum moved by 100\' - a survey that measured from another '
+   'benchmark: nothing derived changes, since every elevation is a height above project zero (1.4).', ['1.3.1', '7.1.1'],
+   sedit_(lambda d: SD_(d).update(benchmark=SURVEY_DATUM + 100 * FT)),
+   check=lambda r: ensure(SITE_DER(r)['surface']['low'] == -5 * FT and SITE_DER(r)['lot']['edges'] == LOT_EDGES, SITE_DER(r)))
+
+SI('activation', 'unknown-data-not-evaluated', 'A spot\'s position has three numbers, which FS_site\'s schema does not '
+   'allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   sedit_(BAD_SI), registry=None)
+SI('activation', 'another-version-known', 'The document uses FS_site at 0.2.0, which is known (a later entry), but the '
+   'implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.', ['1.2.1'],
+   sedit_(lambda d: (BAD_SI(d), d['extensionsUsed'].update({SITE: '0.2.0'}))), registry=[entry(SITE, '0.2.0')])
+SI('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_site is evaluated: its data breaks the '
+   'schema, FS-SITE-SCH-001.', ['1.2.1', '1.3.1'],
+   sedit_(lambda d: (BAD_SI(d), d['extensionsUsed'].update({SITE: '0.1'}))), [('FS-SITE-SCH-001', [])])
+SI('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_site is evaluated.', ['1.2.1', '1.3.1'],
+   sedit_(lambda d: (BAD_SI(d), d['extensionsUsed'].update({SITE: {'version': '0.1.0', 'schema': entry(SITE)['schema']}}))),
+   [('FS-SITE-SCH-001', [])])
+SI('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_site is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {SITE: '0.1.0'}, 'extensions': {SITE: {'colour': 'red'}}})
+
+
+def as_02(d):
+    """The garden on its slope declaring Core "0.2": a 0.2 slab has no purpose and no offset."""
+    d['floorspec'] = '0.2'
+    d['slabs']['S1'].pop('purpose')
+    d['slabs']['S1'].pop('offset')
+
+
+SI('activation', 'core-0.2-document', 'The garden on its slope declaring Core "0.2", a draft FS_site 0.1.0 lists (1.1): '
+   'FS_site is evaluated and reports nothing. A Core 0.2 slab has no purpose, so the patio grades nothing: only the pad '
+   'is measured (4.1).', ['1.2.1', '1.2.3', '1.2.4', '7.1.1'], sedit_(as_02),
+   check=lambda r: ensure(list(SITE_DER(r)['grading']) == ['GP1'] and SITE_DER(r)['lot']['edges'] == LOT_EDGES, SITE_DER(r)))
+SI('activation', 'core-0.3-document', 'The garden on its slope declaring Core "0.3", a draft FS_site 0.1.0 lists (1.1): '
+   'FS_site is evaluated, reports nothing, and derives exactly what it derives for the garden declaring "0.4".',
+   ['1.2.1', '1.2.3', '1.2.4', '7.1.1'], sedit_(lambda d: d.update(floorspec='0.3')), check=check_site)
+SI('activation', 'core-0.3-invariants', 'The same "0.3" garden with a contour line\'s point written twice: FS_site is '
+   'evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '3.1.1'],
+   sedit_(lambda d: (d.update(floorspec='0.3'), INV_SI(d))), INV_SI_DIAG)
+
+SI('order', 'core-error-first', 'A Core invariant breaks - the lot\'s boundary crosses itself, FS-INV-009 - and so does '
+   'FS_site\'s schema: Core\'s error is reported, and FS_site is not evaluated.', ['1.2.2'],
+   sedit_(lambda d: (BAD_SI(d), d['site'].update(boundary=[LOT[0], LOT[2], LOT[1], LOT[3]]))), [('FS-INV-009', [])])
+SI('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-SITE-SCH-001.',
+   ['1.2.2', '1.3.1'], sedit_(lambda d: (BAD_SI(d), INV_SI(d))), [('FS-SITE-SCH-001', [])])
+SI('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the rear setback is 20\', which '
+   'the house\'s north wall is nearer than: the document is invalid, so no lint is reported, FS_site\'s or Core\'s.',
+   ['1.2.2', '1.2.3'], sedit_(lambda d: (INV_SI(d), SD_(d)['setbacks'].update(rear=20 * FT))), INV_SI_DIAG)
+
+SI('schema', 'data-not-an-object', 'FS_site\'s top-level data is an array: Core allows any JSON there, FS_site\'s schema '
+   'does not.', ['1.3.1'], sedit_(lambda d: d['extensions'].update({SITE: []})), [('FS-SITE-SCH-001', [])])
+SI('schema', 'unknown-member', 'FS_site\'s data has a member it does not define: `grid`.', ['1.3.1'],
+   sedit_(lambda d: SD_(d).update(grid=FT)), [('FS-SITE-SCH-001', [])])
+SI('schema', 'spot-with-an-unknown-member', 'A spot has a member a spot does not define.', ['1.3.1'],
+   sedit_(lambda d: SPOTS(d)['SP1'].update(accuracy=IN)), [('FS-SITE-SCH-001', [])])
+SI('schema', 'spot-without-an-elevation', 'A spot always says its elevation.', ['1.3.1'],
+   sedit_(lambda d: SPOTS(d)['SP5'].pop('elevation')), [('FS-SITE-SCH-001', [])])
+SI('schema', 'point-of-three-numbers', 'A point is two lengths.', ['1.3.1'], sedit_(BAD_SI), [('FS-SITE-SCH-001', [])])
+SI('schema', 'elevation-with-a-fraction', 'A number written with a fraction is not an integer, even when it is a whole '
+   'number.', ['1.3.1'], None, [('FS-SITE-SCH-001', [])],
+   raw=(fmt(sedit_(lambda d: SPOTS(d)['SP5'].update(elevation=-195071))) + '\n').replace('-195071', '-195072.0', 1).encode('utf-8'))
+SI('schema', 'contour-of-one-point', 'A contour line has at least two points.', ['1.3.1'],
+   sedit_(lambda d: CONT(d)['CT1'].update(points=[F(0, -6)])), [('FS-SITE-SCH-001', [])])
+SI('schema', 'contour-without-an-elevation', 'A contour line always says its elevation.', ['1.3.1'],
+   sedit_(lambda d: CONT(d)['CT2'].pop('elevation')), [('FS-SITE-SCH-001', [])])
+SI('schema', 'pad-of-two-points', 'A pad\'s outline is a polygon: at least three points.', ['1.3.1'],
+   sedit_(lambda d: PADS(d)['GP1'].update(boundary=[F(-1, -1), F(29, -1)])), [('FS-SITE-SCH-001', [])])
+SI('schema', 'setbacks-without-street', 'Setbacks always say which edges are on the street.', ['1.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].pop('street')), [('FS-SITE-SCH-001', [])])
+SI('schema', 'street-empty', 'At least one edge is on the street.', ['1.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(street=[])), [('FS-SITE-SCH-001', [])])
+SI('schema', 'street-repeated', 'The street edges are distinct.', ['1.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(street=[0, 0])), [('FS-SITE-SCH-001', [])])
+SI('schema', 'negative-setback', 'A setback is a distance: at least 0.', ['1.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(side=-FT)), [('FS-SITE-SCH-001', [])])
+SI('schema', 'name-too-long', 'A record\'s name is 1 to 200 characters.', ['1.3.1'],
+   sedit_(lambda d: PADS(d)['GP1'].update(name='H' * 201)), [('FS-SITE-SCH-001', [])])
+SI('schema', 'zero-setbacks', 'A setback of 0 is allowed: the lot line itself.', ['1.3.1', '7.1.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(front=0, side=0, rear=0)),
+   check=lambda r: ensure([e['setback'] for e in SITE_DER(r)['lot']['edges']] == [0, 0, 0, 0], SITE_DER(r)['lot']))
+
+
+def with_scene(rid):
+    def fn(d):
+        d['extensionsUsed']['FS_lighting'] = '0.1.0'
+        d['extensions']['FS_lighting'] = {'scenes': {rid: {'name': 'Evening', 'lights': {}}}}
+    return fn
+
+
+SI('invariants', 'id-of-an-element', 'A spot keyed by W1, the ID of a wall: FS-SITE-INV-001.', ['1.3.2'],
+   sedit_(lambda d: SPOTS(d).update(W1=SPOTS(d).pop('SP5'))), [('FS-SITE-INV-001', ['W1'])])
+SI('invariants', 'id-of-an-extension-element', 'A pad keyed by X1, the ID of FS_landscape\'s tree - an extension element, '
+   'though FS_landscape is not known: FS-SITE-INV-001.', ['1.3.2'],
+   sedit_(lambda d: PADS(d).update(X1=PADS(d).pop('GP1'))), [('FS-SITE-INV-001', ['X1'])])
+SI('invariants', 'id-of-a-scene', 'A contour line keyed by SC1, the ID of a scene in FS_lighting\'s data, which an '
+   'implementation of FS_site reads as data without knowing FS_lighting: FS-SITE-INV-001.', ['1.3.2'],
+   sedit_(lambda d: (with_scene('SC1')(d), CONT(d).update(SC1=CONT(d).pop('CT2')))), [('FS-SITE-INV-001', ['SC1'])])
+SI('invariants', 'id-of-a-dimension-string', 'A spot keyed by DM1, the ID of a dimension string in FS_annotation\'s '
+   'data, read as data: FS-SITE-INV-001.', ['1.3.2'],
+   sedit_(lambda d: (d['extensionsUsed'].update(FS_annotation='0.1.0'),
+                     d['extensions'].update(FS_annotation={'dimensions': {'DM1': {'level': 'L1', 'direction': [1, 0], 'through': [0, 0],
+                                                                                    'anchors': [{'junction': 'J1'}, {'junction': 'J6'}]}}}),
+                     SPOTS(d).update(DM1=SPOTS(d).pop('SP5')))),
+   [('FS-SITE-INV-001', ['DM1'])])
+SI('invariants', 'id-of-two-records', 'A spot and a pad both keyed GP1: the ID is reported once.', ['1.3.2'],
+   sedit_(lambda d: SPOTS(d).update(GP1=SPOTS(d).pop('SP5'))), [('FS-SITE-INV-001', ['GP1'])])
+SI('invariants', 'survey-points-disagree', 'A spot at the 813\' contour line\'s middle vertex, (0, -6\'), at 813\' 6": '
+   'two elevations at one position, FS-SITE-INV-002, naming the contour line and the spot.', ['3.1.2'],
+   sedit_(lambda d: SPOTS(d).update(SP6={'at': F(0, -6), 'elevation': -FT})), [('FS-SITE-INV-002', ['CT1', 'SP6'])])
+SI('invariants', 'two-spots-disagree', 'Two spots at the Kitchen\'s spot\'s position, one at its elevation and one 1" '
+   'higher: one diagnostic for the position, naming all three.', ['3.1.2'],
+   sedit_(lambda d: SPOTS(d).update(SP6={'at': F(5, 6), 'elevation': -FT // 2}, SP7={'at': F(5, 6), 'elevation': -FT // 2 + IN})),
+   [('FS-SITE-INV-002', ['SP5', 'SP6', 'SP7'])])
+SI('invariants', 'survey-points-agree', 'A spot at the 813\' contour line\'s middle vertex at 813\', its elevation: valid, '
+   'and one point of the surface - still eleven.', ['3.1.2', '7.1.1'],
+   sedit_(lambda d: SPOTS(d).update(SP6={'at': F(0, -6), 'elevation': -3 * FT // 2})),
+   check=lambda r: ensure(len(SITE_DER(r)['surface']['points']) == 11, SITE_DER(r)['surface']))
+SI('invariants', 'contours-cross-at-one-elevation', 'A second contour line at 813\' crossing the first at its middle '
+   'vertex: one elevation at the shared position, valid.', ['3.1.2'],
+   sedit_(lambda d: CONT(d).update(CT3={'elevation': -3 * FT // 2, 'points': [F(-2, -10), F(0, -6), F(2, -2)]})))
+SI('invariants', 'contour-repeated-point', 'A contour line with a point written twice in a row: FS-SITE-INV-003.',
+   ['3.1.1'], sedit_(INV_SI), INV_SI_DIAG)
+SI('invariants', 'closed-contour', 'A closed contour line - a knoll at 816\' - that repeats its first point last: its '
+   'consecutive points differ, so it is valid; its first and last vertex are one survey point.', ['3.1.1', '3.1.2', '7.1.1'],
+   sedit_(lambda d: CONT(d).update(CT3={'elevation': 3 * FT // 2, 'points': [F(-20, 22), F(-14, 22), F(-14, 26), F(-20, 26), F(-20, 22)]})),
+   check=lambda r: ensure(len(SITE_DER(r)['surface']['points']) == 15, len(SITE_DER(r)['surface']['points'])))
+SI('invariants', 'pad-not-simple', 'A pad whose outline crosses itself, a bow tie: FS-SITE-INV-004.', ['4.1.1'],
+   sedit_(lambda d: PADS(d)['GP1'].update(boundary=[F(-1, -1), F(29, 13), F(29, -1), F(-1, 13)])),
+   [('FS-SITE-INV-004', ['GP1'])])
+SI('invariants', 'pad-without-area', 'A pad whose three points are on one line: FS-SITE-INV-004.', ['4.1.1'],
+   sedit_(lambda d: PADS(d)['GP1'].update(boundary=[F(-1, -1), F(14, -1), F(29, -1)])), [('FS-SITE-INV-004', ['GP1'])])
+SI('invariants', 'setbacks-without-a-lot', 'Setbacks in a document with no site: FS-SITE-INV-005.', ['2.2.1'],
+   sedit_(lambda d: d.pop('site')), [('FS-SITE-INV-005', [])])
+SI('invariants', 'setbacks-on-a-site-without-a-boundary', 'Setbacks on a site that has a true north and no boundary: '
+   'FS-SITE-INV-005.', ['2.2.1'], sedit_(lambda d: d.update(site={'trueNorth': 12000000})), [('FS-SITE-INV-005', [])])
+SI('invariants', 'street-edge-of-nothing', 'Edge 4 on the street, on a lot of four edges, 0 to 3: FS-SITE-INV-005.',
+   ['2.2.1'], sedit_(lambda d: SD_(d)['setbacks'].update(street=[0, 4])), [('FS-SITE-INV-005', [])])
+SI('invariants', 'street-edge-of-the-last', 'Edge 3, the last, from the north-west corner back to the first vertex: valid, '
+   'and the lot\'s west edge is its front.', ['2.2.1', '7.1.1'], sedit_(lambda d: SD_(d)['setbacks'].update(street=[3])),
+   check=lambda r: ensure([e['kind'] for e in SITE_DER(r)['lot']['edges']] == ['side', 'rear', 'side', 'front'], SITE_DER(r)['lot']))
+SI('invariants', 'no-judgement-of-grading', 'A pad 6\' below the floor and a patio 4\' above the ground under it - a '
+   'basement no one excavated and a terrace on stilts: valid, with nothing derived that says otherwise. FS_site '
+   'measures, it never judges (4.2).', ['4.1.1', '4.2.1'],
+   sedit_(lambda d: (PADS(d)['GP1'].update(elevation=-6 * FT), d['slabs']['S1'].update(offset=4 * FT))))
+
+SI('lints', 'lot-beyond-the-surface', 'The south-west corner\'s spot removed: the lot\'s corner is outside the surface\'s '
+   'hull, FS-SITE-LINT-001 (info), and nothing graded is.', ['1.2.3'],
+   sedit_(lambda d: SPOTS(d).pop('SP4')), [('FS-SITE-LINT-001', [])])
+SI('lints', 'pad-beyond-the-surface', 'Every spot north of the house removed and the contour line at 815\' too: the '
+   'surface stops at the 813\' line and the Kitchen\'s spot, and the house\'s pad runs off it - FS-SITE-LINT-002 for '
+   'the pad, and FS-SITE-LINT-001 for the lot.', ['1.2.3'],
+   sedit_(lambda d: (SPOTS(d).pop('SP1'), SPOTS(d).pop('SP2'), CONT(d).pop('CT2'))),
+   [('FS-SITE-LINT-001', []), ('FS-SITE-LINT-002', ['GP1'])])
+SI('lints', 'slab-beyond-the-surface', 'A survey of the house\'s ground alone, from 2\' south of it: the patio, further '
+   'south, runs off it - FS-SITE-LINT-002 for the slab - and so does the lot.', ['1.2.3'],
+   sedit_(lambda d: (SPOTS(d).pop('SP3'), SPOTS(d).pop('SP4'), CONT(d).pop('CT1'),
+                     SPOTS(d).update(SP6={'at': F(-30, -2), 'elevation': -FT}, SP7={'at': F(40, -2), 'elevation': -FT}))),
+   [('FS-SITE-LINT-001', []), ('FS-SITE-LINT-002', ['S1'])])
+SI('lints', 'house-in-the-rear-setback', 'A rear setback of 20\': the north wall\'s junctions, 18\' from the rear lot '
+   'line, and the pad, 17\' from it, are in it - FS-SITE-LINT-003 (info) for each, once.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(rear=20 * FT)),
+   [('FS-SITE-LINT-003', [j]) for j in ('GP1', 'J2', 'J3', 'J4', 'J9')])
+SI('lints', 'at-the-setback-is-clear', 'A front setback of exactly 30\', the distance from the street to the patio\'s south '
+   'edge: it is clear - at least the setback, exactly.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(front=30 * FT)))
+SI('lints', 'a-unit-inside-the-setback', 'A front setback of 30\' and one base unit: the patio is 1/1280 mm inside it, '
+   'FS-SITE-LINT-003 for the slab.', ['1.2.3', '2.3.1'], sedit_(lambda d: SD_(d)['setbacks'].update(front=30 * FT + 1)),
+   [('FS-SITE-LINT-003', ['S1'])])
+SI('lints', 'patio-in-the-front-setback', 'The patio run 9\' further south, to 19\' south of the house: 21\' from the '
+   'street, inside the 25\' front setback - FS-SITE-LINT-003 for the slab.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: d['slabs']['S1'].update(boundary=[F(2, -19), F(12, -19), F(12, -1), F(2, -1)])),
+   [('FS-SITE-LINT-003', ['S1'])])
+SI('lints', 'drive-and-walk-cross-the-front-setback', 'A driveway and a front walk from the house to the street, across '
+   'the 25\' front setback: a walkway or a driveway reaches the street by design, so neither is tested (2.3) - nothing '
+   'is reported.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: d['slabs'].update(
+       S2={'level': 'L1', 'boundary': [F(14, -40), F(24, -40), F(24, -2), F(14, -2)], 'thickness': 100 * MM, 'purpose': 'driveway'},
+       S3={'level': 'L1', 'boundary': [F(6, -40), F(9, -40), F(9, -2), F(6, -2)], 'thickness': 100 * MM, 'purpose': 'walkway'})))
+SI('lints', 'outside-the-lot', 'Setbacks of 0, and a shed\'s pad over the east lot line: a point outside the lot is never '
+   'clear, whatever the setbacks - FS-SITE-LINT-003 for the pad.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: (SD_(d)['setbacks'].update(front=0, side=0, rear=0),
+                     PADS(d).update(GP2={'name': 'Shed', 'elevation': 0, 'boundary': [F(36, 20), F(42, 20), F(42, 26), F(36, 26)]}))),
+   [('FS-SITE-LINT-002', ['GP2']), ('FS-SITE-LINT-003', ['GP2'])])
+SI('lints', 'on-the-lot-line', 'Setbacks of 0, and a shed\'s pad against the east lot line: a point on the lot line is '
+   'clear.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: (SD_(d)['setbacks'].update(front=0, side=0, rear=0),
+                     PADS(d).update(GP2={'name': 'Shed', 'elevation': 0, 'boundary': [F(34, 20), F(40, 20), F(40, 26), F(34, 26)]}))))
+
+
+def notched_lot(d):
+    """The lot with its north-east corner notched: 10' x 10' out of it, a lot of six edges - south (the street), east,
+    the notch's south and west sides, north, west."""
+    d['site']['boundary'] = [F(-30, -40), F(40, -40), F(40, 20), F(30, 20), F(30, 30), F(-30, 30)]
+    SD_(d)['setbacks']['side'] = 5 * FT
+
+
+SI('lints', 'near-the-end-of-an-edge', 'The lot notched at its north-east corner (six edges; the notch\'s two are rear '
+   'edges), a rear setback of 7\' and a shed\'s pad near the notch\'s inner corner, (30\', 20\'): the shed\'s corner '
+   '(26\', 16\') is beyond the ends of both of the notch\'s edges, so its distance to them is to that corner, sqrt(32) '
+   'feet - FS-SITE-LINT-003 for the shed\'s pad.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: (notched_lot(d), SD_(d)['setbacks'].update(rear=7 * FT),
+                     PADS(d).update(GP2={'name': 'Shed', 'elevation': 0, 'boundary': [F(20, 10), F(26, 10), F(26, 16), F(20, 16)]}))),
+   [('FS-SITE-LINT-003', ['GP2'])])
+SI('lints', 'beyond-the-end-of-an-edge-is-clear', 'The same notched lot and setback, the shed further west: its corner '
+   '(10\', 19\') is 1\' from the line of the notch\'s south edge, but beyond its end - 20\' from the edge itself - so '
+   'it is clear (2.3): the distance is to the edge, not to its line.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: (notched_lot(d), SD_(d)['setbacks'].update(rear=7 * FT),
+                     PADS(d).update(GP2={'name': 'Shed', 'elevation': 0, 'boundary': [F(4, 15), F(10, 15), F(10, 19), F(4, 19)]}))))
+
+PLANE_PAD = [F(0, -10), F(20, -10), F(20, 10), F(0, 10)]
+L_PAD = [F(0, 0), F(20, 0), F(20, 10), F(10, 10), F(10, 20), F(0, 20)]
+SI('derived', 'plane-hand-checked', 'Ground on one plane, rising 1\' for every 10\' north, and one pad 20\' wide from 10\' '
+   'south to 10\' north of where the ground is at 0, graded to 0: the north half is cut by 1\' at its edge, the south '
+   'half filled by as much - each 20\' x 10\' x 1\' / 2 = 100 cubic feet, exactly - and the ground under it runs from -1\' '
+   'to 1\'. The lot\'s four corners are cocircular, so the surface is two triangles, fanned from the least corner.',
+   ['3.2.1', '4.2.1', '7.1.1'], sedit_(lambda d: (plane_ground(d), only_pad(d, PLANE_PAD))),
+   check=lambda r: ensure(SITE_DER(r)['grading'] == {'GP1': {'kind': 'pad', 'elevation': 0, 'low': -FT, 'high': FT,
+                                                             'cut': str(100 * FT3), 'fill': str(100 * FT3)}}
+                          and SITE_DER(r)['surface']['triangles'] == [[0, 2, 3], [0, 3, 1]]
+                          and SITE_DER(r)['cut'] == str(100 * FT3), SITE_DER(r)))
+SI('derived', 'l-shaped-pad', 'The same plane and an L-shaped pad at 0, north of the zero line - 20\' x 10\' and 10\' x 10\' '
+   'above it - all cut: 20 x 10 x 0.5\' + 10 x 10 x 1.5\' = 250 cubic feet, nothing filled. The clipping keeps every point '
+   'of the outline, which is not convex.', ['4.2.1', '7.1.1'], sedit_(lambda d: (plane_ground(d), only_pad(d, L_PAD))),
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1'] == {'kind': 'pad', 'elevation': 0, 'low': 0, 'high': 2 * FT,
+                                                            'cut': str(250 * FT3), 'fill': '0'}, SITE_DER(r)['grading']))
+SI('derived', 'clockwise-pad', 'The L-shaped pad written clockwise: the same volumes - an outline is measured whichever way '
+   'round it runs.', ['4.2.1', '7.1.1'], sedit_(lambda d: (plane_ground(d), only_pad(d, L_PAD[::-1]))),
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1']['cut'] == str(250 * FT3), SITE_DER(r)['grading']))
+SI('derived', 'pad-above-the-ground', 'The plane and the square pad raised to 2\', above the ground everywhere under it: '
+   'all fill, 20\' x 20\' x 2\' = 800 cubic feet.', ['4.2.1', '7.1.1'],
+   sedit_(lambda d: (plane_ground(d), only_pad(d, PLANE_PAD, 2 * FT))),
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1'] == {'kind': 'pad', 'elevation': 2 * FT, 'low': -FT, 'high': FT,
+                                                            'cut': '0', 'fill': str(800 * FT3)}, SITE_DER(r)['grading']))
+SI('derived', 'a-volume-rounded-once', 'The plane and a pad one base unit square at 0, just north of the zero line: it '
+   'cuts 1/20 of a cubic unit, which rounds to 0, and the ground under it rises to 1/10 of a unit, which rounds to 0 '
+   'too.', ['4.2.1', '7.1.1'],
+   sedit_(lambda d: (plane_ground(d), only_pad(d, [[0, 0], [1, 0], [1, 1], [0, 1]]))),
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1'] == {'kind': 'pad', 'elevation': 0, 'low': 0, 'high': 0,
+                                                            'cut': '0', 'fill': '0'}, SITE_DER(r)['grading']))
+SI('derived', 'totals-rounded-once', 'The plane and three pads at 0, each one base unit wide and three long, running '
+   'north from the zero line: each cuts 9/20 of a cubic unit, rounded to 0; the three together cut 27/20, rounded once '
+   'to 1. The total is not the sum of the rounded volumes.', ['4.2.1', '7.1.1'],
+   sedit_(lambda d: (plane_ground(d), only_pad(d, [[0, 0], [1, 0], [1, 3], [0, 3]]),
+                     PADS(d).update(GP2={'boundary': [[10, 0], [11, 0], [11, 3], [10, 3]], 'elevation': 0},
+                                    GP3={'boundary': [[20, 0], [21, 0], [21, 3], [20, 3]], 'elevation': 0}))),
+   check=lambda r: ensure([SITE_DER(r)['grading'][g]['cut'] for g in ('GP1', 'GP2', 'GP3')] == ['0', '0', '0']
+                          and SITE_DER(r)['cut'] == '1', SITE_DER(r)))
+SI('derived', 'pad-partly-beyond-the-surface', 'The plane, its survey cut back to the north half of the lot - from the '
+   'zero line - and the square pad across it: only its north half is over the surface, so only it is measured, 100 '
+   'cubic feet cut and nothing filled; FS-SITE-LINT-002 says so, and the lot is beyond the surface too.',
+   ['1.2.3', '4.2.1', '7.1.1'],
+   sedit_(lambda d: (plane_ground(d), only_pad(d, PLANE_PAD),
+                     SPOTS(d).update(SP1={'at': F(-30, 0), 'elevation': 0}, SP2={'at': F(40, 0), 'elevation': 0}))),
+   [('FS-SITE-LINT-001', []), ('FS-SITE-LINT-002', ['GP1'])],
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1'] == {'kind': 'pad', 'elevation': 0, 'low': 0, 'high': FT,
+                                                            'cut': str(100 * FT3), 'fill': '0'}, SITE_DER(r)['grading']))
+SI('derived', 'pad-off-the-surface', 'A shed\'s pad wholly beyond the survey, which covers the lot\'s north half: it has '
+   'no point over the surface - no low, no high, and nothing cut or filled.', ['1.2.3', '4.2.1', '7.1.1'],
+   sedit_(lambda d: (plane_ground(d), only_pad(d, [F(0, -14), F(10, -14), F(10, -4), F(0, -4)]),
+                     SPOTS(d).update(SP1={'at': F(-30, 0), 'elevation': 0}, SP2={'at': F(40, 0), 'elevation': 0}))),
+   [('FS-SITE-LINT-001', []), ('FS-SITE-LINT-002', ['GP1'])],
+   check=lambda r: ensure(SITE_DER(r)['grading']['GP1'] == {'kind': 'pad', 'elevation': 0, 'low': None, 'high': None,
+                                                            'cut': '0', 'fill': '0'}, SITE_DER(r)['grading']))
+SI('derived', 'stepped-patio', 'The patio in three steps down the slope, each a patio slab 6" below the one before, 3\' '
+   'deep: each grades the ground under it to its own bottom, and each is measured.', ['4.1.1', '4.2.1', '7.1.1'],
+   sedit_(lambda d: d['slabs'].update(
+       S1={'level': 'L1', 'boundary': [F(2, -4), F(12, -4), F(12, -1), F(2, -1)], 'thickness': 100 * MM, 'offset': -6 * IN, 'purpose': 'patio'},
+       S2={'level': 'L1', 'boundary': [F(2, -7), F(12, -7), F(12, -4), F(2, -4)], 'thickness': 100 * MM, 'offset': -12 * IN, 'purpose': 'patio'},
+       S3={'level': 'L1', 'boundary': [F(2, -10), F(12, -10), F(12, -7), F(2, -7)], 'thickness': 100 * MM, 'offset': -18 * IN, 'purpose': 'patio'})),
+   check=lambda r: ensure([SITE_DER(r)['grading'][s]['elevation'] for s in ('S1', 'S2', 'S3')]
+                          == [-6 * IN - 100 * MM, -12 * IN - 100 * MM, -18 * IN - 100 * MM], SITE_DER(r)['grading']))
+SI('derived', 'what-grades-the-ground', 'Five more slabs: a walkway, a driveway, a stoop and an equipment pad grade the '
+   'ground; a deck, and a slab of no purpose, do not (4.1).', ['4.1.1', '7.1.1'],
+   sedit_(lambda d: d['slabs'].update(
+       {f'S{i}': {'level': 'L1', 'boundary': [F(-20 + 4 * i, -14), F(-18 + 4 * i, -14), F(-18 + 4 * i, -12), F(-20 + 4 * i, -12)],
+                  'thickness': 100 * MM, **({'purpose': p} if p else {})}
+        for i, p in enumerate(('walkway', 'driveway', 'stoop', 'equipmentPad', 'deck', None), start=2)})),
+   check=lambda r: ensure(sorted(SITE_DER(r)['grading']) == ['GP1', 'S1', 'S2', 'S3', 'S4', 'S5'], sorted(SITE_DER(r)['grading'])))
+SI('derived', 'garage-slab', 'A garage slab - the floor of a garage that is not a room\'s - grades the ground.',
+   ['4.1.1', '7.1.1'],
+   sedit_(lambda d: d['slabs'].update(S2={'level': 'L1', 'boundary': [F(-12, 0), F(-2, 0), F(-2, 12), F(-12, 12)],
+                                          'thickness': 100 * MM, 'purpose': 'garage'})),
+   check=lambda r: ensure(SITE_DER(r)['grading']['S2']['kind'] == 'slab', SITE_DER(r)['grading']))
+SI('derived', 'cocircular-square', 'A survey of four spots at the corners of a square, all on one circle: the Delaunay '
+   'face is the square, divided by the diagonal from its least vertex, the south-west corner - never the other '
+   'diagonal.', ['3.2.1', '7.1.1'],
+   sedit_(lambda d: (SD_(d).update(spots={'A': {'at': F(0, 0), 'elevation': 0}, 'B': {'at': F(10, 0), 'elevation': FT},
+                                          'C': {'at': F(10, 10), 'elevation': 0}, 'D': {'at': F(0, 10), 'elevation': FT}},
+                                   contours={}),
+                     SD_(d).pop('setbacks'), d.pop('site'), only_pad(d, [F(2, 2), F(4, 2), F(4, 4), F(2, 4)]))),
+   check=lambda r: ensure(SITE_DER(r)['surface'] == {'low': 0, 'high': FT, 'points': [F(0, 0) + [0], F(0, 10) + [FT], F(10, 0) + [FT], F(10, 10) + [0]],
+                                                    'triangles': [[0, 2, 3], [0, 3, 1]]}, SITE_DER(r)['surface']))
+EIGHT = [(5, 0), (4, 3), (3, 4), (0, 5), (-3, 4), (-4, 3), (-5, 0), (0, -5)]
+SI('derived', 'eight-on-a-circle', 'Eight spots on one circle of radius 5\' and none inside: one Delaunay face of eight '
+   'vertices, fanned from its least, (-5\', 0) - six triangles, each from it.', ['3.2.1', '7.1.1'],
+   sedit_(lambda d: (SD_(d).update(spots={f'E{i}': {'at': F(x, y), 'elevation': i * IN} for i, (x, y) in enumerate(EIGHT)},
+                                   contours={}),
+                     SD_(d).pop('setbacks'), d.pop('site'), only_pad(d, [F(-1, -1), F(1, -1), F(1, 1), F(-1, 1)]))),
+   check=lambda r: ensure(all(t[0] == 0 for t in SITE_DER(r)['surface']['triangles']) and len(SITE_DER(r)['surface']['triangles']) == 6
+                          and SITE_DER(r)['surface']['points'][0] == F(-5, 0) + [6 * IN], SITE_DER(r)['surface']))
+SI('derived', 'collinear-survey', 'Three spots on one line: no surface, and nothing measured - every graded outline\'s '
+   'low, high, cut and fill null, and so are the totals.', ['3.2.1', '7.1.1'],
+   sedit_(lambda d: SD_(d).update(spots={'A': {'at': F(-30, -40), 'elevation': 0}, 'B': {'at': F(5, -5), 'elevation': FT},
+                                         'C': {'at': F(40, 30), 'elevation': 2 * FT}}, contours={})),
+   check=lambda r: ensure(SITE_DER(r)['surface'] is None and SITE_DER(r)['cut'] is None
+                          and SITE_DER(r)['grading']['GP1']['cut'] is None, SITE_DER(r)))
+SI('derived', 'a-contour-line-alone', 'A survey of one contour line along the street, its three points on one line, and '
+   'one spot at the back of the lot: a surface of two triangles, the line\'s middle point a vertex of both - and the '
+   'lot\'s back corners and the house\'s pad beyond it.', ['3.2.1', '7.1.1'],
+   sedit_(lambda d: SD_(d).update(spots={'A': {'at': F(0, 30), 'elevation': FT}},
+                                  contours={'C': {'elevation': 0, 'points': [F(-30, -40), F(0, -40), F(40, -40)]}})),
+   [('FS-SITE-LINT-001', []), ('FS-SITE-LINT-002', ['GP1'])],
+   check=lambda r: ensure(SITE_DER(r)['surface']['triangles'] == [[0, 1, 2], [1, 3, 2]], SITE_DER(r)['surface']))
+SI('derived', 'oblique-lot', 'A lot of five edges, its street edge 0 along the south and its north-east side oblique: edges '
+   '1 and 4, which meet the street edge, are its sides, and 2 and 3 its rear; the oblique edge is 50\' long (a 30-40-50 '
+   'triangle) and the others as written. Its rear setback, drawn from the oblique edge, reaches the house\'s north-east '
+   'corner - FS-SITE-LINT-003 for three junctions and the pad - and the lot runs beyond the survey.', ['2.2.1', '7.1.1'],
+   sedit_(lambda d: d['site'].update(boundary=[F(-30, -40), F(40, -40), F(40, 0), F(10, 40), F(-30, 40)])),
+   [('FS-SITE-LINT-001', [])] + [('FS-SITE-LINT-003', [x]) for x in ('GP1', 'J10', 'J4', 'J9')],
+   check=lambda r: ensure(SITE_DER(r)['lot']['edges'] == [{'kind': 'front', 'length': 70 * FT, 'setback': 25 * FT},
+                                                          {'kind': 'side', 'length': 40 * FT, 'setback': 5 * FT},
+                                                          {'kind': 'rear', 'length': 50 * FT, 'setback': 10 * FT},
+                                                          {'kind': 'rear', 'length': 40 * FT, 'setback': 10 * FT},
+                                                          {'kind': 'side', 'length': 80 * FT, 'setback': 5 * FT}]
+                          and SITE_DER(r)['lot']['area'] == str((70 * 80 - 30 * 40 // 2) * FT * FT), SITE_DER(r)['lot']))
+SI('derived', 'corner-lot', 'A corner lot, its south and east edges both on streets, with a front setback of 10\': both '
+   'are front edges, the two that meet them sides, and none is a rear.', ['2.2.1', '7.1.1'],
+   sedit_(lambda d: SD_(d)['setbacks'].update(street=[0, 1], front=10 * FT)),
+   check=lambda r: ensure([e['kind'] for e in SITE_DER(r)['lot']['edges']] == ['front', 'front', 'side', 'side'], SITE_DER(r)['lot']))
+SI('derived', 'irrational-edge', 'The lot\'s north-east corner moved 1\' north, beyond the survey: its east edge is 71\' '
+   'and its north edge sqrt(70^2 + 1^2) feet, rounded once.', ['7.1.1'],
+   sedit_(lambda d: d['site']['boundary'].__setitem__(2, F(40, 31))), [('FS-SITE-LINT-001', [])],
+   check=lambda r: ensure(SITE_DER(r)['lot']['edges'][1]['length'] == 71 * FT
+                          and SITE_DER(r)['lot']['edges'][2]['length'] == land._round_sqrt(70 * 70 * FT * FT + FT * FT),
+                          SITE_DER(r)['lot']['edges']))
+SI('derived', 'setbacks-partly-given', 'Setbacks giving the front alone: the side and rear edges have no setback.',
+   ['2.2.1', '7.1.1'], sedit_(lambda d: SD_(d).update(setbacks={'street': [0], 'front': 25 * FT})),
+   check=lambda r: ensure([e['setback'] for e in SITE_DER(r)['lot']['edges']] == [25 * FT, None, None, None], SITE_DER(r)['lot']))
+
+
+def site_options(d):
+    """Core 0.3 design options for the patio: option A (OP1, the primary) keeps S1; option B (OP2) has a larger patio
+    S2 in its place, 2' to 16' east."""
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Patio'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'A'}, 'OP2': {'set': 'OS1', 'name': 'B'}}
+    d['slabs']['S1']['option'] = 'OP1'
+    d['slabs']['S2'] = {'level': 'L1', 'boundary': [F(2, -10), F(16, -10), F(16, -1), F(2, -1)], 'thickness': 100 * MM,
+                        'offset': -6 * IN, 'purpose': 'patio', 'option': 'OP2'}
+
+
+SI('options', 'patio-of-one-option', 'Patio options A and B as Core 0.3 design options (Core 19): FS_site is evaluated in '
+   'each checked design and reports nothing, and the primary design grades A\'s patio.', ['1.2.1', '1.2.4', '7.1.1'],
+   sedit_(site_options), check=lambda r: ensure(sorted(SITE_DER(r)['grading']) == ['GP1', 'S1'], SITE_DER(r)['grading']))
+SI('options', 'derived-for-a-design', 'The same options, the derived values asked for B\'s design (Core 19.6): B\'s larger '
+   'patio is the one graded.', ['1.2.4', '7.1.1', 'FS-CORE-19.6.1'], sedit_(site_options), design={'OS1': 'OP2'},
+   check=lambda r: ensure(sorted(SITE_DER(r)['grading']) == ['GP1', 'S2'], SITE_DER(r)['grading']))
+SI('options', 'patio-of-one-option-in-a-setback', 'The same options with a front setback of 31\': each design\'s patio is '
+   '30\' from the street, inside it - A\'s in the primary design, and B\'s reported with `design` (Core 19.5.2).',
+   ['1.2.3', '2.3.1', 'FS-CORE-19.3.1'],
+   sedit_(lambda d: (site_options(d), SD_(d)['setbacks'].update(front=31 * FT))),
+   [('FS-SITE-LINT-003', ['S1']), ('FS-SITE-LINT-003', ['S2'], 'OP2')])
+
+
+def site_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(SITE)]).encode('utf-8'), official.implemented(SITE))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][SITE]
+
+
+SO_ = lambda *a, **k: O(SITE, *a, **k)    # noqa: E731
+SO_('add-a-spot', 'setProperty of $document /extensions/FS_site/spots/SP6 adds a spot at the top of the bank, with an ID '
+    'Ops does not mint (1.3.2). It commits, valid under FS_site, and the surface has twelve points.',
+    ['1.2.1', '1.3.2', '3.1.2', '7.1.1', 'FS-OPS-2.3.1'], site_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_site/spots/SP6',
+                'value': {'at': F(-10, 24), 'elevation': 2 * FT, 'name': 'Top of bank'}}]},
+    check=lambda r, B: ensure(len(site_derived(B)['surface']['points']) == 12, site_derived(B)['surface']))
+SO_('first-spot-creates-the-data', 'The garden declaring FS_site with no data of it yet: setProperty of $document '
+    '/extensions/FS_site/spots/SP1 creates FS_site\'s data, and its `spots`, on the way (Ops 2.3). It commits, valid, with '
+    'no surface yet.', ['1.2.1', '1.3.1', '7.1.1', 'FS-OPS-2.3.1'], sedit_(lambda d: d['extensions'].pop(SITE)),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_site/spots/SP1', 'value': SITE_DATA['spots']['SP1']}]},
+    check=lambda r, B: ensure(B['extensions'][SITE] == {'spots': {'SP1': SITE_DATA['spots']['SP1']}}
+                              and site_derived(B)['surface'] is None, B['extensions'].get(SITE)))
+SO_('set-the-setbacks', 'setProperty of $document /extensions/FS_site/setbacks: a side setback of 10\'. It commits, and '
+    'the side edges derive it.', ['2.2.1', '7.1.1', 'FS-OPS-2.3.1'], site_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_site/setbacks/side', 'value': 10 * FT}]},
+    check=lambda r, B: ensure([e['setback'] for e in site_derived(B)['lot']['edges']] == [25 * FT, 10 * FT, 10 * FT, 10 * FT],
+                              site_derived(B)['lot']))
+SO_('move-a-lot-corner', 'setProperty of $site /boundary moves the lot\'s north-east corner 10\' east: a Core edit of the '
+    'site, which FS_site\'s lot follows - its area and its east and north edges change. It commits.',
+    ['2.2.1', '7.1.1', 'FS-OPS-2.3.1'], site_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$site', 'path': '/boundary', 'value': [F(-30, -40), F(40, -40), F(50, 30), F(-30, 30)]}]},
+    check=lambda r, B: ensure(site_derived(B)['lot']['area'] == str((70 * 75) * FT * FT)
+                              and site_derived(B)['lot']['edges'][2]['length'] == 80 * FT, site_derived(B)['lot']))
+SO_('lower-the-patio', 'setProperty of S1 /offset lowers the patio another 6": it grades the ground to its new bottom, and '
+    'fills less. It commits.', ['4.1.1', '4.2.1', '7.1.1', 'FS-OPS-2.3.1'], site_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'S1', 'path': '/offset', 'value': -12 * IN}]},
+    check=lambda r, B: ensure(site_derived(B)['grading']['S1']['elevation'] == -12 * IN - 100 * MM
+                              and int(site_derived(B)['grading']['S1']['fill']) < int(site_derived(site_house())['grading']['S1']['fill']),
+                              site_derived(B)['grading']['S1']))
+SO_('remove-a-pad', 'unsetProperty of $document /extensions/FS_site/pads/GP1 removes the house\'s pad. It commits, and '
+    'only the patio is graded.', ['1.2.1', '7.1.1', 'FS-OPS-2.3.1'], site_house(),
+    {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/extensions/FS_site/pads/GP1'}]},
+    check=lambda r, B: ensure(list(site_derived(B)['grading']) == ['S1'], site_derived(B)['grading']))
+SO_('remove-the-patio', 'removeElement S1: the slab goes, and with it what it graded. It commits.', ['1.2.1', '7.1.1'],
+    site_house(), {'batch': [{'op': 'removeElement', 'id': 'S1'}]},
+    check=lambda r, B: ensure(list(site_derived(B)['grading']) == ['GP1'], site_derived(B)['grading']))
+SO_('conflicting-spot-is-rejected', 'setProperty of $document /extensions/FS_site/spots/SP6 at the 815\' contour line\'s '
+    'middle vertex, 1\' higher than it: the result breaks 3.1.2, and an applier that implements FS_site and knows it '
+    'rejects the batch (Ops 1.2.3).', ['3.1.2', '1.2.1', 'FS-OPS-1.2.3'], site_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': '/extensions/FS_site/spots/SP6',
+                'value': {'at': F(10, 18), 'elevation': 3 * FT // 2}}]},
+    'rejected', [('FS-SITE-INV-002', ['CT2', 'SP6'])])
+SO_('setbacks-on-a-removed-lot-are-rejected', 'unsetProperty of $document /site removes the site, and its lot, while '
+    'setbacks remain: the result breaks 2.2.1, and the batch is rejected.', ['2.2.1', '1.2.1', 'FS-OPS-1.2.3'], site_house(),
+    {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/site'}]}, 'rejected', [('FS-SITE-INV-005', [])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -4219,7 +4787,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

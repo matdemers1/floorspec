@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`, `FS-ANNO-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`, `FS-ANNO-`, `FS-SITE-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -547,7 +547,7 @@ Two kinds of test share the suite:
   validator given its files (Core §18.4), and one with `design.json` derives that design (Core §19.6).
 - **Ops tests**, in the group `ops`, laid out as Ops 0.2's (`test.json`, `input.json`,
   `request.json`, `registry.json`, `expected.json`, `output.json`), applied as Ops 0.2 — as Ops 0.3
-  for a document that declares `"0.3"`, as the Core reader is chosen — by an applier whose
+  for a document that declares `"0.3"` and Ops 0.4 for one that declares `"0.4"`, as the Core reader is chosen — by an applier whose
   validator is that implementation, configured with `registry.json`. A batch whose result breaks
   one of the extension's invariants is rejected with that diagnostic (Ops §1.2 step 6).
 
@@ -670,8 +670,29 @@ measures and lints it in the one that does not; its `ops` group adds, moves and 
 rejects a direction of [0, 0] and a note on a level the house does not have, and commits a removeWall
 of a wall a string measures, and a moveJunction, after which the strings lint or measure anew.
 
+FS_site's suite starts from the garden on a slope (`examples/…-p15-garden-on-a-slope`): the Phase 13
+garden as a Core 0.4 document on a 70' lot that falls about 7' to the street, with front, side and rear
+setbacks, a survey of five spot elevations and two contour lines, the patio as a patio slab stepped 6"
+down, and a pad under the house. FS_site adds no kind of element and requires no other extension; its
+suite is run by an implementation of FS_site alone, and its Ops tests, on a "0.4" document, are applied as
+Ops 0.4. Its `schema` group tests every member's form; its `invariants` group a record's ID in the one
+space of IDs (FS_lighting's scenes and FS_annotation's strings among them, read as data, and two of its
+own records), survey points that disagree at one position and ones that agree, a contour line's repeated
+point and a closed one, a pad that is not a simple polygon, and setbacks without a lot or naming an edge
+it does not have; its `lints` group a lot, a pad and a slab beyond the surface, and junctions, slabs and
+pads in a setback - exactly at it (clear) and one unit inside it, outside the lot, and beyond the end of an
+edge of a notched lot, where the distance is to the edge's end, not its line. Its `derived` group checks by
+hand the cut and fill of pads on ground that is one plane - across the zero line, an L-shaped pad and the
+same written clockwise, above the ground, one unit square, totals rounded once from their exact sum, a pad
+partly and wholly beyond the surface - the triangles of four and of eight cocircular points, each face
+fanned from its least vertex, a survey on one line, what grades the ground and what does not, stepped
+patios, and the lot's edges: an oblique lot, a corner lot, an irrational edge. Its `options` group grades
+the patio of each design; its `ops` group adds a spot and the first of FS_site's data, sets a setback,
+moves a lot corner with `$site`, lowers and removes the patio, removes a pad, and rejects a spot that
+disagrees with a contour line and the removal of a lot that has setbacks.
+
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation; the lit house with views, a window and annotation, for FS_annotation), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation; the lit house with views, a window and annotation, for FS_annotation; the garden on a slope, for FS_site), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
