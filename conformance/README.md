@@ -21,7 +21,7 @@ conformance/
   core/0.3/…         the Core 0.3 suite, as published at 8a99d02; unchanged
   core/0.2/…         the Core 0.2 suite, as published at 6f9bc07; unchanged
   core/0.1/…         the Core 0.1 suite, as published; unchanged
-  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor, FS_context, FS_energy
+  ext/<NAME>/<version>/…   each extension's suite (below): FS_electrical, FS_plumbing, FS_mechanical, FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor, FS_context, FS_thermal, FS_energy
   rules/0.1/…        the Floorspec Rules 0.1 suite (below)
   migration/0.4/…    the migration suite of Core 0.4's chapter 20 (below)
   migration/0.3/…    the migration suite of Core 0.3's chapter 20, as published at 8a99d02; unchanged
@@ -524,7 +524,7 @@ inverse (1.6), planarizing only a level that breaks Core §5.3 (5.2), and resizi
 
 Each extension with a specification in `registry/<NAME>/spec.md` has its suite at
 `conformance/ext/<NAME>/<version>/`, and `pnpm coverage` gates its statements (`FS-ELEC-`,
-`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`, `FS-ANNO-`, `FS-SITE-`, `FS-OUTD-`, `FS-CTXT-`, `FS-ENGY-`) against it as it gates Core's. A test there may also cover Core
+`FS-PLMB-`, `FS-MECH-`, `FS-LOWV-`, `FS-FURN-`, `FS-STRC-`, `FS-LAND-`, `FS-LGHT-`, `FS-VIEW-`, `FS-RENO-`, `FS-ANNO-`, `FS-SITE-`, `FS-OUTD-`, `FS-CTXT-`, `FS-THRM-`, `FS-ENGY-`) against it as it gates Core's. A test there may also cover Core
 or Ops statements it exercises.
 
 An extension suite is run by **an implementation of that one extension**: a reader, validator and
@@ -722,6 +722,19 @@ tree and a neighbour on the lot line, which are beyond it. Its `ops` group adds 
 whole generated context in one batch, moves a tree, raises a neighbour, removes the street, and rejects
 a gable on an L and a tree keyed by a pad's ID.
 
+FS_thermal's suite starts from the envelope house (`examples/…-p16-envelope-house`): the framed house's plan
+with its materials' conductivity, density and specific heat - the rainscreen gap, the wrap and an empty stud
+cavity stating a resistance whole - the exterior wall type EW1 layer by layer, framed 23% SPF, the interior type,
+a window and a door rated as whole units, the Kitchen's framed floor and the Bath's slab with R-10 at its edge.
+Its examples derive every layer's resistance and heat capacity and each assembly's clear and framed paths, and
+a hip roof's assembly in a Core 0.3 document; its `schema` group tests every member and where data may be; its
+`invariants` group a material stating both a conductivity and a resistance and references that name no
+material; its `lints` group a framing with no core layer and assemblies whose resistance is not known; its
+`derived` group rounding once, ties to even, paths as sums of rounded values, a resistance stated whole and two
+core layers; its `ops` group sets a conductivity, rates a window, swaps the siding and rejects a material that
+states both. Core reads no extension data, so every valid document reports Core's `FS-LINT-006` for the materials
+only FS_thermal names.
+
 FS_energy's suite starts from the sunny house (`examples/…-p16-sunny-house`): the garden on its slope
 with a 9:12 gable over the house and a flat carport roof east of the courtyard, five 3' x 5' modules
 flush on the gable's south face - 5' up the slope, 4' in plan - two racks of three on the carport at
@@ -740,7 +753,7 @@ removes one, rejects a removal its inverter still names and a rack on a sloped f
 setbacks.
 
 The tests are declared in `tools/oracle/ext_author.py`, almost all as one change to the demo house
-(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation; the lit house with views, a window and annotation, for FS_annotation; the garden on a slope, for FS_site; the back terrace, for FS_outdoor; the garden on its street, for FS_context; the sunny house, for FS_energy), with every expected diagnostic written by hand and the derived
+(the demo flat, for FS_furniture; the framed house, for FS_structural; the garden, for FS_landscape; the lit house, for FS_lighting; the lit house with views, for FS_views; the kitchen remodel, for FS_renovation; the lit house with views, a window and annotation, for FS_annotation; the garden on a slope, for FS_site; the back terrace, for FS_outdoor; the garden on its street, for FS_context; the envelope house, for FS_thermal; the sunny house, for FS_energy), with every expected diagnostic written by hand and the derived
 values that matter — a circuit's loads and connected load, a panel's spaces, the room each device is
 in, a stack's connections, the floor area each room's furniture stands on — asserted by hand. The oracle implements each extension in `tools/oracle/ext/` from its
 specification alone, and reads each extension's schema with a small, independent interpreter of the
