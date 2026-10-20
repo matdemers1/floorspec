@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor and FS_context 0.1.0 - as the script that
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor, FS_context and FS_thermal 0.1.0 - as the script that
 writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
@@ -41,7 +41,9 @@ owner's annotation (annotation_house() below) - an overall string along the sout
 centre, the Kitchen's clear width between two wall faces, a north-south string of clear dimensions through two rooms, and two
 notes with leaders. FS_site's start from the garden on a slope (site_house() below) - the Phase 13 garden as a Core 0.4
 document on a 70' lot that falls to the street, with setbacks, a survey of spots and contour lines, the patio as a patio
-slab and a pad under the house. Every expected diagnostic is written by hand and cross-checked against the
+slab and a pad under the house. FS_thermal's start from the Phase 16 envelope house (envelope_house() below) - the framed
+house's plan with its materials' conductivity, density and specific heat, an exterior wall type layer by layer with its
+framing, a rated window and door, and two floors' assemblies. Every expected diagnostic is written by hand and cross-checked against the
 oracle; the derived values that matter are asserted by hand in `check`.
 """
 import copy
@@ -49,6 +51,7 @@ import json
 import os
 import shutil
 import sys
+from fractions import Fraction
 
 from tools.oracle.author_lib import fmt
 from tools.oracle.ext import landscape as land, official
@@ -5449,6 +5452,468 @@ CO_('a-taken-id-is-rejected', 'setProperty of $document /extensions/FS_context/t
     'rejected', [('FS-CTXT-INV-001', ['GP1'])])
 
 
+# ============================================================================= FS_thermal
+
+THRM = 'FS_thermal'
+CODE[THRM] = 'THRM'
+THRM_KNOWN = CTXT_KNOWN + (THRM,)
+CITE = 'Floorspec thermal library 0.1.0 (CC0 1.0): typical values'
+
+
+def tm(name, color, **thermal):
+    """A material with FS_thermal data."""
+    return {'name': name, 'color': color, 'extensions': {THRM: thermal}}
+
+
+def lay(thickness, function, material=None):
+    out = {'thickness': thickness, 'function': function}
+    if material is not None:
+        out['material'] = material
+    return out
+
+
+EW1_LAYERS = [lay(5 * IN // 16, 'finish', 'M-FC'), lay(3 * IN // 8, 'airGap', 'M-GAP'), lay(IN // 64, 'membrane', 'M-WRAP'),
+              lay(3 * IN // 2, 'insulation', 'M-WFB'), lay(7 * IN // 16, 'substrate', 'M-OSB'),
+              lay(11 * IN // 2, 'core', 'M-BATT'), lay(IN // 2, 'finish', 'M-GYP')]
+IW1_LAYERS = [lay(IN // 2, 'finish', 'M-GYP'), lay(7 * IN // 2, 'core', 'M-CAV'), lay(IN // 2, 'finish', 'M-GYP')]
+KITCHEN_FLOOR = [lay(3 * IN // 4, 'finish', 'M-OAK'), lay(3 * IN // 4, 'substrate', 'M-PLY'), lay(37 * IN // 4, 'core', 'M-BATT')]
+BATH_FLOOR = [lay(4 * IN, 'core', 'M-CONC')]
+
+
+def TW(s, e, t):
+    return {'level': 'L1', 'start': s, 'end': e, 'type': t}
+
+
+def envelope_house():
+    """The Phase 16 envelope house: the Phase 10 framed house's plan (framed()), 20' x 12', with its
+    structure left out and its envelope described by FS_thermal instead:
+
+    - materials with what they conduct and store: fibre-cement siding, a ventilated rainscreen gap and
+      a housewrap that state a resistance whole, wood-fibre board, OSB, mineral-wool batts, SPF framing,
+      gypsum board, the air in an empty stud cavity (a resistance), oak flooring, plywood and concrete;
+    - EW1, the exterior wall type, layer by layer from the outside in - 5/16" siding, a 3/8" gap, the
+      wrap, 1 1/2" wood-fibre board, 7/16" OSB, 5 1/2" batts between studs and 1/2" gypsum - framed 23%
+      SPF; IW1, the interior type, gypsum on both sides of an empty 3 1/2" cavity, framed 16%;
+    - a casement window type WT1 rated U 1.70 W/(m2.K) and SHGC 0.25, in the north wall, and an opaque
+      door type DT1 rated U 1.99, the back door;
+    - the Kitchen's floor over a crawl space - oak on plywood on 9 1/4" batts between joists, framed
+      12% - and the Bath's 4" slab on grade with R-10 (1761) insulation at its edge."""
+    d = {
+        'floorspec': '0.2', 'project': {'name': 'Phase 16 envelope house'},
+        'buildings': {'B1': {}}, 'levels': {'L1': {'building': 'B1', 'elevation': 0, 'height': H}},
+        'materials': {
+            'M-FC': tm('Fibre-cement lap siding', '#8a8f86', conductivity=250, density=1300, specificHeat=1000,
+                       solarReflectance=300, emittance=900, citation=CITE),
+            'M-GAP': tm('Ventilated rainscreen gap', '#1f2329', resistance=35, density=1, specificHeat=1005, citation=CITE),
+            'M-WRAP': tm('Housewrap', '#d8dde3', resistance=0, density=400, specificHeat=1300, citation=CITE),
+            'M-WFB': tm('Wood-fibre board', '#9c6b30', conductivity=38, density=160, specificHeat=2100, citation=CITE),
+            'M-OSB': tm('OSB sheathing', '#c79a4a', conductivity=100, density=650, specificHeat=1880, citation=CITE),
+            'M-BATT': tm('Mineral-wool batt', '#c9a35a', conductivity=35, density=40, specificHeat=840, citation=CITE),
+            'M-SPF': tm('SPF framing lumber', '#d9b77e', conductivity=120, density=450, specificHeat=1630, citation=CITE),
+            'M-GYP': tm('Gypsum board', '#eeeeea', conductivity=160, density=800, specificHeat=1090, citation=CITE),
+            'M-CAV': tm('Air in a stud cavity', '#20242a', resistance=160, density=1, specificHeat=1005, citation=CITE),
+            'M-OAK': tm('Oak flooring', '#a0743c', conductivity=160, density=720, specificHeat=1630, citation=CITE),
+            'M-PLY': tm('Plywood subfloor', '#c4a06a', conductivity=120, density=545, specificHeat=1880, citation=CITE),
+            'M-CONC': tm('Concrete slab', '#9a9a96', conductivity=1700, density=2300, specificHeat=900, citation=CITE),
+        },
+        'types': {
+            'EW1': {'kind': 'wallType', 'name': 'Exterior · 2x6 at 16"', 'layers': copy.deepcopy(EW1_LAYERS),
+                    'extensions': {THRM: {'framing': {'material': 'M-SPF', 'fraction': 230}}}},
+            'IW1': {'kind': 'wallType', 'name': 'Interior · 2x4', 'layers': copy.deepcopy(IW1_LAYERS),
+                    'extensions': {THRM: {'framing': {'material': 'M-SPF', 'fraction': 160}}}},
+            'WT1': {'kind': 'windowType', 'name': 'Casement, double glazed', 'width': 4 * FT, 'height': 48 * IN,
+                    'sill': 36 * IN, 'extensions': {THRM: {'uFactor': 1700, 'shgc': 250}}},
+            'DT1': {'kind': 'doorType', 'name': 'Insulated steel door', 'width': 3 * FT, 'height': 80 * IN,
+                    'extensions': {THRM: {'uFactor': 1990}}},
+        },
+        'junctions': {'J1': J(0, 0), 'J2': J(0, 12 * FT), 'J3': J(12 * FT, 12 * FT), 'J4': J(20 * FT, 12 * FT),
+                      'J5': J(20 * FT, 0), 'J6': J(12 * FT, 0), 'J7': J(12 * FT, 6 * FT), 'J8': J(20 * FT, 6 * FT)},
+        'walls': {'W1': TW('J1', 'J2', 'EW1'), 'W2': TW('J2', 'J3', 'EW1'), 'W3': TW('J3', 'J4', 'EW1'),
+                  'W4': TW('J4', 'J8', 'EW1'), 'W5': TW('J8', 'J5', 'EW1'), 'W6': TW('J5', 'J6', 'EW1'),
+                  'W7': TW('J6', 'J1', 'EW1'), 'W8': TW('J6', 'J7', 'IW1'), 'W9': TW('J7', 'J3', 'IW1'),
+                  'W10': TW('J7', 'J8', 'IW1')},
+        'openings': {
+            'O1': {'wall': 'W7', 'offset': 3 * FT, 'fill': 'DT1', 'name': 'Back door'},
+            'O2': {'wall': 'W2', 'offset': 4 * FT, 'fill': 'WT1', 'name': 'Kitchen window'},
+            'O3': {'wall': 'W10', 'offset': 2 * FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Bath door'},
+            'O4': {'wall': 'W8', 'offset': FT, 'width': 30 * IN, 'height': 80 * IN, 'name': 'Utility door'}},
+        'rooms': {'R1': {'level': 'L1', 'anchor': [6 * FT, 6 * FT], 'name': 'Kitchen', 'function': 'kitchen',
+                         'extensions': {THRM: {'floor': {'layers': copy.deepcopy(KITCHEN_FLOOR),
+                                                         'framing': {'material': 'M-SPF', 'fraction': 120}}}}},
+                  'R2': {'level': 'L1', 'anchor': [16 * FT, 9 * FT], 'name': 'Bath', 'function': 'bath',
+                         'extensions': {THRM: {'floor': {'layers': copy.deepcopy(BATH_FLOOR), 'edgeResistance': 1761}}}},
+                  'R3': {'level': 'L1', 'anchor': [16 * FT, 3 * FT], 'name': 'Utility', 'function': 'mechanical'}},
+        'extensionsUsed': {THRM: '0.1.0'},
+    }
+    return d
+
+
+def tedit(fn):
+    """The Phase 16 envelope house, changed by fn(d) in place."""
+    d = envelope_house()
+    fn(d)
+    return d
+
+
+def TD(d, c, eid):
+    """The FS_thermal data on an element, created when missing."""
+    return d[c][eid].setdefault('extensions', {}).setdefault(THRM, {})
+
+
+ONLY_FS_THERMAL = ('M-CONC', 'M-OAK', 'M-PLY', 'M-SPF')
+
+
+def TH(group, slug, description, covers, doc, diags=(), unused=ONLY_FS_THERMAL, **k):
+    """An FS_thermal test. Core reads no extension data, so to Core a material that only FS_thermal's data names -
+    the framing's SPF and the floors' oak, plywood and concrete - is unused: every valid document of the suite
+    reports Core's information lint FS-LINT-006 for each (spec.md 2.2), written here once, by hand, as `unused`."""
+    lints = [] if any(SEV.get(c, 'error') == 'error' for c, *_ in diags) else [('FS-LINT-006', [m]) for m in unused]
+    V(THRM, group, slug, description, covers, doc, list(diags) + lints, **k)
+
+
+TDER = derived_of(THRM)
+
+
+def r_of(t, k):
+    """3.1, by hand: 25 t / (32 k) thousandths, rounded once, ties to even."""
+    return round(Fraction(25 * t, 32 * k))
+
+
+def c_of(t, rho, cp):
+    return round(Fraction(t * rho * cp, 1280000))
+
+
+# The derived values of the envelope house, layer by layer, written out from 3.1's two formulas.
+EW1_R = [r_of(5 * IN // 16, 250), 35, 0, r_of(3 * IN // 2, 38), r_of(7 * IN // 16, 100), r_of(11 * IN // 2, 35),
+         r_of(IN // 2, 160)]
+EW1_C = [c_of(5 * IN // 16, 1300, 1000), c_of(3 * IN // 8, 1, 1005), c_of(IN // 64, 400, 1300), c_of(3 * IN // 2, 160, 2100), c_of(7 * IN // 16, 650, 1880),
+         c_of(11 * IN // 2, 40, 840), c_of(IN // 2, 800, 1090)]
+STUD_R, STUD_C = r_of(11 * IN // 2, 120), c_of(11 * IN // 2, 450, 1630)
+EW1_DER = {'layers': [{'resistance': r, 'heatCapacity': c} for r, c in zip(EW1_R, EW1_C)],
+           'clear': {'resistance': sum(EW1_R), 'heatCapacity': sum(EW1_C)},
+           'framed': {'fraction': 230, 'resistance': sum(EW1_R) - EW1_R[5] + STUD_R, 'heatCapacity': sum(EW1_C) - EW1_C[5] + STUD_C}}
+GYP_R, GYP_C = r_of(IN // 2, 160), c_of(IN // 2, 800, 1090)
+CAV_C = c_of(7 * IN // 2, 1, 1005)
+IW1_DER = {'layers': [{'resistance': GYP_R, 'heatCapacity': GYP_C}, {'resistance': 160, 'heatCapacity': CAV_C},
+                      {'resistance': GYP_R, 'heatCapacity': GYP_C}],
+           'clear': {'resistance': 2 * GYP_R + 160, 'heatCapacity': 2 * GYP_C + CAV_C},
+           'framed': {'fraction': 160, 'resistance': 2 * GYP_R + r_of(7 * IN // 2, 120),
+                      'heatCapacity': 2 * GYP_C + c_of(7 * IN // 2, 450, 1630)}}
+K_R = [r_of(3 * IN // 4, 160), r_of(3 * IN // 4, 120), r_of(37 * IN // 4, 35)]
+K_C = [c_of(3 * IN // 4, 720, 1630), c_of(3 * IN // 4, 545, 1880), c_of(37 * IN // 4, 40, 840)]
+R1_DER = {'layers': [{'resistance': r, 'heatCapacity': c} for r, c in zip(K_R, K_C)],
+          'clear': {'resistance': sum(K_R), 'heatCapacity': sum(K_C)},
+          'framed': {'fraction': 120, 'resistance': K_R[0] + K_R[1] + r_of(37 * IN // 4, 120),
+                     'heatCapacity': K_C[0] + K_C[1] + c_of(37 * IN // 4, 450, 1630)}}
+R2_DER = {'layers': [{'resistance': r_of(4 * IN, 1700), 'heatCapacity': c_of(4 * IN, 2300, 900)}],
+          'clear': {'resistance': r_of(4 * IN, 1700), 'heatCapacity': c_of(4 * IN, 2300, 900)}}
+ENVELOPE_DER = {'wallTypes': {'EW1': EW1_DER, 'IW1': IW1_DER}, 'roofs': {}, 'floors': {'R1': R1_DER, 'R2': R2_DER}}
+
+
+def check_thrm(r):
+    x = TDER(r)
+    ensure(x == ENVELOPE_DER, x)
+    # the batt by hand: 25 x 178816 / (32 x 35) = 3991.43, 3991; the studs 1164.17, 1164; the gypsum 79.375, 79
+    ensure(EW1_R[5] == 3991 and STUD_R == 1164 and GYP_R == 79 and GYP_C == 11074, (EW1_R, STUD_R, GYP_R, GYP_C))
+
+
+def roofed(d):
+    """The house as a Core 0.3 document with a hip roof over it, its assembly from the shingles down to the
+    gypsum ceiling: shingles, plywood sheathing, a vented attic stating its resistance, 6 1/2" of cellulose over
+    the ceiling joists, 5 1/2" of cellulose between them, and the ceiling, framed 7%."""
+    d['floorspec'] = '0.3'
+    d['materials'].update({
+        'M-SHGL': tm('Asphalt shingles', '#4a4d52', conductivity=80, density=1100, specificHeat=1260,
+                     solarReflectance=80, emittance=900, citation=CITE),
+        'M-ATTIC': tm('Vented attic', '#15181c', resistance=300, density=1, specificHeat=1005, citation=CITE),
+        'M-CELL': tm('Cellulose, blown', '#b9ab8f', conductivity=40, density=50, specificHeat=1380, citation=CITE)})
+    d['roofs'] = {'RF1': {'level': 'L1', 'footprint': [[-FT, -FT], [21 * FT, -FT], [21 * FT, 13 * FT], [-FT, 13 * FT]],
+                          'pitch': {'rise': 6, 'run': 12},
+                          'extensions': {THRM: {
+                              'layers': [lay(IN // 4, 'finish', 'M-SHGL'), lay(IN // 2, 'substrate', 'M-PLY'),
+                                         lay(24 * IN, 'airGap', 'M-ATTIC'), lay(13 * IN // 2, 'insulation', 'M-CELL'),
+                                         lay(11 * IN // 2, 'core', 'M-CELL'), lay(IN // 2, 'finish', 'M-GYP')],
+                              'framing': {'material': 'M-SPF', 'fraction': 70}}}}}
+
+
+ROOF_R = [r_of(IN // 4, 80), r_of(IN // 2, 120), 300, r_of(13 * IN // 2, 40), r_of(11 * IN // 2, 40), r_of(IN // 2, 160)]
+ROOF_C = [c_of(IN // 4, 1100, 1260), c_of(IN // 2, 545, 1880), c_of(24 * IN, 1, 1005), c_of(13 * IN // 2, 50, 1380),
+          c_of(11 * IN // 2, 50, 1380), c_of(IN // 2, 800, 1090)]
+RF1_DER = {'layers': [{'resistance': r, 'heatCapacity': c} for r, c in zip(ROOF_R, ROOF_C)],
+           'clear': {'resistance': sum(ROOF_R), 'heatCapacity': sum(ROOF_C)},
+           'framed': {'fraction': 70, 'resistance': sum(ROOF_R) - ROOF_R[4] + r_of(11 * IN // 2, 120),
+                      'heatCapacity': sum(ROOF_C) - ROOF_C[4] + c_of(11 * IN // 2, 450, 1630)}}
+
+BAD_T = lambda d: TD(d, 'materials', 'M-BATT').update(conductivity='low')            # noqa: E731  the schema tier
+INVALID_T = lambda d: TD(d, 'materials', 'M-GAP').update(conductivity=26)           # noqa: E731  FS-THRM-INV-001
+INVALID_T_DIAG = [('FS-THRM-INV-001', ['M-GAP'])]
+
+TH('examples', 'p16-envelope-house', 'The Phase 16 envelope house, read by an implementation of FS_thermal that knows '
+   'it: materials with their conductivity, density and specific heat - or, for the rainscreen gap, the wrap and an empty '
+   'stud cavity, a resistance stated whole - the exterior wall type EW1 layer by layer with 23% SPF framing, the interior '
+   'type IW1, a window and a door rated as whole units, the Kitchen\'s framed floor over a crawl space and the Bath\'s '
+   'slab with R-10 at its edge. The document has no top-level FS_thermal data. It is valid, reports nothing, and derives '
+   'every wall type\'s and floor\'s layers, clear path and framed path: EW1\'s batts 3991 thousandths of m2.K/W '
+   '(25 x 178816 / (32 x 35) = 3991.43), through the studs 1164; heat capacities wherever a layer\'s material states '
+   'its density and specific heat, and null - never left out - wherever one does not.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '3.1.1', '5.1.1'], envelope_house(), check=check_thrm)
+TH('examples', 'core-only-reader', 'The same house read with no known extensions: FS_thermal is not evaluated, so '
+   'nothing of it is derived (`derived.extensions` is empty), and Core derives the walls, rooms and openings as it '
+   'would without the data (Core 1.6.9).', ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'], envelope_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['openings']) == ['O1', 'O2', 'O3', 'O4'],
+                          r['derived']['extensions']))
+TH('examples', 'all-official-known', 'The house read with every official entry known, by an implementation of '
+   'FS_thermal alone: only FS_thermal is evaluated and derived.', ['1.2.1', '1.2.4'], envelope_house(),
+   registry=[entry(x) for x in THRM_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [THRM], list(r['derived']['extensions'])))
+TH('examples', 'empty-top-level-data', 'The house with an empty object as FS_thermal\'s top-level data, which this '
+   'version gives no members: valid, and derived as without it.', ['1.3.1', '5.1.1'],
+   tedit(lambda d: d.update(extensions={THRM: {}})), check=check_thrm)
+TH('examples', 'a-roof-assembly', 'The house as a Core 0.3 document with a hip roof whose FS_thermal data is its '
+   'assembly from the shingles down to the gypsum ceiling - a vented attic stating its resistance, 6 1/2" of cellulose '
+   'over the ceiling joists and 5 1/2" between them - framed 7%: the joists replace the core layer, the cellulose '
+   'between them, and nothing else. Valid; the roof\'s derived values are beside the wall types\' and floors\', which '
+   'are the 0.2 house\'s.', ['1.2.1', '1.3.2', '3.1.1', '5.1.1'], tedit(roofed),
+   unused=ONLY_FS_THERMAL + ('M-ATTIC', 'M-CELL', 'M-SHGL'),
+   check=lambda r: ensure(TDER(r) == {**ENVELOPE_DER, 'roofs': {'RF1': RF1_DER}}, TDER(r)))
+
+TH('activation', 'unknown-data-not-evaluated', 'M-BATT\'s FS_thermal data does not match the schema, but no extension '
+   'is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'], tedit(BAD_T), registry=None)
+TH('activation', 'another-version-known', 'The document uses FS_thermal at 0.2.0, which is known (a later entry), but '
+   'the implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.',
+   ['1.2.1'], tedit(lambda d: (BAD_T(d), d['extensionsUsed'].update({THRM: '0.2.0'}))), registry=[entry(THRM, '0.2.0')])
+TH('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_thermal is evaluated: M-BATT\'s data '
+   'breaks the schema, FS-THRM-SCH-001.', ['1.2.1', '1.3.2'],
+   tedit(lambda d: (BAD_T(d), d['extensionsUsed'].update({THRM: '0.1'}))), [('FS-THRM-SCH-001', [])])
+TH('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_thermal is evaluated.', ['1.2.1', '1.3.2'],
+   tedit(lambda d: (BAD_T(d), d['extensionsUsed'].update({THRM: {'version': '0.1.0', 'schema': entry(THRM)['schema']}}))),
+   [('FS-THRM-SCH-001', [])])
+TH('activation', 'core-0.1-document', 'A document declaring "0.1" whose extension data is opaque (Core 1.2.4): '
+   'FS_thermal is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {THRM: '0.1.0'}, 'extensions': {THRM: {'colour': 'red'}}},
+   unused=())
+TH('activation', 'core-0.3-document', 'The envelope house declaring Core "0.3", a draft FS_thermal 0.1.0 lists (1.1): '
+   'FS_thermal is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], tedit(lambda d: d.update(floorspec='0.3')), check=check_thrm)
+TH('activation', 'core-0.3-invariants', 'The same "0.3" house with the rainscreen gap stating a conductivity beside its '
+   'resistance: FS_thermal is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.1.1'],
+   tedit(lambda d: (d.update(floorspec='0.3'), INVALID_T(d))), INVALID_T_DIAG)
+TH('activation', 'core-0.4-document', 'The envelope house declaring Core "0.4", a draft FS_thermal 0.1.0 lists (1.1): '
+   'FS_thermal is evaluated, reports nothing, and derives exactly what it derives for the house declaring "0.2".',
+   ['1.2.1', '1.2.3', '1.2.4', '5.1.1'], tedit(lambda d: d.update(floorspec='0.4')), check=check_thrm)
+
+TH('order', 'core-error-first', 'A Core invariant breaks - the door O3 runs past the end of W10, FS-INV-302 - and '
+   'so does FS_thermal\'s schema: Core\'s error is reported, and FS_thermal is not evaluated.', ['1.2.2'],
+   tedit(lambda d: (BAD_T(d), d['openings']['O3'].update(offset=7 * FT))), [('FS-INV-302', ['O3'])])
+TH('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-THRM-SCH-001.',
+   ['1.2.2', '1.3.2'], tedit(lambda d: (BAD_T(d), INVALID_T(d))), [('FS-THRM-SCH-001', [])])
+TH('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - IW1\'s cavity has no material: '
+   'the document is invalid, so no lint is reported, FS_thermal\'s or Core\'s.', ['1.2.2', '1.2.3'],
+   tedit(lambda d: (INVALID_T(d), d['types']['IW1']['layers'][1].pop('material'))), INVALID_T_DIAG)
+
+TH('schema', 'top-level-data-not-an-object', 'FS_thermal\'s top-level data is an array: Core allows any JSON there, '
+   'FS_thermal\'s schema does not.', ['1.3.1'], tedit(lambda d: d.update(extensions={THRM: []})),
+   [('FS-THRM-SCH-001', [])])
+TH('schema', 'top-level-data-with-a-member', 'FS_thermal 0.1 gives its top-level data no members.', ['1.3.1'],
+   tedit(lambda d: d.update(extensions={THRM: {'filmInside': 130}})), [('FS-THRM-SCH-001', [])])
+TH('schema', 'conductivity-not-an-integer', 'M-BATT\'s conductivity is "low": a conductivity is an integer number of '
+   'mW/(m.K).', ['1.3.2'], tedit(BAD_T), [('FS-THRM-SCH-001', [])])
+TH('schema', 'conductivity-with-a-fraction', 'A conductivity written with a fraction is not an integer, even when it is '
+   'a whole number.', ['1.3.2'], None, [('FS-THRM-SCH-001', [])],
+   raw=(fmt(envelope_house()) + '\n').replace('"conductivity": 35', '"conductivity": 35.0', 1).encode('utf-8'))
+TH('schema', 'conductivity-of-zero', 'A conductivity of 0 conducts nothing, and is out of range: a material that '
+   'stops heat whole states a resistance.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'materials', 'M-BATT').update(conductivity=0)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'material-unknown-member', 'M-GYP\'s data has a member a material\'s data does not define.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'materials', 'M-GYP').update(vapourPermeance=50)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'empty-citation', 'A citation has 1 to 400 characters.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'materials', 'M-GYP').update(citation='')), [('FS-THRM-SCH-001', [])])
+TH('schema', 'shgc-over-one', 'WT1\'s solar heat gain coefficient is 1001 thousandths: more than the sun that '
+   'falls on it.', ['1.3.2'], tedit(lambda d: TD(d, 'types', 'WT1').update(shgc=1001)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'u-factor-on-a-wall-type', 'EW1 states a U-factor: a wall type\'s U-factor is derived from its layers '
+   'by a method (3.3), never stated.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'types', 'EW1').update(uFactor=240)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'framing-on-a-window-type', 'WT1 has a framing: a door or window type\'s data is its whole unit\'s rating.',
+   ['1.3.2'], tedit(lambda d: TD(d, 'types', 'WT1').update(framing={'material': 'M-SPF', 'fraction': 100})),
+   [('FS-THRM-SCH-001', [])])
+TH('schema', 'framing-without-a-fraction', 'A framing always says what share of the assembly it is.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'types', 'EW1')['framing'].pop('fraction')), [('FS-THRM-SCH-001', [])])
+TH('schema', 'framing-of-1001-thousandths', 'A framing is 1 to 1000 thousandths of its assembly.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'types', 'EW1')['framing'].update(fraction=1001)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'framing-of-zero', 'A framing of 0 is no framing: leave it out.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'types', 'EW1')['framing'].update(fraction=0)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'floor-layer-of-zero-thickness', 'A layer of the Kitchen\'s floor is 0 thick: a layer is a Core layer, '
+   'its thickness greater than zero (Core 8.3.1).', ['1.3.2', 'FS-CORE-8.3.1'],
+   tedit(lambda d: TD(d, 'rooms', 'R1')['floor']['layers'][0].update(thickness=0)), [('FS-THRM-SCH-001', [])])
+TH('schema', 'floor-layer-with-an-unknown-function', 'A layer of the Bath\'s floor is "slab", which is not one of Core\'s '
+   'layer functions (Core 4.3.1).', ['1.3.2', 'FS-CORE-4.3.1'],
+   tedit(lambda d: TD(d, 'rooms', 'R2')['floor']['layers'][0].update(function='slab')), [('FS-THRM-SCH-001', [])])
+TH('schema', 'floor-with-no-layers', 'The Bath\'s floor has an empty list of layers: an assembly has at least one.',
+   ['1.3.2'], tedit(lambda d: TD(d, 'rooms', 'R2')['floor'].update(layers=[])), [('FS-THRM-SCH-001', [])])
+TH('schema', 'floor-framing-without-layers', 'The Utility room\'s floor has a framing and no layers: a framing is '
+   'through an assembly\'s core layers, so it needs them.', ['1.3.2'],
+   tedit(lambda d: TD(d, 'rooms', 'R3').update(floor={'framing': {'material': 'M-SPF', 'fraction': 120}})),
+   [('FS-THRM-SCH-001', [])])
+TH('schema', 'floor-with-only-an-edge', 'The Utility room\'s floor states only the resistance at its edge: valid.',
+   ['1.3.2', '5.1.1'], tedit(lambda d: TD(d, 'rooms', 'R3').update(floor={'edgeResistance': 880})),
+   check=lambda r: ensure(sorted(TDER(r)['floors']) == ['R1', 'R2'], TDER(r)['floors']))
+TH('schema', 'roof-without-layers', 'A roof\'s data is its assembly, and always has its layers (a Core 0.3 document).',
+   ['1.3.2'], tedit(lambda d: (roofed(d), d['roofs']['RF1']['extensions'][THRM].pop('layers'))),
+   [('FS-THRM-SCH-001', [])])
+TH('schema', 'data-on-a-wall', 'W1 carries FS_thermal data: a wall\'s assembly is its type\'s.', ['1.3.3'],
+   tedit(lambda d: d['walls']['W1'].update(extensions={THRM: {'framing': {'material': 'M-SPF', 'fraction': 250}}})),
+   [('FS-THRM-SCH-001', [])])
+TH('schema', 'data-on-an-opening', 'The window O2 carries a U-factor: an opening\'s rating is its fill\'s.', ['1.3.3'],
+   tedit(lambda d: d['openings']['O2'].update(extensions={THRM: {'uFactor': 1400}})), [('FS-THRM-SCH-001', [])])
+TH('schema', 'data-on-a-level', 'L1 carries FS_thermal data, which this version defines on no level.', ['1.3.3'],
+   tedit(lambda d: d['levels']['L1'].update(extensions={THRM: {}})), [('FS-THRM-SCH-001', [])])
+
+TH('invariants', 'conductivity-and-resistance', 'The rainscreen gap states a conductivity beside its resistance.',
+   ['2.1.1'], tedit(INVALID_T), INVALID_T_DIAG)
+TH('invariants', 'resistance-of-zero-and-a-conductivity', 'The wrap states a resistance of 0 and a conductivity: a '
+   'resistance of 0 is still a resistance.', ['2.1.1'],
+   tedit(lambda d: TD(d, 'materials', 'M-WRAP').update(conductivity=200)), [('FS-THRM-INV-001', ['M-WRAP'])])
+TH('invariants', 'framing-names-a-wall-type', 'EW1\'s framing is "IW1", a wall type, not a material.', ['2.2.1'],
+   tedit(lambda d: TD(d, 'types', 'EW1')['framing'].update(material='IW1')), [('FS-THRM-INV-002', ['EW1'])])
+TH('invariants', 'floor-layer-names-nothing', 'A layer of the Kitchen\'s floor is made of "M-TILE", which the document '
+   'does not have.', ['2.2.1'],
+   tedit(lambda d: TD(d, 'rooms', 'R1')['floor']['layers'][0].update(material='M-TILE')), [('FS-THRM-INV-002', ['R1'])])
+TH('invariants', 'roof-layer-names-nothing', 'A layer of the roof is made of "M-STEEL", which the document does not have '
+   '(a Core 0.3 document).', ['2.2.1'],
+   tedit(lambda d: (roofed(d), d['roofs']['RF1']['extensions'][THRM]['layers'][0].update(material='M-STEEL'))),
+   [('FS-THRM-INV-002', ['RF1'])])
+TH('invariants', 'two-references-one-diagnostic', 'The Kitchen\'s floor names "M-TILE" in a layer and "M-LVL" as its '
+   'framing: one diagnostic for the room.', ['2.2.1', '1.2.3'],
+   tedit(lambda d: (TD(d, 'rooms', 'R1')['floor']['layers'][0].update(material='M-TILE'),
+                    TD(d, 'rooms', 'R1')['floor']['framing'].update(material='M-LVL'))),
+   [('FS-THRM-INV-002', ['R1'])])
+TH('invariants', 'every-one-once', 'Two materials state both, and a wall type and a floor name what is not a material: '
+   'each is reported once, naming its element.', ['1.2.3', '2.1.1', '2.2.1'],
+   tedit(lambda d: (INVALID_T(d), TD(d, 'materials', 'M-CAV').update(conductivity=500),
+                    TD(d, 'types', 'IW1')['framing'].update(material='W1'),
+                    TD(d, 'rooms', 'R2')['floor']['layers'][0].update(material='M-SLAB'))),
+   [('FS-THRM-INV-001', ['M-CAV']), ('FS-THRM-INV-001', ['M-GAP']), ('FS-THRM-INV-002', ['IW1']),
+    ('FS-THRM-INV-002', ['R2'])])
+
+
+def uninsulated(d):
+    """The house as no energy code would have it: EW1's batts taken out of its cavity (the empty cavity's air instead),
+    single glazing at U 5.8 and SHGC 0.86, and no insulation at the Bath's slab edge."""
+    TD(d, 'types', 'WT1').update(uFactor=5800, shgc=860)
+    d['types']['EW1']['layers'][5]['material'] = 'M-CAV'
+    TD(d, 'rooms', 'R2')['floor']['edgeResistance'] = 0
+
+
+TH('invariants', 'no-judgement-of-adequacy', 'A house as no energy code would have it - no insulation in its walls, '
+   'single glazing, an uninsulated slab edge. FS_thermal compares nothing with a code, a climate or a load: the document '
+   'is valid, reports nothing, and derives only the values of chapter 5 - EW1\'s clear path now its layers with the '
+   'empty cavity\'s 160 - and nothing that says whether the envelope is good enough.', ['1.4.1', '1.4.2', '5.1.1'],
+   tedit(uninsulated), unused=ONLY_FS_THERMAL + ('M-BATT',),
+   check=lambda r: ensure(TDER(r)['wallTypes']['EW1']['clear']['resistance'] == sum(EW1_R) - EW1_R[5] + 160
+                          and set(TDER(r)) == {'wallTypes', 'roofs', 'floors'}, TDER(r)))
+
+TH('lints', 'framing-without-a-core-layer', 'EW1\'s batts are called insulation, not core: its framing interrupts '
+   'nothing, and its framed path is its clear path.', ['1.2.3'],
+   tedit(lambda d: d['types']['EW1']['layers'][5].update(function='insulation')), [('FS-THRM-LINT-001', ['EW1'])],
+   check=lambda r: ensure(TDER(r)['wallTypes']['EW1']['framed']['resistance'] == sum(EW1_R), TDER(r)['wallTypes']['EW1']))
+TH('lints', 'layer-without-a-material', 'IW1\'s cavity has no material: its resistance, and its clear path\'s, are not '
+   'known; the framed path, through the studs, is.', ['1.2.3', '5.1.1'],
+   tedit(lambda d: d['types']['IW1']['layers'][1].pop('material')), [('FS-THRM-LINT-002', ['IW1'])],
+   unused=ONLY_FS_THERMAL + ('M-CAV',),
+   check=lambda r: ensure(TDER(r)['wallTypes']['IW1']['clear'] == {'resistance': None, 'heatCapacity': None}
+                          and TDER(r)['wallTypes']['IW1']['framed'] == IW1_DER['framed'], TDER(r)['wallTypes']['IW1']))
+TH('lints', 'material-without-thermal-data', 'Oak flooring with no FS_thermal data at all: the Kitchen\'s floor\'s clear '
+   'path is not known.', ['1.2.3'], tedit(lambda d: d['materials']['M-OAK'].pop('extensions')),
+   [('FS-THRM-LINT-002', ['R1'])])
+TH('lints', 'material-with-only-a-density', 'The concrete states its density and specific heat but no conductivity: '
+   'its heat capacity is known, its resistance is not.', ['1.2.3', '5.1.1'],
+   tedit(lambda d: TD(d, 'materials', 'M-CONC').pop('conductivity')), [('FS-THRM-LINT-002', ['R2'])],
+   check=lambda r: ensure(TDER(r)['floors']['R2']['clear'] == {'resistance': None, 'heatCapacity': R2_DER['clear']['heatCapacity']},
+                          TDER(r)['floors']['R2']))
+TH('lints', 'a-wall-type-with-no-data', 'A third wall type, used by no wall, its one core layer of no material: '
+   'FS-THRM-LINT-002 is reported for every wall type.', ['1.2.3', '5.1.1'],
+   tedit(lambda d: d['types'].update(PW={'kind': 'wallType', 'layers': [lay(4 * IN, 'core')]})),
+   [('FS-THRM-LINT-002', ['PW'])], unused=ONLY_FS_THERMAL + ('PW',),
+   check=lambda r: ensure(TDER(r)['wallTypes']['PW'] == {'layers': [{'resistance': None, 'heatCapacity': None}],
+                                                          'clear': {'resistance': None, 'heatCapacity': None}},
+                          TDER(r)['wallTypes']['PW']))
+
+TH('derived', 'rounded-once-ties-to-even', 'A wall type of two layers of a material at 25 mW/(m.K), 48 and 16 base units '
+   'thick: 25 x 48 / (32 x 25) = 1.5, rounded to 2, and 25 x 16 / 800 = 0.5, rounded to 0 - ties to even. Their heat '
+   'capacities, at 1 kg/m3 and 1 J/(kg.K), are 48 / 1,280,000 and 16 / 1,280,000, both rounded to 0. The clear path is '
+   'the sum of the rounded values, 2, not the rounded sum of 2.', ['3.1.1', '5.1.1'],
+   tedit(lambda d: (d['materials'].update({'M-T': tm('Test', '#808080', conductivity=25, density=1, specificHeat=1)}),
+                    d['types'].update(TT={'kind': 'wallType', 'layers': [lay(48, 'finish', 'M-T'), lay(16, 'finish', 'M-T')]}))),
+   unused=ONLY_FS_THERMAL + ('TT',),
+   check=lambda r: ensure(TDER(r)['wallTypes']['TT'] == {
+       'layers': [{'resistance': 2, 'heatCapacity': 0}, {'resistance': 0, 'heatCapacity': 0}],
+       'clear': {'resistance': 2, 'heatCapacity': 0}}, TDER(r)['wallTypes']['TT']))
+TH('derived', 'sum-of-rounded-values', 'Three layers of 40 base units at 25 mW/(m.K), each 1.25 thousandths, rounded '
+   'to 1: the clear path is 3, the sum of the rounded values, where the exact sum would be 3.75. A heat capacity of '
+   '1,920,000 base units at 1 kg/m3 and 1 J/(kg.K) is 1.5, rounded to 2 (its resistance 60000).', ['3.1.1', '5.1.1'],
+   tedit(lambda d: (d['materials'].update({'M-T': tm('Test', '#808080', conductivity=25, density=1, specificHeat=1)}),
+                    d['types'].update(TT={'kind': 'wallType', 'layers': [lay(40, 'finish', 'M-T')] * 3}),
+                    d['types'].update(TU={'kind': 'wallType', 'layers': [lay(1920000, 'core', 'M-T')]}))),
+   unused=ONLY_FS_THERMAL + ('TT', 'TU'),
+   check=lambda r: ensure(TDER(r)['wallTypes']['TT']['clear'] == {'resistance': 3, 'heatCapacity': 0}
+                          and TDER(r)['wallTypes']['TU']['clear'] == {'resistance': 60000, 'heatCapacity': 2},
+                          (TDER(r)['wallTypes']['TT'], TDER(r)['wallTypes']['TU'])))
+TH('derived', 'a-resistance-whatever-the-thickness', 'The rainscreen gap doubled to 3/4": its stated resistance, 35, '
+   'is the layer\'s whatever its thickness.', ['3.1.1', '5.1.1'],
+   tedit(lambda d: d['types']['EW1']['layers'][1].update(thickness=3 * IN // 4)),
+   check=lambda r: ensure(TDER(r)['wallTypes']['EW1']['layers'][1] == {'resistance': 35, 'heatCapacity': c_of(3 * IN // 4, 1, 1005)},
+                          TDER(r)['wallTypes']['EW1']['layers'][1]))
+TH('derived', 'no-framing-no-framed-path', 'IW1 without its framing: no member `framed`; and a framing of 1000, all '
+   'framing, on EW1, whose framed path is its studs.', ['5.1.1'],
+   tedit(lambda d: (d['types']['IW1'].pop('extensions'), TD(d, 'types', 'EW1')['framing'].update(fraction=1000))),
+   check=lambda r: ensure('framed' not in TDER(r)['wallTypes']['IW1']
+                          and TDER(r)['wallTypes']['EW1']['framed'] == {**EW1_DER['framed'], 'fraction': 1000}, TDER(r)))
+TH('derived', 'two-core-layers', 'EW1 with its batts split into two core layers, 3 1/2" and 2": the framing replaces '
+   'both, each at its own thickness.', ['3.1.1', '5.1.1'],
+   tedit(lambda d: d['types']['EW1'].update(layers=EW1_LAYERS[:5] + [lay(7 * IN // 2, 'core', 'M-BATT'),
+                                                                      lay(2 * IN, 'core', 'M-BATT'), EW1_LAYERS[6]])),
+   check=lambda r: ensure(TDER(r)['wallTypes']['EW1']['framed']['resistance']
+                          == sum(EW1_R) - EW1_R[5] + r_of(7 * IN // 2, 120) + r_of(2 * IN, 120)
+                          and TDER(r)['wallTypes']['EW1']['clear']['resistance']
+                          == sum(EW1_R) - EW1_R[5] + r_of(7 * IN // 2, 35) + r_of(2 * IN, 35), TDER(r)['wallTypes']['EW1']))
+TH('derived', 'a-copper-layer', 'A copper flashing at 390,000 mW/(m.K), the top of the range of conductivities, '
+   '1/32" thick: 25 x 1016 / (32 x 390000) rounds to 0.', ['3.1.1', '5.1.1'],
+   tedit(lambda d: (d['materials'].update({'M-CU': tm('Copper', '#b87333', conductivity=390000, density=8900, specificHeat=385)}),
+                    d['types'].update(TC={'kind': 'wallType', 'layers': [lay(IN // 32, 'membrane', 'M-CU')]}))),
+   unused=ONLY_FS_THERMAL + ('TC',),
+   check=lambda r: ensure(TDER(r)['wallTypes']['TC']['layers'] == [{'resistance': 0, 'heatCapacity': c_of(IN // 32, 8900, 385)}],
+                          TDER(r)['wallTypes']['TC']))
+
+THO = lambda *a, **k: O(THRM, *a, **k)    # noqa: E731
+THO('set-a-conductivity', 'setProperty of M-BATT /extensions/FS_thermal/conductivity: denser batts at 33 mW/(m.K). It '
+    'commits, and EW1\'s batts are 25 x 178816 / (32 x 33) = 4233.33, 4233.', ['1.2.1', '3.1.1', 'FS-OPS-2.3.1'],
+    envelope_house(), {'batch': [{'op': 'setProperty', 'id': 'M-BATT', 'path': '/extensions/FS_thermal/conductivity', 'value': 33}]},
+    check=lambda r, B: ensure(B['materials']['M-BATT']['extensions'][THRM]['conductivity'] == 33, B['materials']['M-BATT']))
+THO('both-is-rejected', 'Setting a conductivity on the rainscreen gap, which states a resistance: the result breaks 2.1.1, '
+    'and an applier that implements FS_thermal and knows it rejects the batch (Ops 1.2.3).', ['2.1.1', '1.2.1', 'FS-OPS-1.2.3'],
+    envelope_house(), {'batch': [{'op': 'setProperty', 'id': 'M-GAP', 'path': '/extensions/FS_thermal/conductivity', 'value': 26}]},
+    'rejected', INVALID_T_DIAG)
+THO('rate-a-window', 'setProperty of WT1 /extensions/FS_thermal: a triple-glazed casement at U 0.80 W/(m2.K) and '
+    'SHGC 0.40. It commits.', ['1.2.1', '1.3.2', 'FS-OPS-2.3.1'], envelope_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'WT1', 'path': '/extensions/FS_thermal', 'value': {'uFactor': 800, 'shgc': 400}}]},
+    check=lambda r, B: ensure(B['types']['WT1']['extensions'] == {THRM: {'uFactor': 800, 'shgc': 400}}, B['types']['WT1']))
+THO('data-on-a-wall-is-rejected', 'Setting a U-factor on the wall W1: the result breaks 1.3.3, and the batch is rejected '
+    'with FS-THRM-SCH-001.', ['1.3.3', '1.2.1', 'FS-OPS-1.2.3'], envelope_house(),
+    {'batch': [{'op': 'setProperty', 'id': 'W1', 'path': '/extensions/FS_thermal', 'value': {'uFactor': 300}}]},
+    'rejected', [('FS-THRM-SCH-001', [])])
+THO('swap-the-siding', 'setProperty of EW1 /layers/0/material: brick for fibre cement, the material added in the same '
+    'batch - the comparison of two sidings is two documents\' derived values. It commits.', ['1.2.1', '5.1.1', 'FS-OPS-2.3.1'],
+    envelope_house(),
+    {'batch': [{'op': 'addElement', 'collection': 'materials', 'id': 'M-BRICK',
+                'element': tm('Brick veneer', '#8c4a32', conductivity=720, density=1920, specificHeat=800, citation=CITE)},
+               {'op': 'setProperty', 'id': 'EW1', 'path': '/layers/0', 'value': lay(7 * IN // 2, 'finish', 'M-BRICK')}]},
+    check=lambda r, B: ensure(B['types']['EW1']['layers'][0] == lay(7 * IN // 2, 'finish', 'M-BRICK'), B['types']['EW1']))
+THO('unset-the-framing', 'unsetProperty of IW1 /extensions/FS_thermal/framing: IW1 is all cavity.', ['1.2.1', 'FS-OPS-2.3.1'],
+    envelope_house(), {'batch': [{'op': 'unsetProperty', 'id': 'IW1', 'path': '/extensions/FS_thermal/framing'}]},
+    check=lambda r, B: ensure(B['types']['IW1']['extensions'] == {THRM: {}}, B['types']['IW1']))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -5549,7 +6014,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE, OUTD, CTXT):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE, OUTD, CTXT, THRM):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

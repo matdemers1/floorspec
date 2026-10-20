@@ -3,7 +3,7 @@ name: CI
 # The standard's gate (FLR-T-0.3, FLR-ADR-009): the spec's tagging rules → the schemas against every
 # suite (Core 0.1, 0.2, 0.3 and 0.4 documents; Ops 0.1, 0.2, 0.3 and 0.4 requests; Rules 0.1 and 0.2 requests, packs, profiles
 # and reports) → MUST coverage of the current drafts (FS-CORE 0.4, FS-OPS 0.4, FS-RULES 0.2) and of
-# every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV, FS-FURN, FS-STRC, FS-LAND, FS-LGHT, FS-VIEW, FS-RENO, FS-ANNO, FS-SITE, FS-OUTD, FS-CTXT) → the independent
+# every extension specification in registry/ (FS-ELEC, FS-PLMB, FS-MECH, FS-LOWV, FS-FURN, FS-STRC, FS-LAND, FS-LGHT, FS-VIEW, FS-RENO, FS-ANNO, FS-SITE, FS-OUTD, FS-CTXT, FS-THRM) → the independent
 # oracle reproducing every expected output of the Core and Ops suites, of every extension suite
 # (conformance/ext/) and of the Rules suite (every report byte for byte), and every committed Ops
 # result's resolved echo and inverse → the suites being exactly what their author scripts declare →

@@ -389,9 +389,10 @@ export function testDirs(dir: string): string[] {
 /**
  * The elements of a document that may carry extension data (Core 1.6), as `[collection, data]` for
  * every one whose `extensions` has a member `name`: the core collections, program items (`items`),
- * option sets and options.
+ * option sets and options. With `typesByKind` (FS_thermal, whose data on a type is checked as
+ * `{ <kind>: data }`), a type's is given as `[its kind, data]` instead.
  */
-export function elementExtensionData(doc: unknown, name: string): [string, unknown][] {
+export function elementExtensionData(doc: unknown, name: string, typesByKind = false): [string, unknown][] {
   const out: [string, unknown][] = [];
   if (doc === null || typeof doc !== 'object') return out;
   const d = doc as Record<string, unknown>;
@@ -405,7 +406,9 @@ export function elementExtensionData(doc: unknown, name: string): [string, unkno
     if (elements === null || typeof elements !== 'object') continue;
     for (const el of Object.values(elements as Record<string, unknown>)) {
       const x = (el as { extensions?: Record<string, unknown> } | null)?.extensions;
-      if (x && typeof x === 'object' && name in x) out.push([c, x[name]]);
+      if (!(x && typeof x === 'object' && name in x)) continue;
+      const kind = (el as { kind?: unknown }).kind;
+      out.push([c === 'types' && typesByKind && typeof kind === 'string' ? kind : c, x[name]]);
     }
   }
   return out;
@@ -417,7 +420,7 @@ export function elementExtensionData(doc: unknown, name: string): [string, unkno
  * derives the extension's values (where the extension was evaluated). The data is the top-level
  * data, and - for an extension whose schema has `#/$defs/coreElements` (FS_structural), given as
  * `validateOn` - the data on every element, checked as `{ <collection>: data }` against that
- * definition. An Ops test's request must match the Ops 0.2 request schema - Ops 0.3's when its
+ * definition (a type's as `{ <kind>: data }` when the definition names a kind, as FS_thermal's does). An Ops test's request must match the Ops 0.2 request schema - Ops 0.3's when its
  * document declares "0.3", and Ops 0.4's, with resizeElement, when it declares "0.4" (FS_outdoor's).
  */
 export function checkExtensionSuite(suite: string, name: string, code: string, validateData: ValidateFunction,
@@ -449,8 +452,10 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
     const data = doc.extensions?.[name] ?? {};
     let valid = validateData(data) as boolean;
     let errors = validateData.errors ?? [];
+    const byKind = validateOn !== undefined && typeof validateOn.schema === 'object' && validateOn.schema !== null
+      && 'wallType' in ((validateOn.schema as { properties?: Record<string, unknown> }).properties ?? {});
     if (valid && validateOn)
-      for (const [c, x] of elementExtensionData(doc, name))
+      for (const [c, x] of elementExtensionData(doc, name, byKind))
         if (!(validateOn({ [c]: x }) as boolean)) {
           valid = false;
           errors = validateOn.errors ?? [];
