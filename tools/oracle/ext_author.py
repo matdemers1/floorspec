@@ -4441,6 +4441,12 @@ SI('lints', 'patio-in-the-front-setback', 'The patio run 9\' further south, to 1
    'street, inside the 25\' front setback - FS-SITE-LINT-003 for the slab.', ['1.2.3', '2.3.1'],
    sedit_(lambda d: d['slabs']['S1'].update(boundary=[F(2, -19), F(12, -19), F(12, -1), F(2, -1)])),
    [('FS-SITE-LINT-003', ['S1'])])
+SI('lints', 'drive-and-walk-cross-the-front-setback', 'A driveway and a front walk from the house to the street, across '
+   'the 25\' front setback: a walkway or a driveway reaches the street by design, so neither is tested (2.3) - nothing '
+   'is reported.', ['1.2.3', '2.3.1'],
+   sedit_(lambda d: d['slabs'].update(
+       S2={'level': 'L1', 'boundary': [F(14, -40), F(24, -40), F(24, -2), F(14, -2)], 'thickness': 100 * MM, 'purpose': 'driveway'},
+       S3={'level': 'L1', 'boundary': [F(6, -40), F(9, -40), F(9, -2), F(6, -2)], 'thickness': 100 * MM, 'purpose': 'walkway'})))
 SI('lints', 'outside-the-lot', 'Setbacks of 0, and a shed\'s pad over the east lot line: a point outside the lot is never '
    'clear, whatever the setbacks - FS-SITE-LINT-003 for the pad.', ['1.2.3', '2.3.1'],
    sedit_(lambda d: (SD_(d)['setbacks'].update(front=0, side=0, rear=0),

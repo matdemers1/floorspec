@@ -409,7 +409,8 @@ def lints(ctx: Context):
         kinds = edge_kinds(len(ring), sb)
         dist = [sb.get(k) for k in kinds]
         things = [(jid, [tuple(j['position'])]) for jid, j in ctx.d.get('junctions', {}).items()]
-        things += [(sid, [tuple(p) for p in sl['boundary']]) for sid, sl in ctx.d.get('slabs', {}).items()]
+        things += [(sid, [tuple(p) for p in sl['boundary']]) for sid, sl in ctx.d.get('slabs', {}).items()
+                   if sl.get('purpose') not in ('walkway', 'driveway')]                       # 2.3
         things += [(pid, [tuple(p) for p in p_['boundary']]) for pid, p_ in records(ctx, 'pads').items()]
         for tid, points in things:
             if not all(clear(p, ring, dist) for p in points):
