@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site and FS_outdoor 0.1.0 - as the script that
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site, FS_outdoor and FS_context 0.1.0 - as the script that
 writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
@@ -5090,6 +5090,365 @@ OO('move-the-fire-pit', 'moveElement moves the fire pit onto the courtyard\'s fl
    check=lambda r, B: ensure(outd_derived(B)['fires']['X5'] == {'form': 'pit', 'room': 'R4'}, outd_derived(B)['fires']))
 
 
+# ============================================================================= FS_context
+
+CTXT = 'FS_context'
+CODE[CTXT] = 'CTXT'
+CTXT_KNOWN = OUTD_KNOWN + (CTXT,)
+CURB = FT // 2                                     # a curb, 6" (2.1)
+
+STREET = {'name': 'Garden Lane', 'points': [F(-60, -64.5), F(70, -64.5)], 'width': 30 * FT, 'strip': 4 * FT, 'sidewalk': 5 * FT}
+CONTEXT_DATA = {
+    'streets': {'ST1': STREET},
+    'neighbours': {
+        'NB1': {'name': 'Neighbour, west', 'boundary': [F(-65, -15), F(-35, -15), F(-35, 20), F(-65, 20)],
+                'height': 10 * FT, 'roof': 'gable', 'rise': 6 * FT, 'elevation': -4 * FT},
+        'NB2': {'name': 'Neighbour, east', 'boundary': [F(45, -15), F(75, -15), F(75, 15), F(45, 15)],
+                'height': 19 * FT, 'roof': 'hip', 'rise': 5 * FT, 'elevation': -3 * FT},
+        'NB3': {'name': 'Across the street', 'boundary': [F(-20, -110), F(20, -110), F(20, -90), F(-20, -90)],
+                'height': 12 * FT, 'elevation': -6 * FT},
+    },
+    'trees': {
+        'TR1': {'at': F(0, 45), 'height': 40 * FT, 'spread': 30 * FT},
+        'TR2': {'at': F(30, 40), 'height': 30 * FT, 'spread': 14 * FT, 'form': 'evergreen', 'elevation': 2 * FT},
+    },
+}
+
+
+def street_house():
+    """The garden on its slope (site_house()) on its street, as a Core 0.4 document that uses FS_context too:
+
+    - Garden Lane, south of the lot: its centreline 24' 6" beyond the lot's front line at y = -40', so that its
+      sidewalk's back is the lot line - a 30' carriageway, then on each side a 6" curb, a 4' planting strip and a 5'
+      sidewalk, 49' overall, from x = -60' to 70';
+    - two neighbours at the lot's own side setback (5') beyond its side lines and its front setback (25') from the
+      street: NB1 to the west, 30' x 35', one storey, a gable roof 6' high, on ground 4' below the floor; NB2 to the
+      east, 30' square, two storeys, a hip roof (a pyramid), on ground 3' below; and NB3, flat-roofed, across the
+      street;
+    - two trees beyond the rear lot line: a deciduous TR1, 40' tall and 30' across, and an evergreen TR2, 30' tall
+      and 14' across, on ground 2' above the floor.
+
+    FS_site's data stays: an implementation of FS_context alone reads it as data, for its IDs (1.3)."""
+    d = site_house()
+    d['project']['name'] = 'Phase 15 garden on its street'
+    d['extensionsUsed'][CTXT] = '0.1.0'
+    d['extensions'][CTXT] = copy.deepcopy(CONTEXT_DATA)
+    return d
+
+
+def cedit(fn):
+    """The garden on its street, changed by fn(d) in place."""
+    d = street_house()
+    fn(d)
+    return d
+
+
+CD_ = lambda d: ext(d, CTXT)                                                       # noqa: E731
+STREETS = lambda d: ext(d, CTXT)['streets']                                        # noqa: E731
+NBS = lambda d: ext(d, CTXT)['neighbours']                                         # noqa: E731
+TREES = lambda d: ext(d, CTXT)['trees']                                            # noqa: E731
+CDER = derived_of(CTXT)
+CX = lambda *a, **k: V(CTXT, *a, **k)    # noqa: E731
+
+STREET_DER = {'length': 130 * FT, 'width': 49 * FT}
+NB_DER = {'NB1': {'roof': 'gable', 'area': str(30 * 35 * FT * FT), 'eaves': 6 * FT, 'ridge': 12 * FT},
+          'NB2': {'roof': 'hip', 'area': str(30 * 30 * FT * FT), 'eaves': 16 * FT, 'ridge': 21 * FT},
+          'NB3': {'roof': 'flat', 'area': str(40 * 20 * FT * FT), 'eaves': 6 * FT, 'ridge': 6 * FT}}
+TREE_DER = {'TR1': {'form': 'deciduous', 'top': 40 * FT}, 'TR2': {'form': 'evergreen', 'top': 32 * FT}}
+
+
+def without_context(d):
+    """The derived values outside extensions of the same document with no FS_context (1.5): its data and its
+    declaration removed, read by the same implementation."""
+    d = copy.deepcopy(d)
+    d['extensionsUsed'].pop(CTXT, None)
+    d['extensions'].pop(CTXT, None)
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(CTXT)]).encode('utf-8'), official.implemented(CTXT))
+    assert result['valid'], result['diagnostics']
+    return {k: v for k, v in result['derived'].items() if k != 'extensions'}
+
+
+def never_the_design(d):
+    """1.5.1: Core's derived values are those of the same house without its context."""
+    def check_(r):
+        mine = {k: v for k, v in r['derived'].items() if k != 'extensions'}
+        ensure(mine == without_context(d), 'context changed a derived value outside extensions.FS_context')
+    return check_
+
+
+def check_context(r):
+    x = CDER(r)
+    ensure(x == {'streets': {'ST1': STREET_DER}, 'neighbours': NB_DER, 'trees': TREE_DER}, x)
+    never_the_design(street_house())(r)
+
+
+BAD_C = lambda d: TREES(d)['TR1'].update(at=[0, 0, 0])                             # noqa: E731  the schema tier
+INV_C = lambda d: STREETS(d)['ST1']['points'].insert(1, F(-60, -64.5))             # noqa: E731  FS-CTXT-INV-002
+INV_C_DIAG = [('FS-CTXT-INV-002', ['ST1'])]
+
+CX('examples', 'p15-garden-on-its-street', 'The garden on its slope on its street, read by an implementation of FS_context '
+   'that knows it: Garden Lane along the lot\'s front, its sidewalk\'s back on the lot line - a 30\' carriageway with a 6" '
+   'curb, a 4\' strip and a 5\' sidewalk on each side, 49\' overall and 130\' long; a one-storey neighbour to the west with '
+   'a gable roof, a two-storey neighbour to the east with a hip roof, a flat-roofed one across the street, and two trees '
+   'beyond the rear lot line. It is valid and reports nothing - every record stands beyond the lot - and derives each '
+   'street\'s length and overall width, each neighbour\'s footprint area, eaves and ridge, and each tree\'s top; '
+   'everything else it derives is what the same house derives without its context (1.5).',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '1.3.2', '1.5.1', '2.1.1', '3.1.1', '3.2.1', '8.1.1'],
+   street_house(), check=check_context)
+CX('examples', 'core-only-reader', 'The same garden read with no known extensions: FS_context is not evaluated, so nothing '
+   'of it is derived (`derived.extensions` is empty), and nothing else changes - a reader without FS_context finds nothing '
+   'of it to draw.', ['1.2.1', '1.2.4', 'FS-CORE-1.6.9'], street_house(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {}, r['derived']['extensions']))
+CX('examples', 'all-official-known', 'The garden read with every official entry known, by an implementation of '
+   'FS_context alone: FS_landscape and FS_site are checked only as Core 12 checks a known extension, and only FS_context '
+   'is evaluated and derived.', ['1.2.1', '1.2.4'], street_house(), registry=[entry(x) for x in CTXT_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [CTXT], list(r['derived']['extensions'])))
+CX('examples', 'no-data', 'FS_context used with empty top-level data: valid, and nothing derived but three empty maps.',
+   ['1.3.1', '8.1.1'], cedit(lambda d: d['extensions'].update({CTXT: {}})),
+   check=lambda r: ensure(CDER(r) == {'streets': {}, 'neighbours': {}, 'trees': {}}, CDER(r)))
+CX('examples', 'without-a-lot', 'The garden on its street with no site: no lot to stand beyond, so no lint, and every '
+   'record derived as before.', ['1.2.4', '8.1.1'], cedit(lambda d: (d.pop('site'), ext(d, SITE).pop('setbacks'))),
+   check=lambda r: ensure(CDER(r)['neighbours'] == NB_DER, CDER(r)))
+CX('examples', 'every-default', 'A street, a neighbour and a tree each with only the members they always have: a curb of '
+   '6", no strip and no sidewalk - the street 31\' overall; a flat roof with no rise, its ridge its eaves; a deciduous '
+   'tree; and every elevation 0.', ['1.3.1', '8.1.1'],
+   cedit(lambda d: d['extensions'].update({CTXT: {
+       'streets': {'ST1': {'points': [F(-60, -55.5), F(70, -55.5)], 'width': 30 * FT}},
+       'neighbours': {'NB1': {'boundary': [F(-65, -15), F(-35, -15), F(-35, 20), F(-65, 20)], 'height': 10 * FT}},
+       'trees': {'TR1': {'at': F(0, 45), 'height': 40 * FT, 'spread': 30 * FT}}}})),
+   check=lambda r: ensure(CDER(r) == {'streets': {'ST1': {'length': 130 * FT, 'width': 31 * FT}},
+                                      'neighbours': {'NB1': {'roof': 'flat', 'area': str(30 * 35 * FT * FT), 'eaves': 10 * FT, 'ridge': 10 * FT}},
+                                      'trees': {'TR1': {'form': 'deciduous', 'top': 40 * FT}}}, CDER(r)))
+
+CX('activation', 'unknown-data-not-evaluated', 'A tree\'s position has three numbers, which FS_context\'s schema does not '
+   'allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   cedit(BAD_C), registry=None)
+CX('activation', 'another-version-known', 'The document uses FS_context at 0.2.0, which is known (a later entry), but the '
+   'implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.', ['1.2.1'],
+   cedit(lambda d: (BAD_C(d), d['extensionsUsed'].update({CTXT: '0.2.0'}))), registry=[entry(CTXT, '0.2.0')])
+CX('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_context is evaluated: its data breaks '
+   'the schema, FS-CTXT-SCH-001.', ['1.2.1', '1.3.1'],
+   cedit(lambda d: (BAD_C(d), d['extensionsUsed'].update({CTXT: '0.1'}))), [('FS-CTXT-SCH-001', [])])
+CX('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_context is evaluated.', ['1.2.1', '1.3.1'],
+   cedit(lambda d: (BAD_C(d), d['extensionsUsed'].update({CTXT: {'version': '0.1.0', 'schema': entry(CTXT)['schema']}}))),
+   [('FS-CTXT-SCH-001', [])])
+CX('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_context is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {CTXT: '0.1.0'}, 'extensions': {CTXT: {'colour': 'red'}}})
+CX('activation', 'core-0.2-document', 'The garden on its street declaring Core "0.2", a draft FS_context 0.1.0 lists (1.1): '
+   'FS_context is evaluated, reports nothing and derives what it derives for the garden declaring "0.4".',
+   ['1.2.1', '1.2.3', '1.2.4', '8.1.1'], cedit(as_02),
+   check=lambda r: ensure(CDER(r) == {'streets': {'ST1': STREET_DER}, 'neighbours': NB_DER, 'trees': TREE_DER}, CDER(r)))
+CX('activation', 'core-0.3-document', 'The garden on its street declaring Core "0.3": FS_context is evaluated, reports '
+   'nothing, and derives exactly what it derives for the garden declaring "0.4".', ['1.2.1', '1.2.3', '1.2.4', '8.1.1'],
+   cedit(lambda d: d.update(floorspec='0.3')),
+   check=lambda r: ensure(CDER(r) == {'streets': {'ST1': STREET_DER}, 'neighbours': NB_DER, 'trees': TREE_DER}, CDER(r)))
+CX('activation', 'core-0.3-invariants', 'The same "0.3" garden with a point of the street\'s centreline written twice: '
+   'FS_context is evaluated for a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '2.1.1'],
+   cedit(lambda d: (d.update(floorspec='0.3'), INV_C(d))), INV_C_DIAG)
+
+CX('order', 'core-error-first', 'A Core invariant breaks - the lot\'s boundary crosses itself, FS-INV-009 - and so does '
+   'FS_context\'s schema: Core\'s error is reported, and FS_context is not evaluated.', ['1.2.2'],
+   cedit(lambda d: (BAD_C(d), d['site'].update(boundary=[LOT[0], LOT[2], LOT[1], LOT[3]]))), [('FS-INV-009', [])])
+CX('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-CTXT-SCH-001.',
+   ['1.2.2', '1.3.1'], cedit(lambda d: (BAD_C(d), INV_C(d))), [('FS-CTXT-SCH-001', [])])
+CX('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - a tree stands in the lot: the '
+   'document is invalid, so no lint is reported, FS_context\'s or Core\'s.', ['1.2.2', '1.2.3'],
+   cedit(lambda d: (INV_C(d), TREES(d)['TR1'].update(at=F(-10, 20)))), INV_C_DIAG)
+
+CX('schema', 'data-not-an-object', 'FS_context\'s top-level data is an array: Core allows any JSON there, FS_context\'s '
+   'schema does not.', ['1.3.1'], cedit(lambda d: d['extensions'].update({CTXT: []})), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'unknown-member', 'FS_context\'s data has a member it does not define: `buildings`.', ['1.3.1'],
+   cedit(lambda d: CD_(d).update(buildings={})), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'street-without-a-width', 'A street always says its carriageway\'s width.', ['1.3.1'],
+   cedit(lambda d: STREETS(d)['ST1'].pop('width')), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'street-of-zero-width', 'A carriageway is at least one base unit wide.', ['1.3.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(width=0)), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'street-of-one-point', 'A centreline has at least two points.', ['1.3.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(points=STREET['points'][:1])), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'negative-sidewalk', 'A sidewalk\'s width is a distance: at least 0.', ['1.3.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(sidewalk=-FT)), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'street-with-an-unknown-member', 'A street has a member a street does not define: `lanes`.', ['1.3.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(lanes=2)), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'neighbour-without-a-height', 'A neighbour always says its eaves\' height.', ['1.3.1'],
+   cedit(lambda d: NBS(d)['NB1'].pop('height')), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'roof-not-known', 'A neighbour whose roof is "mansard".', ['1.3.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(roof='mansard')), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'neighbour-of-two-points', 'A footprint is a polygon: at least three points.', ['1.3.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(boundary=[F(-65, -15), F(-35, -15)])), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'negative-rise', 'A roof\'s rise is a distance: at least 0.', ['1.3.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(rise=-FT)), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'tree-without-a-spread', 'A tree always says its crown\'s spread.', ['1.3.1'],
+   cedit(lambda d: TREES(d)['TR1'].pop('spread')), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'tree-form-not-known', 'A tree whose form is "palm".', ['1.3.1'],
+   cedit(lambda d: TREES(d)['TR1'].update(form='palm')), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'point-of-three-numbers', 'A point is two lengths.', ['1.3.1'], cedit(BAD_C), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'height-with-a-fraction', 'A number written with a fraction is not an integer, even when it is a whole '
+   'number.', ['1.3.1'], None, [('FS-CTXT-SCH-001', [])],
+   raw=(fmt(cedit(lambda d: TREES(d)['TR2'].update(height=11704321))) + '\n').replace('11704321', '11704320.0', 1).encode('utf-8'))
+CX('schema', 'name-too-long', 'A record\'s name is 1 to 200 characters.', ['1.3.1'],
+   cedit(lambda d: NBS(d)['NB2'].update(name='N' * 201)), [('FS-CTXT-SCH-001', [])])
+CX('schema', 'zero-strip-and-curb', 'A curb, a strip and a sidewalk of 0 are allowed: the street has none.', ['1.3.1', '8.1.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(curb=0, strip=0, sidewalk=0)),
+   check=lambda r: ensure(CDER(r)['streets']['ST1'] == {'length': 130 * FT, 'width': 30 * FT}, CDER(r)['streets']))
+
+CX('invariants', 'id-of-an-element', 'A tree keyed by W1, the ID of a wall: FS-CTXT-INV-001.', ['1.3.2'],
+   cedit(lambda d: TREES(d).update(W1=TREES(d).pop('TR2'))), [('FS-CTXT-INV-001', ['W1'])])
+CX('invariants', 'id-of-an-extension-element', 'A neighbour keyed by X1, the ID of FS_landscape\'s tree - an extension '
+   'element, though FS_landscape is not known: FS-CTXT-INV-001.', ['1.3.2'],
+   cedit(lambda d: NBS(d).update(X1=NBS(d).pop('NB3'))), [('FS-CTXT-INV-001', ['X1'])])
+CX('invariants', 'id-of-a-spot', 'A tree keyed by SP1, the ID of a spot elevation in FS_site\'s data, which an '
+   'implementation of FS_context reads as data without knowing FS_site: FS-CTXT-INV-001.', ['1.3.2'],
+   cedit(lambda d: TREES(d).update(SP1=TREES(d).pop('TR2'))), [('FS-CTXT-INV-001', ['SP1'])])
+CX('invariants', 'id-of-a-pad', 'A neighbour keyed by GP1, the ID of FS_site\'s pad under the house: FS-CTXT-INV-001.',
+   ['1.3.2'], cedit(lambda d: NBS(d).update(GP1=NBS(d).pop('NB3'))), [('FS-CTXT-INV-001', ['GP1'])])
+CX('invariants', 'id-of-a-scene', 'A street keyed by SC1, the ID of a scene in FS_lighting\'s data, read as data: '
+   'FS-CTXT-INV-001.', ['1.3.2'],
+   cedit(lambda d: (with_scene('SC1')(d), STREETS(d).update(SC1=STREETS(d).pop('ST1')))), [('FS-CTXT-INV-001', ['SC1'])])
+CX('invariants', 'id-of-two-records', 'A neighbour and a tree both keyed TR1: the ID is reported once.', ['1.3.2'],
+   cedit(lambda d: NBS(d).update(TR1=NBS(d).pop('NB3'))), [('FS-CTXT-INV-001', ['TR1'])])
+CX('invariants', 'street-repeated-point', 'A street with a point of its centreline written twice in a row: '
+   'FS-CTXT-INV-002.', ['2.1.1'], cedit(INV_C), INV_C_DIAG)
+CX('invariants', 'street-that-turns-back', 'A street whose centreline turns at a corner and returns past its start: its '
+   'consecutive points differ, so it is valid; its length is each segment\'s.', ['2.1.1', '8.1.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(points=[F(-60, -64.5), F(70, -64.5), F(70, -100), F(-80, -100)])),
+   check=lambda r: ensure(CDER(r)['streets']['ST1']['length'] == (130 + 35.5 + 150) * FT, CDER(r)['streets']))
+CX('invariants', 'neighbour-not-simple', 'A neighbour whose footprint crosses itself, a bow tie: FS-CTXT-INV-003 - and, '
+   'though its roof is a gable, not FS-CTXT-INV-004 as well.', ['3.1.1', '3.2.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(boundary=[F(-65, -15), F(-35, 20), F(-35, -15), F(-65, 20)])),
+   [('FS-CTXT-INV-003', ['NB1'])])
+CX('invariants', 'neighbour-without-area', 'A flat-roofed neighbour whose three points are on one line: FS-CTXT-INV-003.',
+   ['3.1.1'], cedit(lambda d: NBS(d)['NB3'].update(boundary=[F(-20, -110), F(0, -110), F(20, -110)])),
+   [('FS-CTXT-INV-003', ['NB3'])])
+CX('invariants', 'gable-on-an-l', 'A gable roof on an L-shaped footprint: FS-CTXT-INV-004.', ['3.2.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(boundary=[F(-65, -15), F(-35, -15), F(-35, 0), F(-50, 0), F(-50, 20), F(-65, 20)])),
+   [('FS-CTXT-INV-004', ['NB1'])])
+CX('invariants', 'hip-on-a-parallelogram', 'A hip roof on four corners that are not right angles: FS-CTXT-INV-004.',
+   ['3.2.1'], cedit(lambda d: NBS(d)['NB2'].update(boundary=[F(45, -15), F(75, -15), F(80, 15), F(50, 15)])),
+   [('FS-CTXT-INV-004', ['NB2'])])
+CX('invariants', 'hip-a-unit-out-of-square', 'A hip roof on a footprint whose north-east corner is one base unit east '
+   'of square: the corner is tested exactly, FS-CTXT-INV-004.', ['3.2.1'],
+   cedit(lambda d: NBS(d)['NB2']['boundary'].__setitem__(2, [F(75, 15)[0] + 1, F(75, 15)[1]])),
+   [('FS-CTXT-INV-004', ['NB2'])])
+CX('invariants', 'gable-on-a-turned-rectangle', 'A gable roof on a rectangle turned off the axes - its sides along '
+   '(3, 4) and (-4, 3), 25\' and 35\' long: every corner is a right angle, so it is valid, and its area exact.',
+   ['3.2.1', '8.1.1'],
+   cedit(lambda d: NBS(d)['NB1'].update(boundary=[F(-95, -15), F(-80, 5), F(-108, 26), F(-123, 6)])),
+   check=lambda r: ensure(CDER(r)['neighbours']['NB1']['area'] == str(25 * 35 * FT * FT), CDER(r)['neighbours']['NB1']))
+CX('invariants', 'flat-on-an-l', 'A flat roof on an L-shaped footprint: valid - only a gable or a hip needs a rectangle.',
+   ['3.1.1', '3.2.1', '8.1.1'],
+   cedit(lambda d: NBS(d)['NB3'].update(boundary=[F(-20, -110), F(20, -110), F(20, -100), F(0, -100), F(0, -90), F(-20, -90)])),
+   check=lambda r: ensure(CDER(r)['neighbours']['NB3']['area'] == str(600 * FT * FT), CDER(r)['neighbours']['NB3']))
+
+CX('lints', 'tree-in-the-lot', 'A tree moved into the back garden, inside the lot: FS-CTXT-LINT-001 (info) - a tree the '
+   'design keeps is FS_landscape\'s.', ['1.2.3'], cedit(lambda d: TREES(d)['TR1'].update(at=F(-10, 20))),
+   [('FS-CTXT-LINT-001', ['TR1'])])
+CX('lints', 'neighbour-over-the-side-line', 'The west neighbour moved 10\' east: its east corners stand in the lot, '
+   'FS-CTXT-LINT-001.', ['1.2.3'],
+   cedit(lambda d: NBS(d)['NB1'].update(boundary=[F(-55, -15), F(-25, -15), F(-25, 20), F(-55, 20)])),
+   [('FS-CTXT-LINT-001', ['NB1'])])
+CX('lints', 'street-through-the-lot', 'A street whose centreline turns through the lot: FS-CTXT-LINT-001.', ['1.2.3'],
+   cedit(lambda d: STREETS(d)['ST1'].update(points=[F(-60, -64.5), F(0, -20), F(70, -64.5)])),
+   [('FS-CTXT-LINT-001', ['ST1'])])
+CX('lints', 'on-the-lot-line', 'A tree on the rear lot line and a neighbour whose west side is the lot\'s east line: on '
+   'the boundary is not in the lot, so nothing is reported.', ['1.2.3'],
+   cedit(lambda d: (TREES(d)['TR1'].update(at=F(0, 30)),
+                    NBS(d)['NB2'].update(boundary=[F(40, -15), F(70, -15), F(70, 15), F(40, 15)]))))
+CX('lints', 'pavement-over-the-lot-line', 'The street moved 10\' north: its carriageway and sidewalk now reach over the lot '
+   'line, but its centreline is still beyond it - only the centreline is tested (5.2), so nothing is reported.',
+   ['1.2.3'], cedit(lambda d: STREETS(d)['ST1'].update(points=[F(-60, -54.5), F(70, -54.5)])))
+CX('lints', 'every-record-in-the-lot', 'A street, a neighbour and a tree all standing in the lot: one lint each.',
+   ['1.2.3'],
+   cedit(lambda d: (TREES(d)['TR2'].update(at=F(30, 20)), NBS(d)['NB3'].update(boundary=[F(-25, 15), F(-5, 15), F(-5, 25), F(-25, 25)]),
+                    STREETS(d)['ST1'].update(points=[F(-60, -64.5), F(0, -35), F(70, -64.5)]))),
+   [('FS-CTXT-LINT-001', ['NB3']), ('FS-CTXT-LINT-001', ['ST1']), ('FS-CTXT-LINT-001', ['TR2'])])
+
+CX('derived', 'never-the-design', 'A neighbour drawn over the house\'s Kitchen and a tree in its courtyard - context where '
+   'the design is: the lints say so, and nothing Core derives changes - no room\'s area, no slab, no quantity counts them '
+   '(1.5).', ['1.5.1', '8.1.1'],
+   cedit(lambda d: (NBS(d)['NB3'].update(boundary=[F(1, 1), F(11, 1), F(11, 11), F(1, 11)]), TREES(d)['TR2'].update(at=F(24, 6)))),
+   [('FS-CTXT-LINT-001', ['NB3']), ('FS-CTXT-LINT-001', ['TR2'])],
+   check=never_the_design(cedit(lambda d: (NBS(d)['NB3'].update(boundary=[F(1, 1), F(11, 1), F(11, 11), F(1, 11)]),
+                                           TREES(d)['TR2'].update(at=F(24, 6))))))
+CX('derived', 'a-segment-rounded-once', 'A street with two diagonal segments, each 1 base unit by 1: each is rounded '
+   'once, to 1, and the length is 2 - not the round of their exact sum, 2.83.', ['8.1.1'],
+   cedit(lambda d: STREETS(d)['ST1'].update(points=[[F(-60, -64.5)[0], F(-60, -64.5)[1]], [F(-60, -64.5)[0] + 1, F(-60, -64.5)[1] + 1],
+                                                    [F(-60, -64.5)[0] + 2, F(-60, -64.5)[1]]])),
+   check=lambda r: ensure(CDER(r)['streets']['ST1']['length'] == 2, CDER(r)['streets']))
+CX('derived', 'clockwise-footprint', 'The west neighbour\'s footprint written clockwise: its area is the same, positive.',
+   ['8.1.1'], cedit(lambda d: NBS(d)['NB1'].update(boundary=NBS(d)['NB1']['boundary'][::-1])),
+   check=lambda r: ensure(CDER(r)['neighbours']['NB1'] == NB_DER['NB1'], CDER(r)['neighbours']))
+CX('derived', 'odd-area', 'A flat-roofed neighbour on a right triangle with legs of 1 and 3 base units: its area is 1.5, '
+   'written as Core writes a half.', ['8.1.1'],
+   cedit(lambda d: NBS(d)['NB3'].update(boundary=[F(-20, -110), [F(-20, -110)[0] + 1, F(-20, -110)[1]], [F(-20, -110)[0], F(-20, -110)[1] + 3]])),
+   check=lambda r: ensure(CDER(r)['neighbours']['NB3']['area'] == '1.5', CDER(r)['neighbours']))
+CX('derived', 'below-the-floor', 'Every record on ground below project zero: elevations are added, and a tree whose top is '
+   'below the floor is still derived.', ['8.1.1'],
+   cedit(lambda d: (TREES(d)['TR1'].update(elevation=-50 * FT), STREETS(d)['ST1'].update(elevation=-8 * FT))),
+   check=lambda r: ensure(CDER(r)['trees']['TR1']['top'] == -10 * FT and CDER(r)['streets']['ST1'] == STREET_DER, CDER(r)))
+
+CX('options', 'the-same-in-every-design', 'Patio options A and B as Core 0.3 design options (Core 19): FS_context is '
+   'evaluated in each checked design, reports nothing, and its derived values are the document\'s.',
+   ['1.2.1', '1.2.4', '8.1.1'], cedit(site_options),
+   check=lambda r: ensure(CDER(r)['neighbours'] == NB_DER, CDER(r)))
+CX('options', 'derived-for-a-design', 'The same options, the derived values asked for B\'s design (Core 19.6): the context '
+   'is the same.', ['1.2.4', '8.1.1', 'FS-CORE-19.6.1'], cedit(site_options), design={'OS1': 'OP2'},
+   check=lambda r: ensure(CDER(r) == {'streets': {'ST1': STREET_DER}, 'neighbours': NB_DER, 'trees': TREE_DER}, CDER(r)))
+
+
+def ctxt_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(CTXT)]).encode('utf-8'), official.implemented(CTXT))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][CTXT]
+
+
+CO_ = lambda *a, **k: O(CTXT, *a, **k)    # noqa: E731
+P_ = lambda *path: '/extensions/FS_context/' + '/'.join(path)                      # noqa: E731
+NB4 = {'name': 'Neighbour, north', 'boundary': [F(-20, 40), F(20, 40), F(20, 70), F(-20, 70)], 'height': 10 * FT,
+       'roof': 'gable', 'rise': 7 * FT}
+CO_('add-a-neighbour', 'setProperty of $document /extensions/FS_context/neighbours/NB4 adds a neighbour behind the lot, '
+    'with an ID Ops does not mint (1.3.2). It commits, valid under FS_context, and derives its eaves and ridge.',
+    ['1.2.1', '1.3.2', '3.2.1', '8.1.1', 'FS-OPS-2.3.1'], street_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('neighbours', 'NB4'), 'value': NB4}]},
+    check=lambda r, B: ensure(ctxt_derived(B)['neighbours']['NB4'] == {'roof': 'gable', 'area': str(40 * 30 * FT * FT),
+                                                                         'eaves': 10 * FT, 'ridge': 17 * FT}, ctxt_derived(B)))
+CO_('generate-the-context', 'The garden on its slope declaring FS_context with no data of it yet: one batch writes the '
+    'street, the neighbours and the trees a reader generated from the lot\'s street edge and setbacks (6.3) - '
+    'setProperty of $document creates FS_context\'s data on the way (Ops 2.3). It commits, valid, with no lint.',
+    ['1.2.1', '1.3.1', '5.2.1', '8.1.1', 'FS-OPS-2.3.1'],
+    cedit(lambda d: d['extensions'].pop(CTXT)),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_(m, rid), 'value': v}
+               for m in ('streets', 'neighbours', 'trees') for rid, v in CONTEXT_DATA[m].items()]},
+    check=lambda r, B: ensure(ctxt_derived(B) == {'streets': {'ST1': STREET_DER}, 'neighbours': NB_DER, 'trees': TREE_DER},
+                              ctxt_derived(B)))
+CO_('move-a-tree', 'setProperty of $document /extensions/FS_context/trees/TR1/at moves the deciduous tree 10\' east. It '
+    'commits, and nothing derived changes but the tree\'s place.', ['1.2.1', '8.1.1', 'FS-OPS-2.3.1'], street_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('trees', 'TR1', 'at'), 'value': F(10, 45)}]},
+    check=lambda r, B: ensure(TREES(B)['TR1']['at'] == F(10, 45) and ctxt_derived(B)['trees'] == TREE_DER, TREES(B)))
+CO_('raise-a-neighbour', 'setProperty of $document /extensions/FS_context/neighbours/NB1/height gives the west neighbour a '
+    'second storey, 19\' to its eaves. It commits: its eaves and ridge rise 9\'.', ['1.2.1', '8.1.1', 'FS-OPS-2.3.1'],
+    street_house(), {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('neighbours', 'NB1', 'height'), 'value': 19 * FT}]},
+    check=lambda r, B: ensure(ctxt_derived(B)['neighbours']['NB1'] == {**NB_DER['NB1'], 'eaves': 15 * FT, 'ridge': 21 * FT},
+                              ctxt_derived(B)['neighbours']))
+CO_('remove-the-street', 'unsetProperty of $document /extensions/FS_context/streets/ST1 removes the street. It commits, '
+    'with no street derived.', ['1.2.1', '8.1.1', 'FS-OPS-2.3.1'], street_house(),
+    {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': P_('streets', 'ST1')}]},
+    check=lambda r, B: ensure(ctxt_derived(B)['streets'] == {}, ctxt_derived(B)))
+CO_('gable-on-an-l-is-rejected', 'setProperty of $document /extensions/FS_context/neighbours/NB1/boundary gives the gabled '
+    'west neighbour an L-shaped footprint: the result breaks 3.2.1, and an applier that implements FS_context and knows it '
+    'rejects the batch (Ops 1.2.3).', ['3.2.1', '1.2.1', 'FS-OPS-1.2.3'], street_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('neighbours', 'NB1', 'boundary'),
+                'value': [F(-65, -15), F(-35, -15), F(-35, 0), F(-50, 0), F(-50, 20), F(-65, 20)]}]},
+    'rejected', [('FS-CTXT-INV-004', ['NB1'])])
+CO_('a-taken-id-is-rejected', 'setProperty of $document /extensions/FS_context/trees/GP1 adds a tree keyed by the ID of '
+    'FS_site\'s pad: the result breaks 1.3.2, and the batch is rejected.', ['1.3.2', '1.2.1', 'FS-OPS-1.2.3'], street_house(),
+    {'batch': [{'op': 'setProperty', 'id': '$document', 'path': P_('trees', 'GP1'), 'value': {'at': F(-20, 45), 'height': 30 * FT, 'spread': 20 * FT}}]},
+    'rejected', [('FS-CTXT-INV-001', ['GP1'])])
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -5190,7 +5549,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE, OUTD):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE, OUTD, CTXT):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):
