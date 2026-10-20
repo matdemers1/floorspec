@@ -1,5 +1,5 @@
 """The conformance suites of the official extensions - FS_electrical, FS_plumbing, FS_mechanical,
-FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation and FS_site 0.1.0 - as the script that
+FS_lowvoltage, FS_furniture, FS_structural, FS_landscape, FS_lighting, FS_views, FS_renovation, FS_annotation, FS_site and FS_outdoor 0.1.0 - as the script that
 writes them.
 
     python3.13 -m tools.oracle.ext_author            rewrite every test from its declaration below
@@ -4687,6 +4687,409 @@ SO_('setbacks-on-a-removed-lot-are-rejected', 'unsetProperty of $document /site 
     {'batch': [{'op': 'unsetProperty', 'id': '$document', 'path': '/site'}]}, 'rejected', [('FS-SITE-INV-005', [])])
 
 
+# ============================================================================= FS_outdoor
+
+OUTD = 'FS_outdoor'
+CODE[OUTD] = 'OUTD'
+OUTD_KNOWN = SITE_ENTRY_KNOWN + (OUTD,)
+FT2 = FT * FT
+
+
+def centred(x, y, z0, z1):
+    """FS_outdoor 3.3: a box centred on its frame horizontally, from z0 to z1."""
+    return {'min': [-(x // 2), -(y // 2), z0], 'max': [x - x // 2, y - y // 2, z1]}
+
+
+def boxed(host, box, level='L1', **members):
+    el = {'fallback': {'level': level, 'box': box}}
+    if host is not None:
+        el['host'] = host
+    return {**el, **members}
+
+
+def fence(points, width, height, gates=None, level='L1', **members):
+    el = {'fallback': {'level': level, 'box': outline_box(points, 0, 0, width // 2)}, 'form': 'fence', 'points': points,
+          'width': width, **members}
+    el['fallback']['box']['max'][2] = height
+    if gates is not None:
+        el['gates'] = gates
+    return el
+
+
+FENCE_LINE = [F(-10, 4), F(-10, -30), F(10, -30)]
+COURT_FLOOR = {'mode': 'surface', 'room': 'R4', 'surface': 'floor', 'position': [24 * FT, 6 * FT]}
+
+
+def terrace():
+    """The Phase 15 back terrace: the Phase 13 garden's house (garden()), with its walled exterior courtyard R4 and its
+    patio S1, 2' to 12' east and 1' to 10' south of the house, as a Core 0.4 document with no planting, and around it:
+
+    - a timber pergola X3 over the patio, 12' x 10' and 9' 6" high, on 6" posts at most 8' apart, clear to 8';
+    - a plunge pool X1 south of the patio, 8' x 14' and 5' 6" deep, with a 12" stone coping and its water 6" below it;
+    - a heated spa X2 on the courtyard's floor, 7' square, raised 18" above it, with a 6" coping;
+    - an outdoor kitchen X4 east of the patio, a 10' run of grill, sink and refrigerator, turned to face the patio;
+    - a gas fire pit X5 in the garden to the west, 4' across;
+    - a 6' privacy fence X6 along the garden's west side and round to the pool, 34' and then 20', with a 4' gate 6'
+      along its south run where the side path crosses."""
+    d = garden()
+    d['floorspec'] = '0.4'
+    d['project']['name'] = 'Phase 15 back terrace'
+    d['extensionsUsed'] = {OUTD: '0.1.0'}
+    d['extensions'] = {OUTD: {'collections': {
+        'pools': {
+            'X1': boxed(free_at(7 * FT, -18 * FT), centred(8 * FT, 14 * FT, -66 * IN, 0), form='plunge', coping=12 * IN,
+                        waterLine=6 * IN, copingMaterial='stone', interior='plaster', heated=True,
+                        catalogue='plunge-pool-8x14', name='Plunge pool'),
+            'X2': boxed(dict(COURT_FLOOR), centred(7 * FT, 7 * FT, -24 * IN, 18 * IN), form='spa', coping=6 * IN,
+                        waterLine=4 * IN, interior='tile', heated=True, name='Spa')},
+        'shelters': {
+            'X3': boxed(free_at(7 * FT, -11 * FT // 2), centred(12 * FT, 10 * FT, 0, 114 * IN), top='slats',
+                        material='timber', postSize=6 * IN, postSpacing=8 * FT, rafterSpacing=24 * IN, clearHeight=96 * IN,
+                        name='Pergola')},
+        'kitchens': {
+            'X4': boxed(free_at(15 * FT, -5 * FT, 180000000), centred(30 * IN, 10 * FT, 0, 36 * IN),
+                        appliances=['grill', 'sink', 'refrigerator'], counter='stone', fuel='gas', name='Outdoor kitchen')},
+        'fires': {'X5': boxed(free_at(-6 * FT, -8 * FT), centred(4 * FT, 4 * FT, 0, 18 * IN), form='pit', fuel='gas')},
+        'fences': {
+            'X6': fence(FENCE_LINE, 4 * IN, 6 * FT,
+                        [{'offset': 40 * FT, 'width': 4 * FT, 'swing': 'left', 'selfClosing': True, 'name': 'Side path'}],
+                        style='privacy', material='timber', postSpacing=8 * FT, name='Side fence')}}}}
+    return d
+
+
+def oedit(fn):
+    """The back terrace, changed by fn(d) in place."""
+    d = terrace()
+    fn(d)
+    return d
+
+
+OK_ = lambda d, c: coll(d, OUTD, c)                                                # noqa: E731
+POOLS = lambda d: OK_(d, 'pools')                                                  # noqa: E731
+FENCES = lambda d: OK_(d, 'fences')                                                # noqa: E731
+SHELT = lambda d: OK_(d, 'shelters')                                               # noqa: E731
+ODER = derived_of(OUTD)
+OU = lambda *a, **k: V(OUTD, *a, **k)    # noqa: E731
+PLUNGE = {'form': 'plunge', 'basin': [6 * FT, 12 * FT], 'depth': 60 * IN, 'area': str(72 * FT2),
+          'volume': str(72 * FT2 * 60 * IN)}
+SPA = {'form': 'spa', 'basin': [6 * FT, 6 * FT], 'depth': 38 * IN, 'area': str(36 * FT2), 'volume': str(36 * FT2 * 38 * IN),
+       'room': 'R4'}
+PERGOLA = {'top': 'slats', 'bays': [2, 2], 'spacing': [69 * IN, 57 * IN], 'posts': 8}
+SIDE_FENCE = {'form': 'fence', 'length': 54 * FT, 'posts': 9, 'gates': [[40 * FT, 44 * FT]]}
+
+
+def check_outd(r):
+    x = ODER(r)
+    ensure(x['pools'] == {'X1': PLUNGE, 'X2': SPA}, x['pools'])
+    # 12' less a 6" post is 138", in two bays of 69"; 10' less 6" is 114", in two of 57"; eight posts round the perimeter
+    ensure(x['shelters'] == {'X3': PERGOLA}, x['shelters'])
+    ensure(x['kitchens'] == {'X4': {'run': 10 * FT, 'appliances': ['grill', 'sink', 'refrigerator']}}, x['kitchens'])
+    ensure(x['fires'] == {'X5': {'form': 'pit'}}, x['fires'])
+    # 34' in five spaces of at most 8', and 20' in three: nine posts
+    ensure(x['fences'] == {'X6': SIDE_FENCE}, x['fences'])
+
+
+ON_WALL_O = {'mode': 'wallFace', 'wall': 'W7', 'side': 'left', 'offset': 3 * FT, 'height': 0}
+BAD_O = lambda d: POOLS(d)['X1'].update(form='pond')                              # noqa: E731  the schema tier
+INV_O = lambda d: POOLS(d)['X1'].pop('host')                                      # noqa: E731  FS-OUTD-INV-002
+INV_O_DIAG = [('FS-OUTD-INV-002', ['X1'])]
+GATE = lambda d: FENCES(d)['X6']['gates']                                         # noqa: E731
+
+OU('examples', 'p15-back-terrace', 'The Phase 15 back terrace, read by an implementation of FS_outdoor that knows it: a '
+   'pergola over the patio, a plunge pool south of it, a spa on the walled courtyard\'s floor, an outdoor kitchen turned to '
+   'face the patio, a fire pit in the garden and a privacy fence with a gate where the side path crosses. It is valid, '
+   'reports nothing - the spa is in the courtyard, which is exterior - and derives each pool\'s basin, water depth, area '
+   'and volume, the pergola\'s bays, spacing and posts, the kitchen\'s run, the fire pit, and the fence\'s length, posts '
+   'and gate.',
+   ['1.2.1', '1.2.3', '1.2.4', '1.3.1', '2.2.1', '2.2.2', '2.3.1', '2.3.2', '2.4.1', '2.4.2', '2.4.3', '3.2.1', '3.4.1',
+    '6.1.1'], terrace(), check=check_outd)
+OU('examples', 'core-only-reader', 'The same terrace read with no known extensions: FS_outdoor is not evaluated, so '
+   'nothing of it is derived (`derived.extensions` is empty) - only what Core derives from every element\'s fallback and '
+   'host (Core 1.6.9): each one\'s box, and the placements of the hosted ones.',
+   ['1.2.1', '1.2.4', 'FS-CORE-1.6.9', 'FS-CORE-12.6.2', 'FS-CORE-13.4.1'], terrace(), registry=None,
+   check=lambda r: ensure(r['derived']['extensions'] == {} and sorted(r['derived']['fallbacks'])
+                          == ['X1', 'X2', 'X3', 'X4', 'X5', 'X6']
+                          and r['derived']['placements']['X2']['point'] == [24 * FT, 6 * FT, 0]
+                          and 'X6' not in r['derived']['placements'], r['derived']['extensions']))
+OU('examples', 'all-official-known', 'The terrace read with every official entry known, by an implementation of '
+   'FS_outdoor alone: only FS_outdoor is evaluated and derived.', ['1.2.1', '1.2.4'], terrace(),
+   registry=[entry(x) for x in OUTD_KNOWN],
+   check=lambda r: ensure(list(r['derived']['extensions']) == [OUTD], list(r['derived']['extensions'])))
+OU('examples', 'no-elements', 'FS_outdoor used with empty top-level data: valid, and every derived member empty.',
+   ['1.3.1', '6.1.1'], oedit(lambda d: d['extensions'].update({OUTD: {}})),
+   check=lambda r: ensure(ODER(r) == {'pools': {}, 'fences': {}, 'shelters': {}, 'kitchens': {}, 'fires': {}}, ODER(r)))
+OU('examples', 'every-default', 'A pool, a fence and a shelter with only the members they must have: the pool\'s coping is '
+   '300 mm and its water line 150 mm, the fence\'s posts at most 2,400 mm apart, the shelter\'s posts 150 mm square at '
+   'most 2,400 mm apart, open slats, freestanding (chapter 2\'s defaults).', ['2.2.1', '2.4.1', '6.1.1'],
+   oedit(lambda d: (POOLS(d).update(X1=boxed(free_at(7 * FT, -18 * FT), centred(3000 * MM, 4000 * MM, -1500 * MM, 0), form='pool')),
+                    SHELT(d).update(X3=boxed(free_at(7 * FT, -11 * FT // 2), centred(4950 * MM, 2550 * MM, 0, 3000 * MM))),
+                    FENCES(d).update(X6={'fallback': {'level': 'L1', 'box': outline_box([[0, -30 * FT], [6000 * MM, -30 * FT]], 0, 1800, 50 * MM)},
+                                         'form': 'fence', 'points': [[0, -30 * FT], [6000 * MM, -30 * FT]], 'width': 100 * MM}))),
+   check=lambda r: ensure(ODER(r)['pools']['X1'] == {'form': 'pool', 'basin': [2400 * MM, 3400 * MM], 'depth': 1350 * MM,
+                                                     'area': str(2400 * 3400 * MM * MM), 'volume': str(2400 * 3400 * 1350 * MM ** 3)}
+                          and ODER(r)['shelters']['X3'] == {'top': 'slats', 'bays': [2, 1], 'spacing': [2400 * MM, 2400 * MM], 'posts': 6}
+                          and ODER(r)['fences']['X6'] == {'form': 'fence', 'length': 6000 * MM, 'posts': 4, 'gates': []}, ODER(r)))
+
+
+def as_02_o(d):
+    d['floorspec'] = '0.2'
+
+
+OU('activation', 'unknown-data-not-evaluated', 'The plunge pool\'s form is "pond", which FS_outdoor\'s schema does not '
+   'allow, but no extension is known: nothing of it is evaluated, and the document is valid.', ['1.2.1'],
+   oedit(BAD_O), registry=None)
+OU('activation', 'another-version-known', 'The document uses FS_outdoor at 0.2.0, which is known (a later entry), but the '
+   'implementation implements 0.1.0: not evaluated, so the data that breaks 0.1.0\'s schema is not reported.', ['1.2.1'],
+   oedit(lambda d: (BAD_O(d), d['extensionsUsed'].update({OUTD: '0.2.0'}))), registry=[entry(OUTD, '0.2.0')])
+OU('activation', 'version-without-patch', '"0.1" equals 0.1.0 (Core 12.3), so FS_outdoor is evaluated: its data breaks '
+   'the schema, FS-OUTD-SCH-001.', ['1.2.1', '1.3.1'],
+   oedit(lambda d: (BAD_O(d), d['extensionsUsed'].update({OUTD: '0.1'}))), [('FS-OUTD-SCH-001', [])])
+OU('activation', 'declaration-object', 'A declaration object with a schema URI is its version string (Core 12.1.3): '
+   'FS_outdoor is evaluated.', ['1.2.1', '1.3.1'],
+   oedit(lambda d: (BAD_O(d), d['extensionsUsed'].update({OUTD: {'version': '0.1.0', 'schema': entry(OUTD)['schema']}}))),
+   [('FS-OUTD-SCH-001', [])])
+OU('activation', 'core-0.1-document', 'A document declaring "0.1" has no extension elements and its extension data is '
+   'opaque (Core 1.2.4): FS_outdoor is not evaluated, even though it is known.', ['1.2.1'],
+   {'floorspec': '0.1', 'project': {'name': 'Old'}, 'extensionsUsed': {OUTD: '0.1.0'}, 'extensions': {OUTD: {'colour': 'red'}}})
+OU('activation', 'core-0.2-document', 'The terrace declaring Core "0.2", a draft FS_outdoor 0.1.0 lists (1.1): FS_outdoor '
+   'is evaluated, reports nothing, and derives exactly what it derives for the terrace declaring "0.4".',
+   ['1.2.1', '1.2.3', '1.2.4', '6.1.1'], oedit(as_02_o), check=check_outd)
+OU('activation', 'core-0.3-document', 'The terrace declaring Core "0.3": FS_outdoor is evaluated, reports nothing, and '
+   'derives exactly what it derives for the terrace declaring "0.4".', ['1.2.1', '1.2.3', '1.2.4', '6.1.1'],
+   oedit(lambda d: d.update(floorspec='0.3')), check=check_outd)
+OU('activation', 'core-0.3-invariants', 'The same "0.3" terrace with its plunge pool unhosted: FS_outdoor is evaluated for '
+   'a Core 0.3 document, so the invariant is reported.', ['1.2.1', '1.2.3', '3.2.1'],
+   oedit(lambda d: (d.update(floorspec='0.3'), INV_O(d))), INV_O_DIAG)
+
+OU('order', 'core-error-first', 'A Core invariant breaks - the spa\'s floor position is outside the courtyard - and so does '
+   'FS_outdoor\'s schema: Core\'s error is reported, and FS_outdoor is not evaluated.', ['1.2.2'],
+   oedit(lambda d: (BAD_O(d), POOLS(d)['X2']['host'].update(position=[32 * FT, 6 * FT]))), [('FS-INV-503', ['X2'])])
+OU('order', 'schema-before-invariants', 'The data breaks the schema and an invariant: only FS-OUTD-SCH-001.',
+   ['1.2.2', '1.3.1'], oedit(lambda d: (BAD_O(d), SHELT(d)['X3'].pop('host'))), [('FS-OUTD-SCH-001', [])])
+OU('order', 'no-lints-when-invalid', 'An invariant breaks and a lint would apply too - the fire pit is moved into the '
+   'Kitchen: the document is invalid, so no lint is reported, FS_outdoor\'s or Core\'s.', ['1.2.2', '1.2.3'],
+   oedit(lambda d: (INV_O(d), OK_(d, 'fires')['X5']['host'].update(position=[6 * FT, 6 * FT]))), INV_O_DIAG)
+
+OU('schema', 'data-not-an-object', 'FS_outdoor\'s top-level data is an array: Core allows any JSON there, FS_outdoor\'s '
+   'schema does not.', ['1.3.1'], oedit(lambda d: d['extensions'].update({OUTD: []})), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'unknown-collection', 'A collection FS_outdoor does not define, `decks`, with no element in it: FS_outdoor\'s '
+   'registry entry names no such kind, so Core 12.4.1 reports it (FS-INV-604), and FS_outdoor is not evaluated.',
+   ['1.2.2', 'FS-CORE-12.4.1'], oedit(lambda d: ext(d, OUTD)['collections'].update(decks={})), [('FS-INV-604', [])])
+OU('schema', 'unknown-member', 'A pool has a member a pool does not define: `shape`.', ['1.3.1'],
+   oedit(lambda d: POOLS(d)['X1'].update(shape='oval')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'form-not-known', 'A pool whose form is "pond".', ['1.3.1'], oedit(BAD_O), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'pool-without-a-form', 'A pool always says what it is.', ['1.3.1'],
+   oedit(lambda d: POOLS(d)['X2'].pop('form')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'negative-coping', 'A coping is no narrower than nothing.', ['1.3.1'],
+   oedit(lambda d: POOLS(d)['X1'].update(coping=-1)), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'fence-of-one-point', 'A fence\'s line has at least two points.', ['1.3.1'],
+   oedit(lambda d: FENCES(d)['X6'].update(points=FENCE_LINE[:1])), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'fence-without-a-width', 'A fence always has a thickness.', ['1.3.1'],
+   oedit(lambda d: FENCES(d)['X6'].pop('width')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'gate-without-an-offset', 'A gate always says where it is along its line.', ['1.3.1'],
+   oedit(lambda d: GATE(d)[0].pop('offset')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'gate-of-three-leaves', 'A gate is single or double.', ['1.3.1'],
+   oedit(lambda d: GATE(d)[0].update(leaves=3)), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'gate-swinging-up', 'A gate swings to the left or the right of its line, or slides.', ['1.3.1'],
+   oedit(lambda d: GATE(d)[0].update(swing='up')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'top-not-known', 'A shelter whose top is "thatch", which no top of this version is.', ['1.3.1'],
+   oedit(lambda d: SHELT(d)['X3'].update(top='thatch')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'post-spacing-of-nothing', 'A post spacing is at least 1 mm.', ['1.3.1'],
+   oedit(lambda d: SHELT(d)['X3'].update(postSpacing=0)), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'appliance-twice', 'A kitchen lists each appliance once.', ['1.3.1'],
+   oedit(lambda d: OK_(d, 'kitchens')['X4'].update(appliances=['grill', 'sink', 'grill'])), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'appliance-not-known', 'A kitchen with a "dishwasher", which no appliance of this version is.', ['1.3.1'],
+   oedit(lambda d: OK_(d, 'kitchens')['X4'].update(appliances=['grill', 'dishwasher'])), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'fire-without-a-form', 'A fire feature always says what it is.', ['1.3.1'],
+   oedit(lambda d: OK_(d, 'fires')['X5'].pop('form')), [('FS-OUTD-SCH-001', [])])
+OU('schema', 'length-with-a-fraction', 'A length written with a fraction is not an integer, even when it is a whole number.',
+   ['1.3.1'], None, [('FS-OUTD-SCH-001', [])],
+   raw=(fmt(terrace()) + '\n').replace('"coping": 390144', '"coping": 390144.0', 1).encode('utf-8'))
+
+OU('invariants', 'pool-on-a-wall-face', 'The plunge pool hosted on the south wall\'s outer face: an outdoor room stands on '
+   'the ground, never on a wall.', ['3.2.2'], oedit(lambda d: POOLS(d)['X1'].update(host=ON_WALL_O)),
+   [('FS-OUTD-INV-001', ['X1'])])
+OU('invariants', 'fire-on-a-ceiling', 'The fire pit hosted on the Kitchen\'s ceiling.', ['3.2.2'],
+   oedit(lambda d: OK_(d, 'fires')['X5'].update(host={'mode': 'surface', 'room': 'R1', 'surface': 'ceiling', 'position': [6 * FT, 6 * FT]})),
+   [('FS-OUTD-INV-001', ['X5'])])
+OU('invariants', 'fence-on-a-wall-face', 'The fence hosted on a wall face.', ['3.2.2'],
+   oedit(lambda d: FENCES(d)['X6'].update(host=ON_WALL_O)), [('FS-OUTD-INV-001', ['X6'])])
+OU('invariants', 'pool-without-a-host', 'The plunge pool has no host: its box has no place.', ['3.2.1'], oedit(INV_O), INV_O_DIAG)
+OU('invariants', 'kitchen-without-a-host', 'The kitchen has no host.', ['3.2.1'],
+   oedit(lambda d: OK_(d, 'kitchens')['X4'].pop('host')), [('FS-OUTD-INV-002', ['X4'])])
+OU('invariants', 'fence-hosted-free', 'The fence placed with a free host at the level\'s origin: its line is in that frame, '
+   'which is the level\'s own. Valid, and what it derives is unchanged.', ['3.2.1', '3.2.2', '6.1.1'],
+   oedit(lambda d: FENCES(d)['X6'].update(host=free_at(0, 0))),
+   check=lambda r: ensure(ODER(r)['fences'] == {'X6': SIDE_FENCE}, ODER(r)['fences']))
+OU('invariants', 'coping-leaves-no-basin', 'The plunge pool\'s coping is 4\' wide: twice it is its whole width, 8\'.',
+   ['2.2.1'], oedit(lambda d: POOLS(d)['X1'].update(coping=4 * FT)), [('FS-OUTD-INV-003', ['X1'])])
+OU('invariants', 'coping-one-unit-short', 'The plunge pool\'s coping is a base unit less than 4\': a basin two base units '
+   'wide. Valid.', ['2.2.1', '6.1.1'], oedit(lambda d: POOLS(d)['X1'].update(coping=4 * FT - 1)),
+   check=lambda r: ensure(ODER(r)['pools']['X1']['basin'] == [2, 6 * FT + 2], ODER(r)['pools']['X1']))
+OU('invariants', 'default-coping-too-wide', 'A spa 600 mm square with no coping given: the default 300 mm on each side '
+   'leaves nothing.', ['2.2.1'],
+   oedit(lambda d: (POOLS(d)['X2'].pop('coping'), POOLS(d)['X2']['fallback'].update(box=centred(600 * MM, 600 * MM, -24 * IN, 18 * IN)))),
+   [('FS-OUTD-INV-003', ['X2'])])
+OU('invariants', 'water-at-the-floor', 'The spa\'s water line is 42" below its coping\'s top, at its floor: no water.',
+   ['2.2.2'], oedit(lambda d: POOLS(d)['X2'].update(waterLine=42 * IN)), [('FS-OUTD-INV-004', ['X2'])])
+OU('invariants', 'fence-with-a-repeated-point', 'The fence\'s line repeats its corner; its gate is not tested, since its '
+   'line has no length (5.2).', ['3.4.1'],
+   oedit(lambda d: FENCES(d)['X6'].update(points=[FENCE_LINE[0], FENCE_LINE[1], FENCE_LINE[1], FENCE_LINE[2]])),
+   [('FS-OUTD-INV-005', ['X6'])])
+OU('invariants', 'fence-round-a-pool', 'A fence X7 round the plunge pool, 2\' clear of it, ending where it starts: valid; '
+   'its line closes, so it has as many posts as spaces - 12\' in two, 18\' in three, 12\' in two and 18\' in three.',
+   ['3.4.1', '6.1.1'],
+   oedit(lambda d: FENCES(d).update(X7=fence([F(1, -9), F(1, -27), F(13, -27), F(13, -9), F(1, -9)], 2 * IN, 4 * FT,
+                                             postSpacing=6 * FT, style='mesh', material='metal'))),
+   check=lambda r: ensure(ODER(r)['fences']['X7'] == {'form': 'fence', 'length': 60 * FT, 'posts': 10, 'gates': []},
+                          ODER(r)['fences']['X7']))
+OU('invariants', 'gate-past-the-end', 'The gate moved to 51\' along a 54\' line: 4\' wide, it runs a foot past the end.',
+   ['2.3.1'], oedit(lambda d: GATE(d)[0].update(offset=51 * FT)), [('FS-OUTD-INV-006', ['X6'])])
+OU('invariants', 'gate-to-the-end', 'The gate moved to 50\': it ends exactly where the line does. Valid.', ['2.3.1', '6.1.1'],
+   oedit(lambda d: GATE(d)[0].update(offset=50 * FT)),
+   check=lambda r: ensure(ODER(r)['fences']['X6']['gates'] == [[50 * FT, 54 * FT]], ODER(r)['fences']['X6']))
+OU('invariants', 'gate-round-a-corner', 'The gate moved to 32\': it turns the fence\'s corner at 34\'. Valid (2.3).',
+   ['2.3.1'], oedit(lambda d: GATE(d)[0].update(offset=32 * FT)))
+OU('invariants', 'gates-overlapping', 'A second gate at 42\', 3\' wide: it overlaps the first, which runs to 44\'.',
+   ['2.3.2'], oedit(lambda d: GATE(d).append({'offset': 42 * FT, 'width': 3 * FT})), [('FS-OUTD-INV-007', ['X6'])])
+OU('invariants', 'gates-touching', 'A second gate at 44\', double, sliding: it meets the first at a point. Valid, and the '
+   'gates are derived in order.', ['2.3.2', '6.1.1'],
+   oedit(lambda d: GATE(d).insert(0, {'offset': 44 * FT, 'width': 8 * FT, 'leaves': 2, 'swing': 'slide', 'name': 'Drive'})),
+   check=lambda r: ensure(ODER(r)['fences']['X6']['gates'] == [[40 * FT, 44 * FT], [44 * FT, 52 * FT]], ODER(r)['fences']['X6']))
+OU('invariants', 'posts-as-wide-as-the-shelter', 'The pergola\'s posts are 10\' square: as wide as it is.', ['2.4.1'],
+   oedit(lambda d: SHELT(d)['X3'].update(postSize=10 * FT, postSpacing=12 * FT)), [('FS-OUTD-INV-008', ['X3'])])
+OU('invariants', 'posts-closer-than-wide', 'The pergola\'s posts at most 6" apart, as wide as they are.', ['2.4.2'],
+   oedit(lambda d: SHELT(d)['X3'].update(postSpacing=6 * IN)), [('FS-OUTD-INV-009', ['X3'])])
+OU('invariants', 'clear-to-the-top', 'The pergola is clear to 9\' 6", its top.', ['2.4.3'],
+   oedit(lambda d: SHELT(d)['X3'].update(clearHeight=114 * IN)), [('FS-OUTD-INV-010', ['X3'])])
+OU('invariants', 'every-one-once', 'Six elements break six rules at once: each is reported once, naming its element.',
+   ['1.2.3', '2.2.1', '2.2.2', '2.3.1', '2.4.1', '3.2.1', '3.2.2'],
+   oedit(lambda d: (INV_O(d), POOLS(d)['X1'].update(coping=5 * FT), POOLS(d)['X2'].update(waterLine=5 * FT),
+                    OK_(d, 'kitchens')['X4'].update(host=ON_WALL_O), GATE(d)[0].update(offset=60 * FT),
+                    SHELT(d)['X3'].update(postSize=12 * FT, postSpacing=13 * FT))),
+   [('FS-OUTD-INV-001', ['X4']), ('FS-OUTD-INV-002', ['X1']), ('FS-OUTD-INV-003', ['X1']), ('FS-OUTD-INV-004', ['X2']),
+    ('FS-OUTD-INV-006', ['X6']), ('FS-OUTD-INV-008', ['X3'])])
+
+OU('lints', 'fence-grown-past-its-box', 'The fence\'s box is its line grown by 1", not by half its 4" width.', ['1.2.3', '3.3.2'],
+   oedit(lambda d: FENCES(d)['X6']['fallback'].update(box={**outline_box(FENCE_LINE, 0, 0, IN), 'max': outline_box(FENCE_LINE, 0, 0, IN)['max'][:2] + [6 * FT]})),
+   [('FS-OUTD-LINT-001', ['X6'])])
+OU('lints', 'fence-exactly-in-its-box', 'The fence\'s box is exactly its line grown by 2": no lint.', ['1.2.3'],
+   oedit(lambda d: FENCES(d)['X6']['fallback'].update(box={**outline_box(FENCE_LINE, 0, 0, 2 * IN), 'max': outline_box(FENCE_LINE, 0, 0, 2 * IN)['max'][:2] + [6 * FT]})))
+OU('lints', 'fire-pit-in-the-kitchen', 'The fire pit moved to the middle of the Kitchen: an outdoor room indoors.',
+   ['1.2.3', '6.1.1'], oedit(lambda d: OK_(d, 'fires')['X5']['host'].update(position=[6 * FT, 6 * FT])),
+   [('FS-OUTD-LINT-002', ['R1', 'X5'])])
+OU('lints', 'spa-in-a-room-without-a-function', 'The spa in a courtyard that has no function once its own is removed: not '
+   'exterior, so an outdoor room indoors.', ['1.2.3'],
+   oedit(lambda d: d['rooms']['R4'].pop('function')), [('FS-OUTD-LINT-002', ['R4', 'X2'])])
+OU('lints', 'kitchen-on-a-location-line', 'The kitchen\'s position on the Kitchen\'s south wall\'s location line: in no room, '
+   'so no lint.', ['1.2.3', '6.1.1'], oedit(lambda d: OK_(d, 'kitchens')['X4']['host'].update(position=[6 * FT, 0])),
+   check=lambda r: ensure('room' not in ODER(r)['kitchens']['X4'], ODER(r)['kitchens']))
+OU('lints', 'every-lint-once', 'The fence\'s box too small and a pergola X7 in the Bath: each lint once.', ['1.2.3'],
+   oedit(lambda d: (FENCES(d)['X6']['fallback'].update(box={**outline_box(FENCE_LINE, 0, 0, IN), 'max': outline_box(FENCE_LINE, 0, 0, IN)['max'][:2] + [6 * FT]}),
+                    SHELT(d).update(X7=boxed(free_at(16 * FT, 9 * FT), centred(4 * FT, 4 * FT, 0, 8 * FT))))),
+   [('FS-OUTD-LINT-001', ['X6']), ('FS-OUTD-LINT-002', ['R2', 'X7'])])
+
+OU('derived', 'attached-porch', 'A covered porch X7 attached to the house\'s west wall, its back to the house: a free host '
+   '5\' west of the Kitchen turned to face west, 10\' deep and 16\' wide. Two bays deep and two wide, and no posts along '
+   'its back: five.', ['2.4.1', '6.1.1'],
+   oedit(lambda d: SHELT(d).update(X7=boxed(free_at(-5 * FT, 6 * FT, 180000000), centred(10 * FT, 16 * FT, 0, 132 * IN), top='solid',
+                                            postSize=6 * IN, postSpacing=8 * FT, attached=True, clearHeight=102 * IN))),
+   check=lambda r: ensure(ODER(r)['shelters']['X7'] == {'top': 'solid', 'bays': [2, 2], 'spacing': [57 * IN, 93 * IN], 'posts': 5},
+                          ODER(r)['shelters']['X7']))
+OU('derived', 'spacing-rounded-once', 'A shade sail X7 whose posts\' centres span 1 m less a base unit along x and 3 m along '
+   'y, at most 600,000 base units apart: three bays of 426,666.33..., rounded once to 426,666, and seven of 548,571.43..., '
+   'rounded to 548,571.', ['6.1.1'],
+   oedit(lambda d: SHELT(d).update(X7=boxed(free_at(-20 * FT, -20 * FT), {'min': [0, 0, 0], 'max': [1100 * MM - 1, 3100 * MM, 3000 * MM]},
+                                            top='sail', postSize=100 * MM, postSpacing=600000))),
+   check=lambda r: ensure(ODER(r)['shelters']['X7'] == {'top': 'sail', 'bays': [3, 7], 'spacing': [426666, 548571], 'posts': 20},
+                          ODER(r)['shelters']['X7']))
+OU('derived', 'spacing-a-tie', 'A shade sail X7 whose posts\' centres span 2,560,001 base units along x in two bays: '
+   '1,280,000.5, a tie, rounded to even, 1,280,000 (Core 2.2).', ['6.1.1'],
+   oedit(lambda d: SHELT(d).update(X7=boxed(free_at(-20 * FT, -20 * FT), {'min': [0, 0, 0], 'max': [128000 + 2560001, 128000 + 1280000, 3000 * MM]},
+                                            top='sail', postSize=128000, postSpacing=1280001))),
+   check=lambda r: ensure(ODER(r)['shelters']['X7'] == {'top': 'sail', 'bays': [2, 1], 'spacing': [1280000, 1280000], 'posts': 6},
+                          ODER(r)['shelters']['X7']))
+OU('derived', 'fence-on-a-diagonal', 'A garden wall X7 along a diagonal of [3\', 4\'] and on 1 mm to the east: 5\' exactly, '
+   'and then 1 mm - in one space of 10\' and one more; three piers.', ['6.1.1'],
+   oedit(lambda d: FENCES(d).update(X7={**fence([F(-20, -20), F(-17, -16), [-17 * FT + MM, -16 * FT]], 8 * IN, 3 * FT, postSpacing=10 * FT,
+                                                material='brick'), 'form': 'wall'})),
+   check=lambda r: ensure(ODER(r)['fences']['X7'] == {'form': 'wall', 'length': 5 * FT + MM, 'posts': 3, 'gates': []},
+                          ODER(r)['fences']['X7']))
+OU('derived', 'pool-turned', 'The plunge pool\'s host turned 90 degrees: its basin is the box\'s, in its frame, whichever way it '
+   'faces - unchanged.', ['6.1.1'], oedit(lambda d: POOLS(d)['X1']['host'].update(rotation=90000000)),
+   check=lambda r: ensure(ODER(r)['pools']['X1'] == PLUNGE, ODER(r)['pools']['X1']))
+
+
+def bath_options(d):
+    """Core 0.3 design options for the courtyard: option A (OP1, the primary) keeps the spa X2; option B (OP2) puts a fire
+    table X7 there instead."""
+    d['optionSets'] = {'OS1': {'primary': 'OP1', 'name': 'Courtyard'}}
+    d['options'] = {'OP1': {'set': 'OS1', 'name': 'Spa'}, 'OP2': {'set': 'OS1', 'name': 'Fire table'}}
+    POOLS(d)['X2']['option'] = 'OP1'
+    OK_(d, 'fires')['X7'] = boxed(dict(COURT_FLOOR), centred(30 * IN, 5 * FT, 0, 24 * IN), form='table', fuel='propane', option='OP2')
+
+
+OU('options', 'courtyard-option-a', 'Courtyard options A and B as Core 0.3 design options (Core 19): the spa in A, the '
+   'primary, and a fire table in B. FS_outdoor\'s data matches its schema with the elements\' `option` members, and it is '
+   'evaluated in each checked design; the primary design is derived, with A\'s spa.',
+   ['1.2.1', '1.2.4', '1.3.1', '6.1.1', 'FS-CORE-19.3.1'], oedit(bath_options),
+   check=lambda r: ensure('X2' in ODER(r)['pools'] and 'X7' not in ODER(r)['fires'], ODER(r)))
+OU('options', 'courtyard-option-b', 'The same document, deriving the design that chooses B (design.json): the fire table, '
+   'in the courtyard, and no spa.', ['1.2.4', '6.1.1', 'FS-CORE-19.3.1'], oedit(bath_options), design={'OS1': 'OP2'},
+   check=lambda r: ensure(ODER(r)['fires']['X7'] == {'form': 'table', 'room': 'R4'} and 'X2' not in ODER(r)['pools'], ODER(r)))
+OU('options', 'invariant-in-option-b', 'Option B\'s fire table hosted on the courtyard\'s ceiling: FS-OUTD-INV-001 is '
+   'reported for option B\'s design, with `design`.', ['1.2.1', '1.2.3', '3.2.2'],
+   oedit(lambda d: (bath_options(d), OK_(d, 'fires')['X7']['host'].update(surface='ceiling'))), [('FS-OUTD-INV-001', ['X7'], 'OP2')])
+
+
+def outd_derived(d):
+    data = json.dumps(d).encode('utf-8')
+    result, _, _ = check(data, ext_reader(data), json.dumps([entry(OUTD)]).encode('utf-8'), official.implemented(OUTD))
+    assert result['valid'], result['diagnostics']
+    return result['derived']['extensions'][OUTD]
+
+
+with open(os.path.join(REPO, 'registry', OUTD, 'library.json'), encoding='utf-8') as _f:
+    OUTDOOR_LIBRARY = json.load(_f)['items']
+
+
+def library_element(item):
+    el = copy.deepcopy(OUTDOOR_LIBRARY[item]['element'])
+    return el
+
+
+OO = lambda *a, **k: O(OUTD, *a, **k)    # noqa: E731
+OO('place-a-plunge-pool', 'The terrace with no plunge pool; placeElement puts the starter item plunge-pool-8x14 (chapter 7) '
+   'south of the patio with a free host. It commits, valid under FS_outdoor: its basin 6\' x 12\', its water 5\' deep.',
+   ['1.2.1', '3.2.1', '6.1.1', 'FS-OPS-4.10.1'], oedit(lambda d: POOLS(d).pop('X1')),
+   {'batch': [{'op': 'placeElement', 'extension': OUTD, 'collection': 'pools', 'id': 'X7',
+               'host': {'mode': 'free', 'level': 'L1', 'at': ["7'", "-18'"]}, 'element': library_element('plunge-pool-8x14')}]},
+   check=lambda r, B: ensure(outd_derived(B)['pools']['X7'] == {**PLUNGE, 'form': 'plunge'} and POOLS(B)['X7']['fallback']['level'] == 'L1',
+                             outd_derived(B)['pools']))
+OO('stretch-the-pergola', 'resizeElement stretches the pergola from 12\' to 20\' deep, from its back: only its box changes, and '
+   'its posts re-space - 19\' 6" between the outer centres is three bays of 78", ten posts.',
+   ['2.4.1', '6.1.1', 'FS-OPS-4.11.1'], terrace(),
+   {'batch': [{'op': 'resizeElement', 'element': 'Pergola', 'anchor': 'back', 'depth': "20'"}]},
+   check=lambda r, B: ensure(outd_derived(B)['shelters']['X3'] == {'top': 'slats', 'bays': [3, 2], 'spacing': [78 * IN, 57 * IN], 'posts': 10}
+                             and SHELT(B)['X3']['postSize'] == 6 * IN, outd_derived(B)['shelters']))
+OO('add-a-gate', 'setProperty of X6 /gates adds a double gate where the drive crosses, 10\' along the fence. It commits, and '
+   'the fence derives both gates in order.', ['2.3.1', '2.3.2', '6.1.1', 'FS-OPS-2.3.1'], terrace(),
+   {'batch': [{'op': 'setProperty', 'id': 'X6', 'path': '/gates',
+               'value': [{'offset': 40 * FT, 'width': 4 * FT, 'swing': 'left', 'selfClosing': True, 'name': 'Side path'},
+                         {'offset': 10 * FT, 'width': 10 * FT, 'leaves': 2, 'swing': 'right', 'name': 'Drive'}]}]},
+   check=lambda r, B: ensure(outd_derived(B)['fences']['X6']['gates'] == [[10 * FT, 20 * FT], [40 * FT, 44 * FT]],
+                             outd_derived(B)['fences']['X6']))
+OO('gate-past-the-end-is-rejected', 'setProperty of X6 /gates/0/offset moves the gate to 52\': it runs past the line\'s end, '
+   'the result breaks 2.3.1, and an applier that implements FS_outdoor and knows it rejects the batch (Ops 1.2.3).',
+   ['2.3.1', '1.2.1', 'FS-OPS-1.2.3'], terrace(),
+   {'batch': [{'op': 'setProperty', 'id': 'X6', 'path': '/gates/0/offset', 'value': 52 * FT}]},
+   'rejected', [('FS-OUTD-INV-006', ['X6'])])
+OO('move-the-fire-pit', 'moveElement moves the fire pit onto the courtyard\'s floor, beside the spa: it is in R4 now, an '
+   'exterior room. It commits.', ['1.2.1', '6.1.1', 'FS-OPS-4.10.1'], terrace(),
+   {'batch': [{'op': 'moveElement', 'element': 'X5', 'host': {'mode': 'surface', 'room': 'Courtyard', 'surface': 'floor', 'at': ["25'", "2'"]}}]},
+   check=lambda r, B: ensure(outd_derived(B)['fires']['X5'] == {'form': 'pit', 'room': 'R4'}, outd_derived(B)['fires']))
+
+
 # ============================================================================= write
 
 def suite_dir(name):
@@ -4787,7 +5190,7 @@ def write_all(prune=False):
             for p in problems:
                 print('  ' + p)
     if prune:
-        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE):
+        for name in ALL + (STRC, LAND, LGHT, VIEW, RENO, ANNO, SITE, OUTD):
             base = suite_dir(name)
             for g in sorted(os.listdir(base)) if os.path.isdir(base) else []:
                 for n in sorted(os.listdir(os.path.join(base, g))):

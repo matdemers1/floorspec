@@ -418,11 +418,11 @@ export function elementExtensionData(doc: unknown, name: string): [string, unkno
  * data, and - for an extension whose schema has `#/$defs/coreElements` (FS_structural), given as
  * `validateOn` - the data on every element, checked as `{ <collection>: data }` against that
  * definition. An Ops test's request must match the Ops 0.2 request schema - Ops 0.3's when its
- * document declares "0.3".
+ * document declares "0.3", and Ops 0.4's, with resizeElement, when it declares "0.4" (FS_outdoor's).
  */
 export function checkExtensionSuite(suite: string, name: string, code: string, validateData: ValidateFunction,
   validateRequest: ValidateFunction, base = suite, validateRequest03: ValidateFunction = validateRequest,
-  validateOn?: ValidateFunction): SuiteResult {
+  validateOn?: ValidateFunction, validateRequest04: ValidateFunction = validateRequest03): SuiteResult {
   const result: SuiteResult = { checked: 0, skipped: 0, problems: [] };
   for (const dir of testDirs(suite)) {
     const rel = relative(base, dir) || '.';
@@ -431,10 +431,11 @@ export function checkExtensionSuite(suite: string, name: string, code: string, v
     };
     const codes = (expected.diagnostics ?? []).map((d) => String(d.code));
     if (existsSync(join(dir, 'request.json'))) {
-      // Ops 0.2, or Ops 0.3 for a document declaring "0.3", as the suite's Core reader is chosen.
-      const v03 = (parseForSchema(readFileSync(join(dir, 'input.json'), 'utf8')) as { floorspec?: unknown } | null)?.floorspec === '0.3';
-      const request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), v03 ? validateRequest03 : validateRequest);
-      if (!request.valid) result.problems.push(`${rel}: the Ops ${v03 ? '0.3' : '0.2'} request schema rejects request.json:\n    ${formatErrors(request.errors).join('\n    ')}`);
+      // Ops 0.2, or Ops 0.3 or 0.4 for a document declaring "0.3" or "0.4", as the suite's Core reader is chosen.
+      const declared = (parseForSchema(readFileSync(join(dir, 'input.json'), 'utf8')) as { floorspec?: unknown } | null)?.floorspec;
+      const v = declared === '0.4' ? '0.4' : declared === '0.3' ? '0.3' : '0.2';
+      const request = validateText(readFileSync(join(dir, 'request.json'), 'utf8'), v === '0.4' ? validateRequest04 : v === '0.3' ? validateRequest03 : validateRequest);
+      if (!request.valid) result.problems.push(`${rel}: the Ops ${v} request schema rejects request.json:\n    ${formatErrors(request.errors).join('\n    ')}`);
       result.checked++;
       continue;
     }

@@ -21,6 +21,8 @@
     "library:us:check": "tsx tools/us-library.ts --check",
     "library:landscape": "tsx tools/landscape-library.ts",
     "library:landscape:check": "tsx tools/landscape-library.ts --check",
+    "library:outdoor": "tsx tools/outdoor-library.ts",
+    "library:outdoor:check": "tsx tools/outdoor-library.ts --check",
     "registry:check": "tsx tools/registry-gates.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tools/*.test.ts",
